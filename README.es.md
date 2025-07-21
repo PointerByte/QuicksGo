@@ -1,8 +1,8 @@
-# GoFury
+# QuicksGo
 Velocidad imparable. Control total. Microservicios sin límites.
 
 # Descripción 
-GoFury es un framework moderno en Golang diseñado para construir aplicaciones robustas, escalables y listas para producción en tiempo récord. Combinando el poder de Go con una arquitectura centrada en la eficiencia, GoFury simplifica la creación de microservicios, APIs RESTful, GraphQL, gRPC, sistemas distribuidos y aplicaciones backend de alto rendimiento.
+QuicksGo es un framework moderno en Golang diseñado para construir aplicaciones robustas, escalables y listas para producción en tiempo récord. Combinando el poder de Go con una arquitectura centrada en la eficiencia, QuicksGo simplifica la creación de microservicios, APIs RESTful, GraphQL, gRPC, sistemas distribuidos y aplicaciones backend de alto rendimiento.
 
 # Características principales:
 
@@ -24,7 +24,7 @@ GoFury es un framework moderno en Golang diseñado para construir aplicaciones r
 
 ☁️ Listo para despliegue en Docker, Kubernetes y serverless.
 
-# ¿Por qué GoFury?
+# ¿Por qué QuicksGo?
 
 Porque necesitas la velocidad de Go, pero sin renunciar a la productividad de un framework completo.
 
