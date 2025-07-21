@@ -1,37 +1,90 @@
 {
-    "service": {
-        "name": "GoFury",
-        "port": "8080"
-    },
-    "api.api-rest": [
-        {
-            "name": "GoFury-API-Rest",
-            "standar.url": "gofury-api-rest/v1",
-            "auth": {
-
+    "server": {
+        "name": "@{env.name}",
+        "port": "@{env.port}",
+        "gin": "debug",
+        "service": "trace",
+        "tls": {
+            "enble": false,
+            "autotls": {
+                "enable": false,
+                "domains": []
+            },
+            "custom": {
+                "minVersion": "1.2",
+                "keys": {
+                    "private.file": "",
+                    "public.file": ""
+                }
             }
         }
-    ],
-    "api.api-graphql": [
+    },
+    "endpoints": [
         {
-            "name": "GoFury-API-Rest",
-            "standar.url": "gofury-graphql/v1",
-            "auth": {
-
+            "name": "QuickGoExamplesApiRest",
+            "type": "apiRest",
+            "url": {
+                "content": "application/json",
+                "context.path": "@{env.name}/v1",
+                "health": "status"
+            },
+            "success": {
+                "defaultBody.enable": true,
+                "file":"target/resp/successDefault.json"
+            },
+            "enable": {
+                "defaultBody.enable": true,
+                "file":"target/resp/errorDefault.json"
+            },
+            "compression": {
+                "enable": true,
+                "min-response-size": 1024
+            },
+            "authJWT": {
+                "header.name": "Authorization",
+                "enble": false,
+                "signature": {
+                    "algorithm": "",
+                    "privateKey.file": "",
+                    "publicKey.file": ""
+                },
+                "exempt.urls": [
+                    "status"
+                ]
+            }, 
+            "session": {
+                "enable": false,
+                "timeout.seconds": 1800
             }
         }
     ],
     "logger": {
-        "time": {
-            "key": "time",
-            "format": "2006-01-02T15:04:05.000Z07:00"
+        "pattern.endpoint": {
+            "console": "%d{2006-01-02T15:04:05} - %@{opentelemetry.context.traceId} - %@{opentelemetry.context.spanId} - %msg - %level - %timeTotal%n",
+            "file": "%d{2006-01-02T15:04:05} - %@{opentelemetry.context.traceId} - %@{opentelemetry.context.spanId} - %msg - %level - %timeTotal%n",
+            "format.json": {
+                "enable": true,
+                "pattern.keys": "time - traceId - spanId - msg - lavel - timeTotal"
+            }
         },
-        "level": {
-            "key": "level",
-            "priorityLevel": "info"
+        "pattern.jobs": {
+            "console": "%d{2006-01-02T15:04:05} %@{opentelemetry.context.traceId} %@{opentelemetry.context.spanId} %msg %level %additional%n",
+            "file": "%d{2006-01-02T15:04:05} %@{opentelemetry.context.traceId} %@{opentelemetry.context.spanId} %msg %level %additional%n",
+            "format.json": {
+                "enable": true,
+                "pattern.keys": "time traceId spanId msg lavel timeTotal additional"
+            }
         },
-        "msg": {
-            "key": "message"
+        "file": {
+            "name": "@{server.name}.log",
+            "path": "logs"
+        },
+        "logback": {
+            "rollingpolicy": {
+                "max-file-size": "10MB",
+                "max-history": 7,
+                "total-size-cap": "100MB"
+            }
         }
     }
 }

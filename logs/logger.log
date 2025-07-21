@@ -1,0 +1,4 @@
+{"fields":{"pid":30540},"level":"INFO","msg":"Application started","time":"2025-07-20T23:24:29.402-06:00"}
+{"fields":{},"level":"DEBUG","msg":"Debugging mode on","time":"2025-07-20T23:24:29.404-06:00"}
+{"fields":{"path":"logs"},"level":"WARNING","msg":"Low disk space","time":"2025-07-20T23:24:29.405-06:00"}
+{"fields":{"error":"sample error"},"level":"ERROR","msg":"An error occurred","time":"2025-07-20T23:24:29.405-06:00"}

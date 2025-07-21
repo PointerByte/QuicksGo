@@ -27,5 +27,4 @@ func main() {
 	log.Debug("Debugging mode on")
 	log.Warn("Low disk space", "path", filepath.Join("logs"))
 	log.Error("An error occurred", "error", "sample error")
-
 }

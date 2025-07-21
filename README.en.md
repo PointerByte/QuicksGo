@@ -16,7 +16,7 @@ QuicksGo is a modern framework in Golang designed to build robust, scalable, pro
 
 📊 Integrated production-ready monitoring and logging.
 
-Compatible with gRPC, REST, GraphQL and WebAssembly.
+Compatible with gRPC, REST and GraphQL.
 
 🔐 Modern security: JWT, OAuth2, rate limiting and more.
 
