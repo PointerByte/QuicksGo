@@ -1,0 +1,37 @@
+{
+    "service": {
+        "name": "GoFury",
+        "port": "8080"
+    },
+    "api.api-rest": [
+        {
+            "name": "GoFury-API-Rest",
+            "standar.url": "gofury-api-rest/v1",
+            "auth": {
+
+            }
+        }
+    ],
+    "api.api-graphql": [
+        {
+            "name": "GoFury-API-Rest",
+            "standar.url": "gofury-graphql/v1",
+            "auth": {
+
+            }
+        }
+    ],
+    "logger": {
+        "time": {
+            "key": "time",
+            "format": "2006-01-02T15:04:05.000Z07:00"
+        },
+        "level": {
+            "key": "level",
+            "priorityLevel": "info"
+        },
+        "msg": {
+            "key": "message"
+        }
+    }
+}
