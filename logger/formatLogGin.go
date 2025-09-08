@@ -41,6 +41,16 @@ func getLevelCode(status int) level {
 	}
 }
 
+func MiddlewareErrorMessage() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		if ctx.Request.Response.StatusCode >= 200 && ctx.Request.Response.StatusCode <= 299 {
+			ctx.Error(errors.New(string(msgSuccess)))
+			return
+		}
+		ctx.Error(errors.New(string(msgError)))
+	}
+}
+
 func CustomLogFormat() gin.HandlerFunc {
 	return gin.LoggerWithFormatter(func(params gin.LogFormatterParams) string {
 		// ---------- Trace / Span ----------
@@ -78,6 +88,7 @@ func CustomLogFormat() gin.HandlerFunc {
 			IdTrace:    traceID,
 			IdSpan:     spanID,
 			Level:      getLevelCode(params.Request.Response.StatusCode),
+			Message:    params.ErrorMessage,
 			Attributes: attrs,
 			Method:     params.Method,
 			Line:       line,
@@ -87,6 +98,6 @@ func CustomLogFormat() gin.HandlerFunc {
 		if err != nil {
 			log.Fatal(err)
 		}
-		return string(jsonBytes)
+		return string(jsonBytes) + "\n"
 	})
 }

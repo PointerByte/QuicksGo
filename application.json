@@ -8,10 +8,8 @@
         "group": "/service-template/v1"
     },
     "jwt.active": false,
+    "logger.dir": "logs",
     "otlp.exporter.enable": false,
-    "logger": {
-        "dir": "./logs"
-    },
     "brms": {
         "enable": false,
         "sistemas": {

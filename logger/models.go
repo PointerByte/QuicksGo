@@ -4,7 +4,7 @@ type LogEntry struct {
 	Timestamp  string         `json:"timestamp"`
 	IdTrace    string         `json:"idTrace"`
 	IdSpan     string         `json:"idSpan"`
-	Attributes map[string]any `json:"attributes"`
+	Attributes map[string]any `json:"attributes,omitempty"`
 	Level      level          `json:"level"`
 	Message    string         `json:"message"`
 	Method     string         `json:"method"`

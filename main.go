@@ -19,7 +19,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-func loadConfig() error {
+func LoadConfig() error {
+	viper.SetConfigFile(".env.local")
+	viper.SetConfigType("env")
 	viper.SetConfigName("application")
 	viper.SetConfigType("json")
 	viper.AddConfigPath(".")
@@ -28,7 +30,7 @@ func loadConfig() error {
 	return viper.ReadInConfig()
 }
 
-func createApp() (*http.Server, *gin.RouterGroup) {
+func CreateApp() (*http.Server, *gin.RouterGroup) {
 	// Mode Gin
 	gin.SetMode(gin.ReleaseMode)
 	// Initialize engine
@@ -54,7 +56,7 @@ func createApp() (*http.Server, *gin.RouterGroup) {
 	return srv, apiGroup
 }
 
-func shutdown(srv *http.Server) error {
+func Shutdown(srv *http.Server) error {
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
@@ -71,17 +73,20 @@ func shutdown(srv *http.Server) error {
 }
 
 func main() {
-	if err := loadConfig(); err != nil {
+	if err := LoadConfig(); err != nil {
 		log.Fatal(err)
 	}
-	srv, _ := createApp()
+	if err := logger.InitLogger(); err != nil {
+		log.Fatal(err)
+	}
+	srv, _ := CreateApp()
 	go func() {
 		//log.Printf("Servidor escuchando en http://localhost:%s (mode=%s)", port, gin.Mode())
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("error starting server: %v", err)
 		}
 	}()
-	if err := shutdown(srv); err != nil {
+	if err := Shutdown(srv); err != nil {
 		log.Fatal(err)
 	}
 }

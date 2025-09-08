@@ -6,3 +6,10 @@ const (
 	INFO  level = "INFO"
 	ERROR level = "ERROR"
 )
+
+type messageLog string
+
+const (
+	msgSuccess messageLog = "successful operation"
+	msgError   messageLog = "operation failure"
+)
