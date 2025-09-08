@@ -1,104 +1,25 @@
 {
+    "service": {
+        "name": "service-template",
+        "version": "0.0.1"
+    },
     "server": {
-        "name": "@{env.name}",
-        "port": "@{env.port}",
-        "gin": "debug",
-        "service": "debug",
-        "tls": {
-            "enble": false,
-            "custom": {
-                "enable": false,
-                "maxVersion": "1.3",
-                "minVersion": "1.2",
-                "nextProtos": ["h1", "h2"],
-                "cert.file": "",
-                "keys": {
-                    "private.file": "",
-                    "public.file": ""
-                }
-            },
-            "autotls": {
-                "enable": false,
-                "domains": []
-            }
-        }
+        "port": ":8000",
+        "group": "/service-template/v1"
     },
-    "endpoints": {
-        "name": "QuickGoExamplesApiRest",
-        "type": "apiRest",
-        "url": {
-            "context.path": "@{server.name}/v1",
-            "health": "status"
-        },
-        "header": {
-            "content": ["application/json"]
-        },
-        "defaultBody": {
-            "enable": true,
-            "success.file":"target/resp/successDefault.json",
-            "error.file":"target/resp/errorDefault.json"
-        },
-        "compression": {
-            "enable": true,
-            "min-response-size": 1024
-        },
-        "authJWT": {
-            "header.name": "Authorization",
-            "enble": false,
-            "signature": {
-                "algorithm": "",
-                "privateKey.file": "",
-                "publicKey.file": ""
-            },
-            "exempt.urls": [
-                "status"
-            ]
-        },
-        "session": {
-            "enable": false,
-            "timeout.seconds": 1800
-        }
-    },
+    "jwt.active": false,
+    "otlp.exporter.enable": false,
     "logger": {
-        "context": {
-            "opentelemetry.traces": {
-                "enable": true,
-                "traces": {
-                    "pattern": {
-                        "body": "%@{logger.context.spanRecorder.ended.name} %@{logger.context.spanRecorder.ended.spanIdParent} %@{logger.context.spanRecorder.ended.spanId} %@{logger.context.spanRecorder.ended.startTime} %@{logger.context.spanRecorder.ended.startTime} %@{logger.context.spanRecorder.ended.endTime} %@{logger.context.spanRecorder.ended.duration} %@{logger.context.spanRecorder.ended.attributes}%n",
-                        "keys": "name spanIdParent spanId startTime endTime duration attributes"
-                    }
-                }
-            }
-        },
-        "pattern.endpoint": {
-            "console": "%t{2006-01-02T15:04:05} %@{logger.context.traceId} %@{logger.context.spanId} %msg %level %@{logger.http} %@{logger.context.opentelemetry.traces} %additional%n",
-            "file": "%t{2006-01-02T15:04:05} %@{logger.context.traceId} %@{logger.context.spanId} %msg %level %@{logger.http}%n %@{logger.context.opentelemetry.traces} %additional%n",
-            "keys": "time traceId spanId msg lavel http traces additional",
-            "format.json": {
-                "enable": true,
-                "omitempty": ["traces", "additional"]
-            }
-        },
-        "pattern.jobs": {
-            "console": "%t{2006-01-02T15:04:05} %@{logger.context.spanId} %msg %level %@{logger.context.opentelemetry.traces} %additional%n",
-            "file": "%t{2006-01-02T15:04:05} %@{logger.context.spanId} %msg %level %@{logger.context.opentelemetry.traces} %additional%n",
-            "keys": "time spanId msg lavel traces additional",
-            "format.json": {
-                "enable": true,
-                "omitempty": ["traces", "additional"]
-            }
-        },
-        "file": {
-            "name": "@{server.name}.log",
-            "path": "logs"
-        },
-        "logback": {
-            "rollingpolicy": {
-                "max-file-size": "10MB",
-                "max-history": 7,
-                "total-size-cap": "100MB"
-            }
+        "dir": "./logs"
+    },
+    "brms": {
+        "enable": false,
+        "sistemas": {
+            "nombre": "service-template"
         }
+    },
+    "database": {
+        "enable": false,
+        "connectsStr": []
     }
 }
