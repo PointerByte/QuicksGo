@@ -3,76 +3,90 @@
         "name": "@{env.name}",
         "port": "@{env.port}",
         "gin": "debug",
-        "service": "trace",
+        "service": "debug",
         "tls": {
             "enble": false,
-            "autotls": {
-                "enable": false,
-                "domains": []
-            },
             "custom": {
+                "enable": false,
+                "maxVersion": "1.3",
                 "minVersion": "1.2",
+                "nextProtos": ["h1", "h2"],
+                "cert.file": "",
                 "keys": {
                     "private.file": "",
                     "public.file": ""
                 }
+            },
+            "autotls": {
+                "enable": false,
+                "domains": []
             }
         }
     },
-    "endpoints": [
-        {
-            "name": "QuickGoExamplesApiRest",
-            "type": "apiRest",
-            "url": {
-                "content": "application/json",
-                "context.path": "@{env.name}/v1",
-                "health": "status"
+    "endpoints": {
+        "name": "QuickGoExamplesApiRest",
+        "type": "apiRest",
+        "url": {
+            "context.path": "@{server.name}/v1",
+            "health": "status"
+        },
+        "header": {
+            "content": ["application/json"]
+        },
+        "defaultBody": {
+            "enable": true,
+            "success.file":"target/resp/successDefault.json",
+            "error.file":"target/resp/errorDefault.json"
+        },
+        "compression": {
+            "enable": true,
+            "min-response-size": 1024
+        },
+        "authJWT": {
+            "header.name": "Authorization",
+            "enble": false,
+            "signature": {
+                "algorithm": "",
+                "privateKey.file": "",
+                "publicKey.file": ""
             },
-            "success": {
-                "defaultBody.enable": true,
-                "file":"target/resp/successDefault.json"
-            },
-            "enable": {
-                "defaultBody.enable": true,
-                "file":"target/resp/errorDefault.json"
-            },
-            "compression": {
-                "enable": true,
-                "min-response-size": 1024
-            },
-            "authJWT": {
-                "header.name": "Authorization",
-                "enble": false,
-                "signature": {
-                    "algorithm": "",
-                    "privateKey.file": "",
-                    "publicKey.file": ""
-                },
-                "exempt.urls": [
-                    "status"
-                ]
-            }, 
-            "session": {
-                "enable": false,
-                "timeout.seconds": 1800
-            }
+            "exempt.urls": [
+                "status"
+            ]
+        },
+        "session": {
+            "enable": false,
+            "timeout.seconds": 1800
         }
-    ],
+    },
     "logger": {
+        "context": {
+            "opentelemetry.traces": {
+                "enable": true,
+                "traces": {
+                    "pattern": {
+                        "body": "%@{logger.context.spanRecorder.ended.name} %@{logger.context.spanRecorder.ended.spanIdParent} %@{logger.context.spanRecorder.ended.spanId} %@{logger.context.spanRecorder.ended.startTime} %@{logger.context.spanRecorder.ended.startTime} %@{logger.context.spanRecorder.ended.endTime} %@{logger.context.spanRecorder.ended.duration} %@{logger.context.spanRecorder.ended.attributes}%n",
+                        "keys": "name spanIdParent spanId startTime endTime duration attributes"
+                    }
+                }
+            }
+        },
         "pattern.endpoint": {
-            "console": "%d{2006-01-02T15:04:05} - %@{opentelemetry.context.traceId} - %@{opentelemetry.context.spanId} - %msg - %level - %timeTotal%n",
-            "file": "%d{2006-01-02T15:04:05} - %@{opentelemetry.context.traceId} - %@{opentelemetry.context.spanId} - %msg - %level - %timeTotal%n",
+            "console": "%t{2006-01-02T15:04:05} %@{logger.context.traceId} %@{logger.context.spanId} %msg %level %@{logger.http} %@{logger.context.opentelemetry.traces} %additional%n",
+            "file": "%t{2006-01-02T15:04:05} %@{logger.context.traceId} %@{logger.context.spanId} %msg %level %@{logger.http}%n %@{logger.context.opentelemetry.traces} %additional%n",
+            "keys": "time traceId spanId msg lavel http traces additional",
             "format.json": {
                 "enable": true,
-                "pattern.keys": "time - traceId - spanId - msg - lavel - timeTotal"
+                "omitempty": ["traces", "additional"]
             }
         },
         "pattern.jobs": {
-            "console": "%d{2006-01-02T15:04:05} %@{opentelemetry.context.traceId} %@{opentelemetry.context.spanId} %msg %level %additional%n",
-            "file": "%d{2006-01-02T15:04:05} %@{opentelemetry.context.traceId} %@{opentelemetry.context.spanId} %msg %level %additional%n",
+            "console": "%t{2006-01-02T15:04:05} %@{logger.context.spanId} %msg %level %@{logger.context.opentelemetry.traces} %additional%n",
+            "file": "%t{2006-01-02T15:04:05} %@{logger.context.spanId} %msg %level %@{logger.context.opentelemetry.traces} %additional%n",
+            "keys": "time spanId msg lavel traces additional",
             "format.json": {
                 "enable": true,
-                "pattern.keys": "time traceId spanId msg lavel timeTotal additional"
+                "omitempty": ["traces", "additional"]
             }
         },
         "file": {
