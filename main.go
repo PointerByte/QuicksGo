@@ -31,6 +31,18 @@ func LoadConfig() error {
 }
 
 func CreateApp() (*http.Server, *gin.RouterGroup) {
+	// Configure env
+	if err := LoadConfig(); err != nil {
+		log.Fatal(err)
+	}
+
+	// Configure Logs
+	file, err := logger.InitLogger()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
 	// Mode Gin
 	gin.SetMode(gin.ReleaseMode)
 	// Initialize engine
@@ -77,20 +89,19 @@ func Shutdown(srv *http.Server) error {
 }
 
 func main() {
-	if err := LoadConfig(); err != nil {
-		log.Fatal(err)
-	}
-
-	file, err := logger.InitLogger()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-
-	logger.Info(context.Background(), fmt.Sprintf("Starting Server on port %s", viper.GetString("server.port")))
+	// Create server
 	srv, _ := CreateApp()
 	defer Shutdown(srv)
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		panic(err)
-	}
+
+	// Set endpoints
+
+	// Start server
+	chErr := make(chan error)
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			chErr <- err
+		}
+	}()
+	logger.Info(context.Background(), fmt.Sprintf("Server started on port %s", viper.GetString("server.port")))
+	panic(<-chErr)
 }
