@@ -3,6 +3,7 @@ package logger
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -10,15 +11,25 @@ import (
 	"github.com/spf13/viper"
 )
 
-func InitLogger() error {
+func InitLogger() (*os.File, error) {
 	// Create/open log file
 	path := filepath.Join(viper.GetString("logger.dir"), viper.GetString("service.name")+".log")
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return fmt.Errorf("could not open %s: %v", path, err)
+		return nil, fmt.Errorf("could not open %s: %v", path, err)
 	}
-	defer f.Close()
+
+	// MultiWriter -> archivo + consola
+	mw := io.MultiWriter(f, os.Stdout)
+
 	// Redirect Gin logs to file and console at the same time
-	gin.DefaultWriter = io.MultiWriter(f, os.Stdout)
-	return nil
+	gin.DefaultWriter = mw
+	gin.DefaultErrorWriter = mw
+
+	// Logs del paquete estándar log
+	log.SetOutput(mw)
+	log.SetFlags(0)
+	log.SetPrefix("")
+
+	return f, nil
 }

@@ -4,40 +4,26 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	"runtime"
-	"strings"
+	"maps"
+	"slices"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel/trace"
 )
 
-const maxDepth = 64
-
-func getLine(method string) (int, error) {
-	pcs := make([]uintptr, maxDepth)
-	n := runtime.Callers(2, pcs) // saltar getLine y su caller
-	if n == 0 {
-		return 0, errors.New("no stack frames")
-	}
-	frames := runtime.CallersFrames(pcs[:n])
-	for {
-		frame, more := frames.Next()
-		if frame.Function == method || strings.HasSuffix(frame.Function, method) {
-			return frame.Line, nil
-		}
-		if !more {
-			break
-		}
-	}
-	return 0, errors.New("function not found in stack")
-}
-
 func getLevelCode(status int) level {
 	switch {
-	case status >= 200 && status <= 299:
+	case status >= 500:
+		return ERROR
+	case status == 408 || status == 429:
+		return WARNING
+	case status >= 400: // 400, 401, 403, 404, 409, 422, etc.
+		return INFO
+	case status >= 100 && status < 400: // 1xx, 2xx, 3xx
 		return INFO
 	default:
-		return ERROR
+		return ERROR // status fuera de rango válido
 	}
 }
 
@@ -51,8 +37,16 @@ func MiddlewareErrorMessage() gin.HandlerFunc {
 	}
 }
 
-func CustomLogFormat() gin.HandlerFunc {
+func SetMessage(ctx *gin.Context, message string) {
+	ctx.Set("message", message)
+}
+
+func CustomLogFormat(exceptPath []string) gin.HandlerFunc {
 	return gin.LoggerWithFormatter(func(params gin.LogFormatterParams) string {
+		if slices.Contains(exceptPath, params.Path) {
+			return ""
+		}
+
 		// ---------- Trace / Span ----------
 		spanCtx := trace.SpanContextFromContext(params.Request.Context())
 		var traceID string
@@ -65,33 +59,29 @@ func CustomLogFormat() gin.HandlerFunc {
 		// ---------- Atributes ----------
 		attrs := make(map[string]any)
 		attrs["clientIP"] = params.ClientIP
+		attrs["method"] = params.Method
 		attrs["path"] = params.Path
 		attrs["proto"] = params.Request.Proto
 		attrs["userAgent"] = params.Request.UserAgent()
 		if v := params.Request.Context().Value("Attributes"); v != nil {
 			if cast, ok := v.(map[string]any); ok {
-				for key, value := range cast {
-					attrs[key] = value
-				}
+				maps.Copy(attrs, cast)
 			}
 		}
 
-		// ---------- Get Line ----------
-		line, err := getLine(params.Method)
-		if err != nil {
-			log.Fatal(err)
+		message := params.ErrorMessage
+		if v := params.Request.Context().Value("message"); v != nil {
+			message = v.(string)
 		}
 
 		// ---------- Format Logger ----------
 		entry := LogEntry{
-			Timestamp:  params.TimeStamp.Format("2006-01-02T15:04:05.000Z"),
+			Timestamp:  params.TimeStamp.Format(viper.GetString("logger.dateFormat")),
 			IdTrace:    traceID,
 			IdSpan:     spanID,
-			Level:      getLevelCode(params.Request.Response.StatusCode),
-			Message:    params.ErrorMessage,
+			Level:      getLevelCode(params.StatusCode),
+			Message:    message,
 			Attributes: attrs,
-			Method:     params.Method,
-			Line:       line,
 			Latency:    params.Latency.Milliseconds(),
 		}
 		jsonBytes, err := json.Marshal(entry)

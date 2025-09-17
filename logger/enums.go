@@ -3,8 +3,10 @@ package logger
 type level string
 
 const (
-	INFO  level = "INFO"
-	ERROR level = "ERROR"
+	INFO    level = "INFO"
+	ERROR   level = "ERROR"
+	WARNING level = "WARNING"
+	TRACE   level = "TRACE"
 )
 
 type messageLog string

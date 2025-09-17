@@ -36,9 +36,13 @@ func CreateApp() (*http.Server, *gin.RouterGroup) {
 	// Initialize engine
 	engine := gin.New()
 	// Middlewares: gin logger + recovery
-	engine.Use(logger.CustomLogFormat(), gin.Recovery(), security.SecurityHeaders())
+	group := viper.GetString("server.group")
+	engine.Use(
+		logger.CustomLogFormat([]string{group + "/status"}),
+		gin.Recovery(), security.SecurityHeaders(),
+	)
 	// Grupo de API
-	apiGroup := engine.Group("/api")
+	apiGroup := engine.Group(group)
 	// Health / ready / version
 	apiGroup.GET("/status", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"version": viper.GetString("service.version")})
@@ -62,13 +66,13 @@ func Shutdown(srv *http.Server) error {
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	<-quit
 
-	//log.Println("Recibida señal, apagando con gracia...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	logger.Info(ctx, "Signal received, turning off...")
 	if err := srv.Shutdown(ctx); err != nil {
 		return fmt.Errorf("shutdown force: %v", err)
 	}
-	//log.Println("Servidor detenido correctamente ✅")
+	logger.Info(ctx, "Server stopped successfully ✅")
 	return nil
 }
 
@@ -76,17 +80,17 @@ func main() {
 	if err := LoadConfig(); err != nil {
 		log.Fatal(err)
 	}
-	if err := logger.InitLogger(); err != nil {
+
+	file, err := logger.InitLogger()
+	if err != nil {
 		log.Fatal(err)
 	}
+	defer file.Close()
+
+	logger.Info(context.Background(), fmt.Sprintf("Starting Server on port %s", viper.GetString("server.port")))
 	srv, _ := CreateApp()
-	go func() {
-		//log.Printf("Servidor escuchando en http://localhost:%s (mode=%s)", port, gin.Mode())
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("error starting server: %v", err)
-		}
-	}()
-	if err := Shutdown(srv); err != nil {
-		log.Fatal(err)
+	defer Shutdown(srv)
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		panic(err)
 	}
 }
