@@ -4,7 +4,7 @@
         "version": "0.0.1"
     },
     "server": {
-        "port": ":8000",
+        "port": ":8080",
         "group": "/service-template/v1"
     },
     "jwt.active": false,
