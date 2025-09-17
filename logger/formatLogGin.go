@@ -9,23 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
-	"go.opentelemetry.io/otel/trace"
 )
-
-func getLevelCode(status int) level {
-	switch {
-	case status >= 500:
-		return ERROR
-	case status == 408 || status == 429:
-		return WARNING
-	case status >= 400: // 400, 401, 403, 404, 409, 422, etc.
-		return INFO
-	case status >= 100 && status < 400: // 1xx, 2xx, 3xx
-		return INFO
-	default:
-		return ERROR // status fuera de rango válido
-	}
-}
 
 func MiddlewareErrorMessage() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
@@ -37,7 +21,8 @@ func MiddlewareErrorMessage() gin.HandlerFunc {
 	}
 }
 
-func SetMessage(ctx *gin.Context, message string) {
+func SetMessage(ctx *gin.Context, level level, message string) {
+	ctx.Set("level", level)
 	ctx.Set("message", message)
 }
 
@@ -48,13 +33,8 @@ func CustomLogFormat(exceptPath []string) gin.HandlerFunc {
 		}
 
 		// ---------- Trace / Span ----------
-		spanCtx := trace.SpanContextFromContext(params.Request.Context())
-		var traceID string
-		var spanID string
-		if spanCtx.IsValid() {
-			traceID = spanCtx.TraceID().String()
-			spanID = spanCtx.SpanID().String()
-		}
+		traceID := params.Request.Header.Get("X-B3-TraceId")
+		spanID := params.Request.Header.Get("X-B3-SpanId")
 
 		// ---------- Atributes ----------
 		attrs := make(map[string]any)
@@ -69,9 +49,19 @@ func CustomLogFormat(exceptPath []string) gin.HandlerFunc {
 			}
 		}
 
+		// Get message
 		message := params.ErrorMessage
 		if v := params.Request.Context().Value("message"); v != nil {
 			message = v.(string)
+		}
+
+		// Get Level
+		_level := ERROR
+		if params.ErrorMessage == "" {
+			_level = UNKNOWN
+			if v := params.Request.Context().Value("level"); v != nil {
+				_level = v.(level)
+			}
 		}
 
 		// ---------- Format Logger ----------
@@ -79,7 +69,7 @@ func CustomLogFormat(exceptPath []string) gin.HandlerFunc {
 			Timestamp:  params.TimeStamp.Format(viper.GetString("logger.dateFormat")),
 			IdTrace:    traceID,
 			IdSpan:     spanID,
-			Level:      getLevelCode(params.StatusCode),
+			Level:      _level,
 			Message:    message,
 			Attributes: attrs,
 			Latency:    params.Latency.Milliseconds(),

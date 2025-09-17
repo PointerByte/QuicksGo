@@ -6,7 +6,7 @@ const (
 	INFO    level = "INFO"
 	ERROR   level = "ERROR"
 	WARNING level = "WARNING"
-	TRACE   level = "TRACE"
+	UNKNOWN level = "UNKNOWN"
 )
 
 type messageLog string
