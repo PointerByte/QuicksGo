@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"quicksgo/logger"
 	"quicksgo/telemetry"
 	"syscall"
@@ -133,5 +134,50 @@ func testConfig(t *testing.T) {
 			// Asserts Mocks
 			telemetry.MocksOtel.AssertExpectations(t)
 		})
+	}
+}
+
+func TestMirrorHeaders(t *testing.T) {
+	t.Parallel()
+
+	// Configurar Gin en modo Test
+	gin.SetMode(gin.TestMode)
+
+	// Crear router con el middleware
+	r := gin.New()
+	r.Use(MirrorHeaders())
+
+	// Ruta dummy para completar el ciclo del middleware
+	r.GET("/ping", func(c *gin.Context) {
+		c.String(200, "pong")
+	})
+
+	// Crear request con headers de ejemplo
+	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	req.Header.Set("X-Test", "HeaderValue")
+	req.Header.Set("User-Agent", "Go-Test-Agent")
+
+	// Recorder (mock del ResponseWriter)
+	w := httptest.NewRecorder()
+
+	// Ejecutar request
+	r.ServeHTTP(w, req)
+
+	// Verificar código HTTP
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	// Verificar que los headers se copiaron al response
+	if got := w.Header().Get("X-Test"); got != "HeaderValue" {
+		t.Errorf("expected mirrored header X-Test=HeaderValue, got %q", got)
+	}
+	if got := w.Header().Get("User-Agent"); got != "Go-Test-Agent" {
+		t.Errorf("expected mirrored header User-Agent=Go-Test-Agent, got %q", got)
+	}
+
+	// Verificar cuerpo de respuesta
+	if body := w.Body.String(); body != "pong" {
+		t.Errorf("expected body pong, got %q", body)
 	}
 }

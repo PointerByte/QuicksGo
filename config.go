@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"quicksgo/logger"
+	"quicksgo/logger/rotate"
 	"quicksgo/security"
 	"quicksgo/telemetry"
 	"syscall"
@@ -51,7 +52,7 @@ func init() {
 
 // LoadConfig loads the configuration file and environment variables into Viper.
 // It automatically converts all configuration keys to lowercase to ensure consistency.
-// The function supports both .env.local and JSON configuration files.
+// The function supports both .env, .env.local and JSON configuration files.
 func LoadConfig() error {
 	// Load .env
 	viper.SetConfigFile(".env")
@@ -85,6 +86,18 @@ func LoadConfig() error {
 	return nil
 }
 
+// MirrorHeaders returns a Gin middleware that copies all incoming HTTP request headers
+// to the response headers. This can be useful for debugging, testing, or simulating
+// echo-style APIs that reflect client request metadata.
+func MirrorHeaders() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		for k, v := range c.Request.Header {
+			c.Writer.Header().Set(k, v[0])
+		}
+		c.Next()
+	}
+}
+
 // CreateApp initializes and configures a Gin-based HTTP server instance.
 // It loads environment configurations, sets up logging, applies global middlewares,
 // and registers basic API routes such as the health/status endpoint.
@@ -105,10 +118,11 @@ func createApp() (*gin.Engine, error) {
 	engine := gin.New()
 	engine.Use(
 		gin.Recovery(),
+		gzip.Gzip(gzip.DefaultCompression),
+		MirrorHeaders(),
 		logger.MiddlewaresInitLogger(),
 		logger.CustomLogFormatGin(),
 		security.SecurityHeaders(),
-		gzip.Gzip(gzip.DefaultCompression),
 	)
 	if viper.GetBool("otlp.enable") {
 		engine.Use(telemetry.GetMiddleware())
@@ -162,6 +176,9 @@ func start(srv *http.Server) {
 			logger.Error(ctxMain, err)
 		}
 	}()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go rotate.NewRotatorCfgFromViper().Start(ctx, viper.GetString("logger.path"))
 	// Start server
 	go func() {
 		if srv.TLSConfig != nil {
@@ -173,7 +190,6 @@ func start(srv *http.Server) {
 			logger.Error(ctxMain, err)
 		}
 	}()
-	logger.Info(ctxMain, fmt.Sprintf("Server started on port %s", viper.GetString("server.port")))
 	if err := Shutdown(srv); err != err {
 		logger.Error(ctxMain, err)
 	}

@@ -42,6 +42,8 @@ func writeTempFile(t *testing.T, name string, data []byte) string {
 
 // 1) tlsConfigGRPC: combina caminos “feliz” e “incorrectos” en una sola función
 func Test_TLSConfigGRPC_Scenarios(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name     string
 		setup    func()
@@ -172,6 +174,8 @@ func genSelfSignedPEM(t *testing.T) (certPath, keyPath string) {
 }
 
 func Test_TLSConfigGRPC_mTLS_Success_And_LoadError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("mTLS ok -> carga par X509 y no error", func(t *testing.T) {
 		resetViper()
 		certPath, keyPath := genSelfSignedPEM(t)
@@ -213,6 +217,8 @@ func Test_TLSConfigGRPC_mTLS_Success_And_LoadError(t *testing.T) {
 }
 
 func Test_TLSConfigGRPC_SetsOptions_ByProtocol_AndExporter(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name  string
 		proto string
@@ -247,6 +253,8 @@ func Test_TLSConfigGRPC_SetsOptions_ByProtocol_AndExporter(t *testing.T) {
 
 // 2) Traces: mezcla caminos “ok” y errores (exporter/protocolo no soportado)
 func Test_Traces_Scenarios(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name     string
 		m        *monitoringImp
@@ -317,6 +325,8 @@ func Test_Traces_Scenarios(t *testing.T) {
 
 // 3) Metrics: agrupa ok + error de exporter
 func Test_Metrics_Scenarios(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name     string
 		m        *monitoringImp
@@ -366,6 +376,8 @@ func Test_Metrics_Scenarios(t *testing.T) {
 }
 
 func Test_Metrics_UnsupportedProtocol_ErrorMessage(t *testing.T) {
+	t.Parallel()
+
 	resetViper()
 	m := &monitoringImp{
 		ctx:                context.Background(),
@@ -381,6 +393,8 @@ func Test_Metrics_UnsupportedProtocol_ErrorMessage(t *testing.T) {
 
 // 4) Logs: agrupa ok (y valida provider global) + errores de exporter/protocolo
 func Test_Logs_Scenarios(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name     string
 		m        *monitoringImp
@@ -446,6 +460,8 @@ func Test_Logs_Scenarios(t *testing.T) {
 }
 
 func Test_Logs_UnsupportedProtocol_ErrorMessage(t *testing.T) {
+	t.Parallel()
+
 	resetViper()
 	m := &monitoringImp{
 		ctx:              context.Background(),
@@ -461,6 +477,8 @@ func Test_Logs_UnsupportedProtocol_ErrorMessage(t *testing.T) {
 
 // 5) initOtel & mocks: unifica éxito real, éxito vía mock y error vía mock
 func Test_InitOtel_Scenarios(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name         string
 		useMock      bool
@@ -532,6 +550,8 @@ func Test_InitOtel_Scenarios(t *testing.T) {
 }
 
 func Test_Traces_Metrics_Logs_OTLP_GRPC_And_HTTP(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name  string
 		proto string
@@ -581,6 +601,8 @@ func Test_Traces_Metrics_Logs_OTLP_GRPC_And_HTTP(t *testing.T) {
 }
 
 func Test_TLSConfig_OTLPProtocols(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		traceExporter  string

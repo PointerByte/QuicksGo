@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"quicksgo/controller"
 	"quicksgo/logger"
@@ -9,9 +11,10 @@ import (
 )
 
 func main() {
+	ctx := logger.ContextLogger(context.Background())
 	engine, err := CreateApp()
 	if err != nil {
-		logger.Panic(ctxMain, err)
+		logger.Panic(ctx, err)
 	}
 
 	prefix := viper.GetStringSlice("server.basePaths")[0]
@@ -22,5 +25,6 @@ func main() {
 		Addr:    viper.GetString("server.port"),
 		Handler: engine,
 	}
+	logger.Info(ctx, fmt.Sprintf("Server started on port %s", viper.GetString("server.port")))
 	Start(srv)
 }
