@@ -4,23 +4,31 @@
         "version": "0.0.1"
     },
     "server": {
+        "gin.mode": "release",
+        "api.name": "microservice-template",
+        "jwt.active": false,
         "port": ":8080",
-        "group": "/service-template/v1"
+        "expectedHosts": ["0.0.0.0:8080", "localhost:8080"],
+        "basePaths": ["/service-template/v1"]
     },
-    "jwt.active": false,
     "logger": {
         "dir": "logs",
-        "dateFormat": "2006-01-02T15:04:05.000Z"
+        "dateFormat": "2006-01-02T15:04:05.000Z",
+        "MaxSizeMB": 20,
+        "MaxBackups": 3,
+        "MaxAgeDays": 28,
+        "Compress": true
     },
-    "otlp.exporter.enable": false,
-    "brms": {
+    "otlp": {
         "enable": false,
-        "sistemas": {
-            "nombre": "service-template"
+        "tls": {
+            "insegure": true,
+            "mTLS": {
+                "enable": false,
+                "clientCertPath": "",
+                "clientKeyPath": ""
+            },
+            "caPath": ""
         }
-    },
-    "database": {
-        "enable": false,
-        "connectsStr": []
     }
 }

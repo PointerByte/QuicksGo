@@ -1,2 +1,12 @@
 docker build -t template-api . 
 docker run --rm -p 8080:8080 --privileged test-opentelemtry:latest
+
+go clean -cache -testcache -modcache
+go test -coverprofile="coverage.out" -cover ./... -coverpkg=./...
+go get -u=patch ./...
+go tool cover -func="coverage.out"
+go tool cover -html="coverage.out" -o "coverage.html"
+
+git add .
+git commit -m "Se agrega otel optemetry, test unitarios y se optimiza el uso de logs en los endpoint y funciones. Se factoriza main"
+git push

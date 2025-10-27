@@ -12,6 +12,10 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+func ContextLogger(ctx context.Context) context.Context {
+	return context.WithValue(ctx, startTimeKey, time.Now())
+}
+
 func traceCaller(skip int) (funcName string, file string, line int) {
 	pc, file, line, ok := runtime.Caller(skip)
 	if !ok {
@@ -24,11 +28,21 @@ func traceCaller(skip int) (funcName string, file string, line int) {
 	return fn.Name(), file, line
 }
 
-func print(ctx context.Context, level level, message string) {
+func customLogFormat(ctx context.Context, level level, message string) string {
+	// Filter path with log enable
+	withAutoLog := ctx.Value(WithAutoLog)
+	withAutoLogBool, ok := withAutoLog.(bool)
+	if !ok {
+		withAutoLogBool = true
+	}
+	if !withAutoLogBool {
+		return ""
+	}
+
 	// ---------- Trace / Span ----------
-	spanCtx := trace.SpanContextFromContext(ctx)
 	var traceID string
 	var spanID string
+	spanCtx := trace.SpanContextFromContext(ctx)
 	if spanCtx.IsValid() {
 		traceID = spanCtx.TraceID().String()
 		spanID = spanCtx.SpanID().String()
@@ -36,7 +50,7 @@ func print(ctx context.Context, level level, message string) {
 
 	// ---------- Atributes ----------
 	attrs := make(map[string]any)
-	if v := ctx.Value("Attributes"); v != nil {
+	if v := ctx.Value(attributesKey); v != nil {
 		if cast, ok := v.(map[string]any); ok {
 			maps.Copy(attrs, cast)
 		}
@@ -45,33 +59,50 @@ func print(ctx context.Context, level level, message string) {
 	// ---------- Get Line ----------
 	funcName, file, line := traceCaller(3)
 
+	var latency int64
+	startTime := ctx.Value(startTimeKey)
+	if startTime != nil {
+		latency = time.Since(startTime.(time.Time)).Milliseconds()
+	}
+
 	// ---------- Format Logger ----------
 	entry := LogEntry{
 		Timestamp:  time.Now().Format(viper.GetString("logger.dateFormat")),
-		IdTrace:    traceID,
-		IdSpan:     spanID,
+		TraceId:    traceID,
+		SpanId:     spanID,
 		Level:      level,
 		Message:    message,
 		Attributes: attrs,
 		File:       file,
 		FuncName:   funcName,
 		Line:       line,
+		Latency:    latency,
 	}
+	go emitOtel(ctx, level, entry)
 	jsonBytes, err := json.Marshal(entry)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(string(jsonBytes))
+	result := string(jsonBytes)
+	return result + "\n"
 }
 
 func Info(ctx context.Context, message string) {
-	print(ctx, INFO, message)
+	go log.Print(customLogFormat(ctx, INFO, message))
 }
 
-func Error(ctx context.Context, message string) {
-	print(ctx, ERROR, message)
+func Error(ctx context.Context, err error) {
+	go log.Print(customLogFormat(ctx, INFO, customLogFormat(ctx, ERROR, err.Error())))
 }
 
 func Warning(ctx context.Context, message string) {
-	print(ctx, WARNING, message)
+	go log.Print(customLogFormat(ctx, WARNING, message))
+}
+
+func Fatal(ctx context.Context, err error) {
+	log.Fatal(customLogFormat(ctx, FATAL, err.Error()))
+}
+
+func Panic(ctx context.Context, err error) {
+	log.Panic(customLogFormat(ctx, PANIC, err.Error()))
 }
