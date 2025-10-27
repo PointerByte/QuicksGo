@@ -23,5 +23,6 @@ profile.cov
 .vscode/
 
 # logs
+/logs
 */logs
 
