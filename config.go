@@ -178,7 +178,7 @@ func start(srv *http.Server) {
 	}()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go rotate.NewRotatorCfgFromViper().Start(ctx, viper.GetString("logger.path"))
+	rotate.NewRotatorCfgFromViper().Start(ctx, viper.GetString("logger.path"))
 	// Start server
 	go func() {
 		if srv.TLSConfig != nil {
