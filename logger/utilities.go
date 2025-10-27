@@ -2,8 +2,6 @@ package logger
 
 import (
 	"context"
-	"encoding/json"
-	"log"
 	"os"
 	"quicksgo/telemetry"
 	"time"
@@ -24,11 +22,15 @@ func ClearFile() error {
 	return nil
 }
 
-var emitOtel = func(ctx context.Context, _level level, result LogEntry) {
-	_emitOtel(ctx, _level, result)
+var emitOtel = func(ctx context.Context, TraceID, SpanID string, level level, result string) {
+	_emitOtel(ctx, TraceID, SpanID, level, result)
 }
 
-func _emitOtel(ctx context.Context, _level level, result LogEntry) {
+func _emitOtel(ctx context.Context, TraceID, SpanID string, level level, result string) {
+	if !viper.GetBool("otlp.enable") {
+		return
+	}
+
 	lp := telemetry.GetLoggerProvider()
 	if lp == nil {
 		return
@@ -40,7 +42,7 @@ func _emitOtel(ctx context.Context, _level level, result LogEntry) {
 	rec.SetTimestamp(now)
 	rec.SetObservedTimestamp(now)
 
-	switch _level {
+	switch level {
 	case INFO:
 		rec.SetSeverity(otellog.SeverityInfo)
 		rec.SetSeverityText("INFO")
@@ -58,17 +60,12 @@ func _emitOtel(ctx context.Context, _level level, result LogEntry) {
 		rec.SetSeverityText("UNDEFINED")
 	}
 
-	// Cuerpo del log
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		log.Fatal(err)
-	}
-	rec.SetBody(otellog.StringValue(string(jsonBytes)))
+	rec.SetBody(otellog.StringValue(string(result)))
 
 	// Correlación con la traza activa
 	rec.AddAttributes(
-		otellog.String("trace_id", result.TraceId),
-		otellog.String("span_id", result.SpanId),
+		otellog.String("trace_id", TraceID),
+		otellog.String("span_id", SpanID),
 	)
 
 	// Emite el log al pipeline de OTel

@@ -31,6 +31,6 @@ func (m *Mocks) InitLogger() error {
 	return m.Called().Error(0)
 }
 
-func (m *Mocks) emitOtel(ctx context.Context, _level level, result LogEntry) {
-	m.Called(ctx, _level, result)
+func (m *Mocks) emitOtel(ctx context.Context, TraceID, SpanID string, level level, result string) {
+	m.Called(ctx, TraceID, SpanID, level, result)
 }

@@ -8,5 +8,5 @@ go tool cover -func="coverage.out"
 go tool cover -html="coverage.out" -o "coverage.html"
 
 git add .
-git commit -m "Se agrega otel optemetry, test unitarios y se optimiza el uso de logs en los endpoint y funciones. Se factoriza main"
+git commit -m "Se factoriza el codigo de logger y se agrega un limitar de peticiones"
 git push

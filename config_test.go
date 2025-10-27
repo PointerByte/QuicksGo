@@ -181,3 +181,85 @@ func TestMirrorHeaders(t *testing.T) {
 		t.Errorf("expected body pong, got %q", body)
 	}
 }
+
+func TestLimiter(t *testing.T) {
+	type args struct {
+		rate     float64
+		burst    int
+		requests int
+	}
+	tests := []struct {
+		name         string
+		args         args
+		wantStatuses []int // expected HTTP status per request
+		wantHeader   bool  // whether the handler should have been executed (checks header)
+	}{
+		{
+			name: "disabled_allows_and_calls_next",
+			args: args{
+				rate:     0, // disabled
+				burst:    10,
+				requests: 1,
+			},
+			wantStatuses: []int{http.StatusOK},
+			wantHeader:   true, // handler must run when disabled
+		},
+		{
+			name: "enabled_blocks_second_immediate_request",
+			args: args{
+				rate:     1, // 1 req/s
+				burst:    1, // allow one instantly, block next if immediate
+				requests: 2,
+			},
+			wantStatuses: []int{http.StatusOK, http.StatusTooManyRequests},
+			wantHeader:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Aislar configuración entre tests
+			viper.Set("server.gin.ratelimit", tt.args.rate)
+			viper.Set("server.gin.bursts", tt.args.burst)
+
+			gin.SetMode(gin.TestMode)
+			r := gin.New()
+			r.Use(Limiter())
+
+			// Handler que marca un header para saber si se ejecutó
+			const headerKey = "X-Handler-Executed"
+			r.GET("/ping", func(c *gin.Context) {
+				c.Header(headerKey, "1")
+				c.Status(http.StatusOK)
+			})
+
+			statuses := make([]int, 0, tt.args.requests)
+			var sawHeader bool
+
+			for i := 0; i < tt.args.requests; i++ {
+				req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, req)
+				statuses = append(statuses, w.Code)
+				if w.Header().Get(headerKey) == "1" {
+					sawHeader = true
+				}
+			}
+
+			// Verificar códigos de estado
+			if len(statuses) != len(tt.wantStatuses) {
+				t.Fatalf("unexpected statuses length: got %d, want %d", len(statuses), len(tt.wantStatuses))
+			}
+			for i := range statuses {
+				if statuses[i] != tt.wantStatuses[i] {
+					t.Errorf("request #%d: status = %d, want %d", i+1, statuses[i], tt.wantStatuses[i])
+				}
+			}
+
+			// Verificar si el handler se ejecutó al menos una vez cuando corresponde
+			if sawHeader != tt.wantHeader {
+				t.Errorf("handler executed header = %v, want %v", sawHeader, tt.wantHeader)
+			}
+		})
+	}
+}

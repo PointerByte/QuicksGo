@@ -2,7 +2,6 @@ package logger
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -59,7 +58,7 @@ func TestCustomLogFormatGin_DefaultSuccessMessage(t *testing.T) {
 	t.Parallel()
 
 	mocksLogger := new(Mocks)
-	mocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	mocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
 	emitOtel = mocksLogger.emitOtel
 	defer mocksLogger.AssertExpectations(t)
 
@@ -136,7 +135,7 @@ func TestCustomLogFormatGin_RespectsSetMessageLog(t *testing.T) {
 	t.Parallel()
 
 	mocksLogger := new(Mocks)
-	mocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	mocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe().Return().Maybe()
 	emitOtel = mocksLogger.emitOtel
 	defer mocksLogger.AssertExpectations(t)
 
@@ -161,9 +160,7 @@ func TestCustomLogFormatGin_RespectsSetMessageLog(t *testing.T) {
 			// Sobrescribe la clave base "method"
 			"method": "PATCH",
 		}
-		ctx := context.WithValue(c.Request.Context(), attributesKey, extra)
-		c.Request = c.Request.WithContext(ctx)
-
+		c.Set(attributesKey, extra)
 		SetMessageLog(c, ERROR, "boom!")
 		c.String(http.StatusInternalServerError, "err")
 	})
@@ -181,7 +178,7 @@ func TestCustomLogFormatGin_RespectsSetMessageLog(t *testing.T) {
 		t.Fatalf("no se obtuvo salida de log")
 	}
 
-	var entry LogEntry
+	var entry LogFormat
 	if err := json.Unmarshal([]byte(raw), &entry); err != nil {
 		t.Fatalf("no se pudo parsear LogEntry: %v\nraw: %q", err, raw)
 	}
@@ -216,7 +213,7 @@ func TestCustomLogFormatGin_WithAutoLogFalse_DisablesLogging(t *testing.T) {
 	t.Parallel()
 
 	mocksLogger := new(Mocks)
-	mocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	mocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe().Return().Maybe()
 	emitOtel = mocksLogger.emitOtel
 	defer mocksLogger.AssertExpectations(t)
 
@@ -264,7 +261,7 @@ func TestSetMessageLog_SetsKeysInContext(t *testing.T) {
 	t.Parallel()
 
 	mocksLogger := new(Mocks)
-	mocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	mocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe().Return().Maybe()
 	emitOtel = mocksLogger.emitOtel
 	defer mocksLogger.AssertExpectations(t)
 
@@ -285,10 +282,10 @@ func TestSetMessageLog_SetsKeysInContext(t *testing.T) {
 	r.GET("/keys", func(c *gin.Context) {
 		SetMessageLog(c, UNKNOWN, "hola")
 		// Validación directa en ctx.Keys
-		if v, ok := c.Get("message"); !ok || v.(string) != "hola" {
+		if v, ok := c.Get(messageKey); !ok || v.(string) != "hola" {
 			t.Fatalf(`ctx.Keys["message"] no seteado correctamente; got=%v ok=%v`, v, ok)
 		}
-		if v, ok := c.Get("level"); !ok || v.(level) != UNKNOWN {
+		if v, ok := c.Get(levelKey); !ok || v.(level) != UNKNOWN {
 			t.Fatalf(`ctx.Keys["level"] no seteado correctamente; got=%v ok=%v`, v, ok)
 		}
 		c.Status(http.StatusOK)
@@ -337,12 +334,12 @@ func TestMiddlewaresInitLogger_AllowsNextHandler(t *testing.T) {
 	t.Parallel()
 
 	mocksLogger := new(Mocks)
-	mocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	mocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe().Return().Maybe()
 	emitOtel = mocksLogger.emitOtel
 	defer mocksLogger.AssertExpectations(t)
 
 	EnableMocks()
-	MocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+	MocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe().Return().Maybe()
 	defer DisableMocks()
 	defer MocksLogger.AssertExpectations(t)
 
@@ -403,7 +400,7 @@ func TestCustomLogFormatGin_DefaultErrorMessage(t *testing.T) {
 	raw := lastNonEmptyLine(buf.String())
 	m := parseJSONToMap(t, raw)
 
-	want := string(msgError) // 👈 usa la constante real
+	want := string(MsgError) // 👈 usa la constante real
 	if m["message"] != want {
 		t.Errorf("se esperaba msgError, got=%v want=%v", m["message"], want)
 	}

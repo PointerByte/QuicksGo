@@ -5,6 +5,11 @@
     },
     "server": {
         "gin.mode": "release",
+        "gin": {
+            "mode": "release",
+            "ratelimit": 1000,
+            "bursts": 2000
+        },
         "api.name": "microservice-template",
         "jwt.active": false,
         "port": ":8080",

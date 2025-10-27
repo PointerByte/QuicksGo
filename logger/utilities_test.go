@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"quicksgo/telemetry"
@@ -79,11 +80,13 @@ func TestClearFile(t *testing.T) {
 
 func Test_emitOtel(t *testing.T) {
 	viper.Set("service.name", "unit-test-service")
+	viper.Set("otlp.enable", true)
 
 	t.Run("sin provider: no panica", func(t *testing.T) {
 		// Aún no seteamos el provider (GetLoggerProvider() == nil).
 		assert.NotPanics(t, func() {
-			_emitOtel(context.Background(), INFO, LogEntry{Message: "no provider"})
+			jsonBytes, _ := json.Marshal(LogFormat{Message: "no provider"})
+			_emitOtel(context.Background(), "", "", INFO, string(jsonBytes))
 		})
 	})
 
@@ -127,12 +130,13 @@ func Test_emitOtel(t *testing.T) {
 
 		// Act: emitir un log por cada severidad para cubrir todas las ramas
 		for _, tc := range cases {
-			_emitOtel(context.Background(), tc.level, LogEntry{
-				TraceId: "trace-123",
-				SpanId:  "span-456",
+			jsonBytes, _ := json.Marshal(LogFormat{
+				TraceID: "trace-123",
+				SpanID:  "span-456",
 				Level:   tc.level,
 				Message: "cover " + tc.name,
 			})
+			_emitOtel(context.Background(), "", "", tc.level, string(jsonBytes))
 		}
 
 		// Assert

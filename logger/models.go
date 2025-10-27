@@ -1,9 +1,9 @@
 package logger
 
-type LogEntry struct {
+type LogFormat struct {
 	Timestamp  string         `json:"timestamp"`
-	TraceId    string         `json:"idTrace,omitempty"`
-	SpanId     string         `json:"idSpan,omitempty"`
+	TraceID    string         `json:"idTrace,omitempty"`
+	SpanID     string         `json:"idSpan,omitempty"`
 	Attributes map[string]any `json:"attributes,omitempty"`
 	Level      level          `json:"level"`
 	Message    string         `json:"message"`

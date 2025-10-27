@@ -28,24 +28,12 @@ func traceCaller(skip int) (funcName string, file string, line int) {
 	return fn.Name(), file, line
 }
 
-func customLogFormat(ctx context.Context, level level, message string) string {
-	// Filter path with log enable
-	withAutoLog := ctx.Value(WithAutoLog)
-	withAutoLogBool, ok := withAutoLog.(bool)
-	if !ok {
-		withAutoLogBool = true
-	}
-	if !withAutoLogBool {
-		return ""
-	}
-
+func (l *LogFormat) getDefaultLog(ctx context.Context, level level, message string) string {
 	// ---------- Trace / Span ----------
-	var traceID string
-	var spanID string
 	spanCtx := trace.SpanContextFromContext(ctx)
 	if spanCtx.IsValid() {
-		traceID = spanCtx.TraceID().String()
-		spanID = spanCtx.SpanID().String()
+		l.SetTraceID(spanCtx.TraceID().String())
+		l.SetSpanID(spanCtx.SpanID().String())
 	}
 
 	// ---------- Atributes ----------
@@ -66,10 +54,10 @@ func customLogFormat(ctx context.Context, level level, message string) string {
 	}
 
 	// ---------- Format Logger ----------
-	entry := LogEntry{
+	entry := LogFormat{
 		Timestamp:  time.Now().Format(viper.GetString("logger.dateFormat")),
-		TraceId:    traceID,
-		SpanId:     spanID,
+		TraceID:    l.TraceID,
+		SpanID:     l.SpanID,
 		Level:      level,
 		Message:    message,
 		Attributes: attrs,
@@ -78,31 +66,55 @@ func customLogFormat(ctx context.Context, level level, message string) string {
 		Line:       line,
 		Latency:    latency,
 	}
-	go emitOtel(ctx, level, entry)
 	jsonBytes, err := json.Marshal(entry)
 	if err != nil {
 		log.Fatal(err)
 	}
 	result := string(jsonBytes)
+	// This funtion is for emit log to otel
+	EmitOtel(ctx, l.TraceID, l.SpanID, l.Level, result)
+	return result
+}
+
+func customLogFormat(ctx context.Context, level level, message string) string {
+	newLogFormat := new(LogFormat)
+	result := newLogFormat.getDefaultLog(ctx, level, message)
 	return result + "\n"
 }
 
+// Info logs an informational message asynchronously using the default logger.
+//
+// The log message is formatted via log format with the INFO level.
 func Info(ctx context.Context, message string) {
 	go log.Print(customLogFormat(ctx, INFO, message))
 }
 
+// Error logs an error message asynchronously using the default logger.
+//
+// It formats the error using the ERROR log level. The message includes
+// contextual information from the provided context.
 func Error(ctx context.Context, err error) {
 	go log.Print(customLogFormat(ctx, INFO, customLogFormat(ctx, ERROR, err.Error())))
 }
 
+// Warning logs a warning message asynchronously using the default logger.
+//
+// It uses the WARNING log level to indicate non-critical issues or potential problems.
 func Warning(ctx context.Context, message string) {
 	go log.Print(customLogFormat(ctx, WARNING, message))
 }
 
+// Fatal logs a fatal error message and then terminates the program.
+//
+// This function does not run asynchronously — it calls log.Fatal directly,
+// which prints the message and exits the application.
 func Fatal(ctx context.Context, err error) {
 	log.Fatal(customLogFormat(ctx, FATAL, err.Error()))
 }
 
+// Panic logs an error message and then triggers a panic.
+//
+// The log entry is formatted using the PANIC log level before invoking log.Panic.
 func Panic(ctx context.Context, err error) {
 	log.Panic(customLogFormat(ctx, PANIC, err.Error()))
 }

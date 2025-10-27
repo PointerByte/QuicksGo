@@ -17,6 +17,7 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	"golang.org/x/time/rate"
 )
 
 var (
@@ -86,6 +87,41 @@ func LoadConfig() error {
 	return nil
 }
 
+// Limiter returns a Gin middleware that applies rate limiting
+// to incoming requests based on configuration values loaded via Viper.
+//
+// Expected configuration parameters:
+//
+//   - server.gin.ratelimit (float64): Number of requests allowed per second.
+//     If this value is 0, rate limiting is disabled and all requests are allowed.
+//   - server.gin.bursts (int): Maximum number of requests allowed in a burst
+//     before rate limiting takes effect.
+//
+// When the request rate exceeds the configured limit, the middleware
+// responds with HTTP status 429 (Too Many Requests) and a JSON error message.
+//
+// This middleware helps prevent abuse and protects the API from
+// excessive traffic or denial-of-service attacks.
+func Limiter() gin.HandlerFunc {
+	ratelimit := viper.GetFloat64("server.gin.ratelimit")
+	if ratelimit == 0 {
+		return func(c *gin.Context) {
+			c.Next()
+		}
+	}
+	bursts := viper.GetInt("server.gin.bursts")
+	limiter := rate.NewLimiter(rate.Limit(ratelimit), bursts)
+	return func(c *gin.Context) {
+		if !limiter.Allow() {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+				"error": "Too many requests, please try again later",
+			})
+			return
+		}
+		c.Next()
+	}
+}
+
 // MirrorHeaders returns a Gin middleware that copies all incoming HTTP request headers
 // to the response headers. This can be useful for debugging, testing, or simulating
 // echo-style APIs that reflect client request metadata.
@@ -119,6 +155,7 @@ func createApp() (*gin.Engine, error) {
 	engine.Use(
 		gin.Recovery(),
 		gzip.Gzip(gzip.DefaultCompression),
+		Limiter(),
 		MirrorHeaders(),
 		logger.MiddlewaresInitLogger(),
 		logger.CustomLogFormatGin(),

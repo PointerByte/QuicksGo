@@ -14,14 +14,16 @@ const (
 type messageLog string
 
 const (
-	msgSuccess messageLog = "Successful operation"
-	msgError   messageLog = "Operation failure"
+	MsgSuccess messageLog = "Successful operation"
+	MsgError   messageLog = "Operation failure"
 )
 
 type KeyContex string
 
 const (
 	startTimeKey  KeyContex = "startTime"
-	attributesKey KeyContex = "Attributes"
+	levelKey      KeyContex = "level"
+	messageKey    KeyContex = "message"
+	attributesKey KeyContex = "attributes"
 	WithAutoLog   KeyContex = "withAutoLog"
 )

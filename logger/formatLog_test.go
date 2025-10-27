@@ -36,7 +36,7 @@ func TestLogs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mocksLogger := new(Mocks)
-			mocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+			mocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
 			emitOtel = mocksLogger.emitOtel
 
 			ctx := ContextLogger(context.Background())
