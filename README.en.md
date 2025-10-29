@@ -2,7 +2,7 @@
 Unstoppable speed. Total control. Microservices without limits.
 
 # Description 
-QuicksGo is a modern framework in Golang designed to build robust, scalable, production-ready applications in record time. Combining the power of Go with an efficiency-focused architecture, QuicksGo simplifies the creation of microservices, RESTful APIs, GraphQL, gRPC, distributed systems and high-performance backend applications.
+QuicksGo is a modern framework in Golang GIN designed to build robust, scalable, production-ready applications in record time. Combining the power of Go with an efficiency-focused architecture, QuicksGo simplifies the creation of microservices, RESTful APIs, GraphQL, gRPC, distributed systems and high-performance backend applications.
 
 # Main features:
 
