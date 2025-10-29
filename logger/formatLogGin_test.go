@@ -67,7 +67,7 @@ func TestCustomLogFormatGin_DefaultSuccessMessage(t *testing.T) {
 
 	mux.Lock()
 	defer mux.Unlock()
-	// 👉 Captura el writer ANTES de registrar el middleware
+	// Captura el writer ANTES de registrar el middleware
 	var buf bytes.Buffer
 	origWriter := gin.DefaultWriter
 	gin.DefaultWriter = &buf
@@ -94,7 +94,7 @@ func TestCustomLogFormatGin_DefaultSuccessMessage(t *testing.T) {
 		t.Fatal("se esperaba una línea de log JSON, pero no hubo salida")
 	}
 
-	// 👉 claves en minúsculas
+	// claves en minúsculas
 	if m["message"] == "" {
 		t.Errorf("message no debería estar vacío en success (debería ser msgSuccess)")
 	}
@@ -358,7 +358,7 @@ func TestCustomLogFormatGin_DefaultErrorMessage(t *testing.T) {
 	raw := lastNonEmptyLine(buf.String())
 	m := parseJSONToMap(t, raw)
 
-	want := string(MsgError) // 👈 usa la constante real
+	want := string(MsgError)
 	if m["message"] != want {
 		t.Errorf("se esperaba msgError, got=%v want=%v", m["message"], want)
 	}

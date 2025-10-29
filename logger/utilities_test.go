@@ -94,8 +94,6 @@ func Test_emitOtel(t *testing.T) {
 	t.Run("con provider: cubre INFO/WARN/ERROR/FATAL/default y Export n veces", func(t *testing.T) {
 		// Arrange: exporter mock + processor real
 		exp := new(MockExporter)
-
-		// Casos a cubrir → harán que pase por cada rama del switch (líneas “rojas”)
 		cases := []struct {
 			name  string
 			level Level
@@ -104,7 +102,7 @@ func Test_emitOtel(t *testing.T) {
 			{"warn", WARNING},
 			{"error", ERROR},
 			{"fatal", FATAL},
-			{"default", UNKNOWN}, // cae en default/undefined
+			{"default", UNKNOWN}, // default/undefined
 		}
 
 		// Esperamos una llamada a Export por cada caso
