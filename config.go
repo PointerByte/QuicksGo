@@ -7,12 +7,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"quicksgo/logger"
-	"quicksgo/logger/rotate"
-	"quicksgo/security"
-	"quicksgo/telemetry"
 	"syscall"
 	"time"
+
+	"github.com/PointerByte/QuicksGo/logger"
+	"github.com/PointerByte/QuicksGo/logger/rotate"
+	"github.com/PointerByte/QuicksGo/security"
+	"github.com/PointerByte/QuicksGo/telemetry"
 
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
@@ -49,6 +50,13 @@ func setModeGin() {
 	default:
 		ctxLogger.Panic(errors.New("gin mode invalid"))
 	}
+}
+
+var readInConfig = func() error {
+	if mocksConfig != nil {
+		return mocksConfig.ReadInConfig()
+	}
+	return viper.ReadInConfig()
 }
 
 func loadEnv() error {
@@ -156,6 +164,13 @@ func MirrorHeaders() gin.HandlerFunc {
 //
 // This function also sets up security headers and ensures consistent application
 // initialization behavior across environments.
+var CreateApp = func() (*gin.Engine, error) {
+	if MocksMain != nil {
+		return MocksMain.CreateApp()
+	}
+	return createApp()
+}
+
 func createApp() (*gin.Engine, error) {
 	// Configure env
 	if err := LoadConfig(); err != nil {
@@ -174,7 +189,7 @@ func createApp() (*gin.Engine, error) {
 		security.SecurityHeaders(),
 	)
 	if viper.GetBool("otlp.enable") {
-		engine.Use(telemetry.GetMiddleware())
+		engine.Use(telemetry.MiddlewareOtel())
 	}
 
 	// Grupo form API
@@ -219,6 +234,14 @@ func Shutdown(srv *http.Server) error {
 //
 // This function blocks until the server is shut down.
 // Any errors during server execution or shutdown are logged.
+var Start = func(srv *http.Server) {
+	if MocksMain != nil {
+		MocksMain.Start(srv)
+		return
+	}
+	start(srv)
+}
+
 func start(srv *http.Server) {
 	defer func() {
 		if err := shutdownOtel(ctxLogger); err != err {

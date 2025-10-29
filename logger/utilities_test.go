@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"quicksgo/telemetry"
 	"testing"
+
+	"github.com/PointerByte/QuicksGo/telemetry"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"

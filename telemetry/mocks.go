@@ -16,13 +16,6 @@ func DisableMocks() {
 	MocksOtel = nil
 }
 
-var InitOtel = func(ctx context.Context) (shutdown ShutdownOtel, err error) {
-	if MocksOtel != nil {
-		return MocksOtel.InitOtel(ctx)
-	}
-	return initOtel(ctx)
-}
-
 type Mocks struct {
 	mock.Mock
 }

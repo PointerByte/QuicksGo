@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 )
 
@@ -35,6 +36,10 @@ func NewRotatorCfgFromViper() *RotatorCfg {
 // Start arranca la goroutine que revisa el archivo cada minuto.
 // logPath es la ruta COMPLETA del archivo (ej: "/var/log/myapp/app.log")
 func (cfg *RotatorCfg) Start(ctx context.Context, logPath string) {
+	// Skip rotation in test mode
+	if gin.Mode() == gin.TestMode {
+		return
+	}
 	if cfg.DateFormat == "" {
 		cfg.DateFormat = "2006-01-02T15:04:05.000Z"
 	}
@@ -42,7 +47,6 @@ func (cfg *RotatorCfg) Start(ctx context.Context, logPath string) {
 		cfg.MaxSizeMB = 20
 	}
 	ticker := time.NewTicker(time.Minute)
-
 	go func() {
 		defer ticker.Stop()
 		for {

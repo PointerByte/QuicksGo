@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"quicksgo/controller"
-	"quicksgo/logger"
+
+	"github.com/PointerByte/QuicksGo/logger"
+
+	"github.com/PointerByte/QuicksGo/controller"
 
 	"github.com/spf13/viper"
 )

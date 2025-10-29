@@ -16,13 +16,6 @@ func DisableMocks() {
 	MocksLogger = nil
 }
 
-var InitLogger = func() error {
-	if MocksLogger != nil {
-		return MocksLogger.InitLogger()
-	}
-	return initLogger()
-}
-
 type Mocks struct {
 	mock.Mock
 }

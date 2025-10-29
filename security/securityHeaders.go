@@ -2,8 +2,9 @@ package security
 
 import (
 	"net/http"
-	"quicksgo/models"
 	"slices"
+
+	"github.com/PointerByte/QuicksGo/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"

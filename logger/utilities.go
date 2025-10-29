@@ -3,8 +3,9 @@ package logger
 import (
 	"context"
 	"os"
-	"quicksgo/telemetry"
 	"time"
+
+	"github.com/PointerByte/QuicksGo/telemetry"
 
 	"github.com/spf13/viper"
 	otellog "go.opentelemetry.io/otel/log"

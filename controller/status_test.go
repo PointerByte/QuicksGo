@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"quicksgo/controller"
-	"quicksgo/models"
 	"testing"
+
+	"github.com/PointerByte/QuicksGo/controller"
+	"github.com/PointerByte/QuicksGo/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"

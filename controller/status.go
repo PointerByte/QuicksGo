@@ -2,8 +2,9 @@ package controller
 
 import (
 	"net/http"
-	"quicksgo/logger"
-	"quicksgo/models"
+
+	"github.com/PointerByte/QuicksGo/logger"
+	"github.com/PointerByte/QuicksGo/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"

@@ -14,6 +14,14 @@ import (
 
 var std = log.New(io.Discard, "", 0)
 
+// InitLogger automatically initializes and configures the application logger.
+var InitLogger = func() error {
+	if MocksLogger != nil {
+		return MocksLogger.InitLogger()
+	}
+	return initLogger()
+}
+
 func initLogger() error {
 	// Create/open log file
 	dir := viper.GetString("logger.dir")

@@ -31,6 +31,25 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+// InitOtel initializes the OpenTelemetry (OTEL) providers for traces, metrics,
+// and logs based on environment or configuration values managed by Viper.
+//
+// It detects which OTEL exporters are enabled (traces, metrics, logs),
+// builds a unified OTEL resource containing service name and version metadata,
+// and configures the corresponding providers using the detected exporter endpoint.
+//
+// If no valid OTLP endpoint or exporters are configured, it returns a no-op
+// shutdown handler (HandlerShutdownOtel) and no error.
+//
+// The returned shutdown function gracefully terminates all active OTEL providers
+// (Traces, Metrics, and Logs) when called, ensuring proper cleanup of telemetry resources.
+var InitOtel = func(ctx context.Context) (shutdown ShutdownOtel, err error) {
+	if MocksOtel != nil {
+		return MocksOtel.InitOtel(ctx)
+	}
+	return initOtel(ctx)
+}
+
 const (
 	gRPC         = "grpc"
 	httpProtocol = "http/protobuf"
@@ -370,7 +389,16 @@ func (m *monitoringImp) Logs() (*sdklog.LoggerProvider, error) {
 	return lp, nil
 }
 
-func GetMiddleware() gin.HandlerFunc {
+// MiddlewareOtel returns a Gin middleware configured with OpenTelemetry instrumentation.
+//
+// It creates and returns an otelgin.Middleware instance that automatically
+// traces incoming HTTP requests and exports telemetry data using the global
+// OpenTelemetry providers.
+//
+// The middleware is initialized with values from Viper, including the
+// service name ("service.name"), and uses the global TracerProvider,
+// MeterProvider, and TextMapPropagator to enable distributed tracing and metrics collection.
+func MiddlewareOtel() gin.HandlerFunc {
 	return otelgin.Middleware(
 		viper.GetString("service.name"),
 		otelgin.WithTracerProvider(otel.GetTracerProvider()),

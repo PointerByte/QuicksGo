@@ -1,9 +1,10 @@
 package models_test
 
 import (
-	"quicksgo/models"
 	"reflect"
 	"testing"
+
+	"github.com/PointerByte/QuicksGo/models"
 
 	"github.com/spf13/viper"
 )

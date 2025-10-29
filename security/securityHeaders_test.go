@@ -3,8 +3,9 @@ package security_test
 import (
 	"net/http"
 	"net/http/httptest"
-	"quicksgo/security"
 	"testing"
+
+	"github.com/PointerByte/QuicksGo/security"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"

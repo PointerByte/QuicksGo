@@ -6,11 +6,12 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"quicksgo/logger"
-	"quicksgo/telemetry"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/PointerByte/QuicksGo/logger"
+	"github.com/PointerByte/QuicksGo/telemetry"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -101,9 +102,9 @@ func testConfig(t *testing.T) {
 			// Set Mocks
 			if tt.name == "Error ReadInConfig" {
 				EnableMocksConfig()
-				MocksConfig.On("ReadInConfig").Return(tt.errs[0]).Maybe()
+				mocksConfig.On("ReadInConfig").Return(tt.errs[0]).Maybe()
 				// Asserts Mocks
-				defer MocksConfig.AssertExpectations(t)
+				defer mocksConfig.AssertExpectations(t)
 			}
 			if tt.name == "Error InitLogger" {
 				logger.EnableMocks()

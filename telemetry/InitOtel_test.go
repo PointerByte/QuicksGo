@@ -236,10 +236,6 @@ func Test_TLSConfigGRPC_SetsOptions_ByProtocol_AndExporter(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				// cubre los 3 switches de traces/metrics/logs en tlsConfigGRPC
-				// traces -> :contentReference[oaicite:7]{index=7}
-				// metrics -> :contentReference[oaicite:8]{index=8}
-				// logs -> :contentReference[oaicite:9]{index=9}
 			}
 		})
 	}
@@ -455,7 +451,6 @@ func Test_Logs_UnsupportedProtocol_ErrorMessage(t *testing.T) {
 	}
 	_, err := m.Logs()
 	assert.Error(t, err)
-	// También dice “traces” en Logs (igual que en el código)
 	assert.Contains(t, err.Error(), "unsupported OTLP protocol for traces") // :contentReference[oaicite:11]{index=11}
 }
 
@@ -626,7 +621,7 @@ func Test_TLSConfig_OTLPProtocols(t *testing.T) {
 				protocol:           tt.protocol,
 			}
 
-			err := m.tlsConfig() // o el nombre exacto de la función que contiene ese bloque
+			err := m.tlsConfig()
 
 			if tt.wantErrSubstr != "" {
 				assert.Error(t, err)
@@ -653,7 +648,7 @@ func TestGetMiddleware(t *testing.T) {
 
 	// Crear router con el middleware que vamos a probar
 	r := gin.New()
-	r.Use(GetMiddleware())
+	r.Use(MiddlewareOtel())
 
 	// Añadir una ruta simple
 	r.GET("/ping", func(c *gin.Context) {

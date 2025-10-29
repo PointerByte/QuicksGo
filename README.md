@@ -1,10 +1,12 @@
 # QuicksGo
-Unstoppable speed. Total control. Microservices without limits.
+[![Go Reference](https://pkg.go.dev/badge/github.com/PointerByte/QuicksGo.svg)](https://pkg.go.dev/github.com/PointerByte/QuicksGo)
+[![Go Report Card](https://goreportcard.com/badge/github.com/PointerByte/QuicksGo)](https://goreportcard.com/report/github.com/PointerByte/QuicksGo)
+[![Release](https://img.shields.io/github/v/release/PointerByte/QuicksGo?color=blue&label=release)](https://github.com/PointerByte/QuicksGo/releases)
 
-# Description 
+## Description 
 QuicksGo is a modern framework in Golang GIN designed to build robust, scalable, production-ready applications in record time. Combining the power of Go with an efficiency-focused architecture, QuicksGo simplifies the creation of microservices, RESTful APIs, GraphQL, gRPC, distributed systems and high-performance backend applications.
 
-# Main features:
+## Main features:
 
 ⚙️ intelligent CLI for scaffolding and service generation.
 
@@ -22,7 +24,7 @@ QuicksGo is a modern framework in Golang GIN designed to build robust, scalable,
 
 ☁️ Ready to deploy on Docker, Kubernetes and serverless.
 
-# Why QuicksGo?
+## Why QuicksGo?
 
 Because you need the speed of Go, but without giving up the productivity of a full framework.
 
@@ -30,7 +32,7 @@ Because you want frictionless structure, not unnecessary complexity.
 
 Because you want freedom to scale, without being tied to heavy tools.
 
-# ✨ Ideal for:
+## Ideal for:
 
 Modern microservices architectures.
 

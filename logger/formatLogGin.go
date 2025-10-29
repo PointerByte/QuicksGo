@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// MiddlewaresInitLogger returns a Gin middleware that initializes
 func MiddlewaresInitLogger() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctx.Set(LevelKey, UNKNOWN)
@@ -29,6 +30,7 @@ func MiddlewaresInitLogger() gin.HandlerFunc {
 	}
 }
 
+// SetMessageLog updates the request context with a log level and message.
 func SetMessageLog(ctx *gin.Context, level Level, message string) {
 	ctxLogger := context.WithValue(ctx.Request.Context(), LevelKey, level)
 	ctx.Request = ctx.Request.WithContext(ctxLogger)

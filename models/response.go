@@ -23,6 +23,14 @@ type Response[T any] struct {
 	Details     T          `json:"details,omitempty"` // Optional payload (for success)
 }
 
+// GenericResponse creates a standardized response object for any data type.
+//
+// It builds a Response[T] structure containing the operation status, service name,
+// API name, and detailed payload. The function leverages generics to support any
+// response data type while maintaining a consistent response format across the API.
+//
+// Configuration values such as service and API names are automatically loaded
+// from Viper (service.name and server.api.name).
 func GenericResponse[T any](status StatusType, Details T) *Response[T] {
 	vp := viper.GetViper()
 	return &Response[T]{

@@ -2,8 +2,9 @@ package main
 
 import (
 	"errors"
-	"quicksgo/logger"
 	"testing"
+
+	"github.com/PointerByte/QuicksGo/logger"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
