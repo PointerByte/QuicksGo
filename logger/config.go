@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var std = log.New(io.Discard, "", 0)
@@ -52,6 +53,19 @@ func initLogger() error {
 	log.SetFlags(0)
 	log.SetPrefix("")
 
-	// Config otlp logs
 	return nil
+}
+
+func setOtelIds(ctx *Context) {
+	var traceID string
+	var spanID string
+	if viper.GetBool("otlp.enable") {
+		spanCtx := trace.SpanContextFromContext(ctx)
+		if spanCtx.IsValid() {
+			traceID = spanCtx.TraceID().String()
+			spanID = spanCtx.SpanID().String()
+		}
+	}
+	ctx.Set(TraceIdOtel, traceID)
+	ctx.Set(SpanIdOtel, spanID)
 }

@@ -22,11 +22,11 @@ func ClearFile() error {
 	return nil
 }
 
-var emitOtel = func(ctx context.Context, TraceID, SpanID string, level level, result string) {
+var emitOtel = func(ctx context.Context, TraceID, SpanID string, level Level, result string) {
 	_emitOtel(ctx, TraceID, SpanID, level, result)
 }
 
-func _emitOtel(ctx context.Context, TraceID, SpanID string, level level, result string) {
+func _emitOtel(ctx context.Context, TraceID, SpanID string, level Level, result string) {
 	if !viper.GetBool("otlp.enable") {
 		return
 	}

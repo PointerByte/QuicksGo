@@ -39,20 +39,20 @@ func TestLogs(t *testing.T) {
 			mocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
 			emitOtel = mocksLogger.emitOtel
 
-			ctx := ContextLogger(context.Background())
+			ctx := New(context.Background())
 			attributesMap := make(map[string]any)
 			attributesMap["test"] = true
-			ctx = context.WithValue(ctx, attributesKey, attributesMap)
+			ctx.Set(attributesKey, attributesMap)
 			switch tt.name {
 			case "test Info":
-				Info(ctx, tt.message)
+				ctx.Info(tt.message)
 			case "test Error":
-				Error(ctx, tt.messageErr)
+				ctx.Error(tt.messageErr)
 			case "test Warning":
-				Warning(ctx, tt.message)
+				ctx.Warning(tt.message)
 			default:
 				assert.Panics(t, func() {
-					Panic(ctx, tt.messageErr)
+					ctx.Panic(tt.messageErr)
 				}, "expected panic from MustFail")
 			}
 			time.Sleep(time.Second)

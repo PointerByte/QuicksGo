@@ -8,45 +8,35 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
-	"go.opentelemetry.io/otel/trace"
 )
 
 func MiddlewaresInitLogger() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		ctx.Set(LevelKey, UNKNOWN)
 		withAutoLog := ctx.Value(WithAutoLog)
 		withAutoLogBool, ok := withAutoLog.(bool)
 		if !ok || !withAutoLogBool {
-			ctxLogger := ContextLogger(ctx.Request.Context())
-			ctx.Request = ctx.Request.WithContext(ctxLogger)
+			ctxLogger := New(ctx)
+			traceID, ok1 := ctxLogger.Get(TraceIdOtel)
+			spanID, ok2 := ctxLogger.Get(SpanIdOtel)
+			if ok1 && ok2 {
+				ctx.Set(TraceIdOtel, traceID.(string))
+				ctx.Set(SpanIdOtel, spanID.(string))
+			}
 			ctx.Next()
 			return
 		}
 	}
 }
 
-func SetMessageLog(ctx *gin.Context, level level, message string) {
-	ctx.Set(levelKey, level)
+func SetMessageLog(ctx *gin.Context, level Level, message string) {
+	ctxLogger := context.WithValue(ctx.Request.Context(), LevelKey, level)
+	ctx.Request = ctx.Request.WithContext(ctxLogger)
+	ctx.Set(LevelKey, level)
 	ctx.Set(messageKey, message)
 }
 
-func (l *LogFormat) SetTraceID(traceID string) {
-	l.TraceID = traceID
-}
-
-func (l *LogFormat) SetSpanID(spanID string) {
-	l.SpanID = spanID
-}
-
-func (l *LogFormat) getDefaultLogGin(params gin.LogFormatterParams) string {
-	ctx := params.Request.Context()
-
-	// ---------- Trace / Span ----------
-	spanCtx := trace.SpanContextFromContext(ctx)
-	if spanCtx.IsValid() {
-		l.SetTraceID(spanCtx.TraceID().String())
-		l.SetSpanID(spanCtx.SpanID().String())
-	}
-
+func getDefaultLogGin(params gin.LogFormatterParams) string {
 	// ---------- Atributes ----------
 	attrs := make(map[string]any)
 	attrs["service"] = viper.GetString("service.name")
@@ -75,36 +65,32 @@ func (l *LogFormat) getDefaultLogGin(params gin.LogFormatterParams) string {
 	}
 
 	// Get Level
-	_level := ERROR
+	level := ERROR
 	if params.ErrorMessage == "" {
-		_level = UNKNOWN
-		if v := params.Keys[levelKey]; v != nil {
-			_level = v.(level)
+		level = UNKNOWN
+		if v := params.Keys[LevelKey]; v != nil {
+			level = v.(Level)
 		}
 	}
+
+	traceID := params.Keys[TraceIdOtel]
+	spanID := params.Keys[SpanIdOtel]
 
 	// ---------- Format Logger ----------
 	entry := LogFormat{
 		Timestamp:  params.TimeStamp.Format(viper.GetString("logger.dateFormat")),
-		TraceID:    l.TraceID,
-		SpanID:     l.TraceID,
-		Level:      _level,
+		TraceID:    traceID.(string),
+		SpanID:     spanID.(string),
+		Level:      level,
 		Message:    message,
 		Attributes: attrs,
-		Latency:    params.Latency.Milliseconds(),
+		Time:       params.Latency.Milliseconds(),
 	}
 	jsonBytes, err := json.Marshal(entry)
 	if err != nil {
 		log.Fatal(err)
 	}
-	result := string(jsonBytes)
-	// This funtion is for emit log to otel
-	EmitOtel(ctx, l.TraceID, l.SpanID, l.Level, result)
-	return result
-}
-
-func EmitOtel(ctx context.Context, traceID string, spanID string, level level, result string) {
-	go emitOtel(ctx, traceID, spanID, level, result)
+	return string(jsonBytes)
 }
 
 // CustomLogFormatGin returns a Gin middleware that provides a custom log formatter.
@@ -137,8 +123,14 @@ func CustomLogFormatGin() gin.HandlerFunc {
 		}
 
 		// Create a new log formatter and generate the formatted output.
-		newLogFormat := new(LogFormat)
-		result := newLogFormat.getDefaultLogGin(params)
+		result := getDefaultLogGin(params)
+
+		// Emit to Otel
+		traceID := params.Keys[TraceIdOtel]
+		spanID := params.Keys[SpanIdOtel]
+		level := params.Keys[LevelKey]
+		go emitOtel(params.Request.Context(), traceID.(string), spanID.(string), level.(Level), result)
+
 		return result + "\n"
 	})
 }

@@ -97,7 +97,7 @@ func Test_emitOtel(t *testing.T) {
 		// Casos a cubrir → harán que pase por cada rama del switch (líneas “rojas”)
 		cases := []struct {
 			name  string
-			level level
+			level Level
 		}{
 			{"info", INFO},
 			{"warn", WARNING},

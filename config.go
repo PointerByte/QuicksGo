@@ -21,10 +21,17 @@ import (
 )
 
 var (
-	ctxMain      context.Context
+	ctxLogger    *logger.Context
 	quit         chan os.Signal
 	shutdownOtel telemetry.ShutdownOtel
 )
+
+func init() {
+	ctxLogger = logger.New(context.Background())
+	quit = make(chan os.Signal, 1)
+	globalRoutes = make(map[string]*gin.RouterGroup)
+	setModeGin()
+}
 
 func setModeGin() {
 	mode := viper.GetString("server.gin.mode")
@@ -40,36 +47,39 @@ func setModeGin() {
 	case gin.TestMode:
 		gin.SetMode(mode)
 	default:
-		logger.Panic(ctxMain, errors.New("gin mode invalid"))
+		ctxLogger.Panic(errors.New("gin mode invalid"))
 	}
 }
 
-func init() {
-	ctxMain = logger.ContextLogger(context.Background())
-	quit = make(chan os.Signal, 1)
-	setModeGin()
-	globalRoutes = make(map[string]*gin.RouterGroup)
+func loadEnv() error {
+	// Load application.json
+	viper.SetConfigName("application")
+	viper.SetConfigType("json")
+	viper.AddConfigPath(".")
+	if err := readInConfig(); err != nil {
+		return err
+	}
+
+	// Load .env
+	viper.SetConfigFile(".env")
+	viper.SetConfigType("env")
+	_ = viper.MergeInConfig()
+
+	// Load .env.local
+	viper.SetConfigFile(".env.local")
+	viper.SetConfigType("env")
+	_ = viper.MergeInConfig()
+
+	// Enable reading from environment variables
+	viper.AutomaticEnv()
+	return nil
 }
 
 // LoadConfig loads the configuration file and environment variables into Viper.
 // It automatically converts all configuration keys to lowercase to ensure consistency.
 // The function supports both .env, .env.local and JSON configuration files.
 func LoadConfig() error {
-	// Load .env
-	viper.SetConfigFile(".env")
-	viper.SetConfigType("env")
-	viper.AutomaticEnv()
-	// Load .env.local
-	viper.SetConfigFile(".env.local")
-	viper.SetConfigType("env")
-	viper.AutomaticEnv()
-	// Load application.json
-	viper.SetConfigName("application")
-	viper.SetConfigType("json")
-	viper.AddConfigPath(".")
-
-	// Read configuration file
-	if err := ReadInConfig(); err != nil {
+	if err := loadEnv(); err != nil {
 		return err
 	}
 
@@ -80,7 +90,7 @@ func LoadConfig() error {
 	}
 
 	// Config telmetry with Otel
-	shutdownOtel, err = telemetry.InitOtel(ctxMain)
+	shutdownOtel, err = telemetry.InitOtel(ctxLogger)
 	if err != nil {
 		return err
 	}
@@ -128,7 +138,9 @@ func Limiter() gin.HandlerFunc {
 func MirrorHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		for k, v := range c.Request.Header {
-			c.Writer.Header().Set(k, v[0])
+			for _, val := range v {
+				c.Writer.Header().Add(k, val)
+			}
 		}
 		c.Next()
 	}
@@ -187,13 +199,13 @@ func Shutdown(srv *http.Server) error {
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	<-quit
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := ctxLogger.WithTimeout(time.Second * 10)
 	defer cancel()
-	logger.Info(ctx, "Signal received, turning off...")
+	ctxLogger.Info("Signal received, turning off...")
 	if err := srv.Shutdown(ctx); err != nil {
 		return fmt.Errorf("shutdown force: %v", err)
 	}
-	logger.Info(ctx, "Server stopped successfully")
+	ctxLogger.Info("Server stopped successfully")
 	return nil
 }
 
@@ -209,8 +221,8 @@ func Shutdown(srv *http.Server) error {
 // Any errors during server execution or shutdown are logged.
 func start(srv *http.Server) {
 	defer func() {
-		if err := shutdownOtel(ctxMain); err != err {
-			logger.Error(ctxMain, err)
+		if err := shutdownOtel(ctxLogger); err != err {
+			ctxLogger.Error(err)
 		}
 	}()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -220,14 +232,14 @@ func start(srv *http.Server) {
 	go func() {
 		if srv.TLSConfig != nil {
 			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				logger.Error(ctxMain, err)
+				ctxLogger.Error(err)
 			}
 		}
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error(ctxMain, err)
+			ctxLogger.Error(err)
 		}
 	}()
 	if err := Shutdown(srv); err != err {
-		logger.Error(ctxMain, err)
+		ctxLogger.Error(err)
 	}
 }

@@ -1,14 +1,14 @@
 package logger
 
-type level string
+type Level string
 
 const (
-	INFO    level = "INFO"
-	ERROR   level = "ERROR"
-	WARNING level = "WARNING"
-	FATAL   level = "FATAL"
-	PANIC   level = "PANIC"
-	UNKNOWN level = "UNKNOWN"
+	INFO    Level = "INFO"
+	ERROR   Level = "ERROR"
+	WARNING Level = "WARNING"
+	FATAL   Level = "FATAL"
+	PANIC   Level = "PANIC"
+	UNKNOWN Level = "UNKNOWN"
 )
 
 type messageLog string
@@ -21,9 +21,10 @@ const (
 type KeyContex string
 
 const (
-	startTimeKey  KeyContex = "startTime"
-	levelKey      KeyContex = "level"
+	LevelKey      KeyContex = "level"
 	messageKey    KeyContex = "message"
 	attributesKey KeyContex = "attributes"
 	WithAutoLog   KeyContex = "withAutoLog"
+	TraceIdOtel   KeyContex = "traceIdOtel"
+	SpanIdOtel    KeyContex = "spanIdOtel"
 )

@@ -11,10 +11,10 @@ import (
 )
 
 func main() {
-	ctx := logger.ContextLogger(context.Background())
+	ctx := logger.New(context.Background())
 	engine, err := CreateApp()
 	if err != nil {
-		logger.Panic(ctx, err)
+		ctx.Panic(err)
 	}
 
 	prefix := viper.GetStringSlice("server.basePaths")[0]
@@ -25,6 +25,6 @@ func main() {
 		Addr:    viper.GetString("server.port"),
 		Handler: engine,
 	}
-	logger.Info(ctx, fmt.Sprintf("Server started on port %s", viper.GetString("server.port")))
+	ctx.Info(fmt.Sprintf("Server started on port %s", viper.GetString("server.port")))
 	Start(srv)
 }

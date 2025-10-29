@@ -21,7 +21,7 @@ import (
 func getFreePort() string {
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
-		logger.Fatal(ctxMain, err)
+		ctxLogger.Fatal(err)
 	}
 	defer listener.Close()
 

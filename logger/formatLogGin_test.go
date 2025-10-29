@@ -74,7 +74,7 @@ func TestCustomLogFormatGin_DefaultSuccessMessage(t *testing.T) {
 	defer func() { gin.DefaultWriter = origWriter }()
 
 	r := gin.New()
-	r.Use(CustomLogFormatGin()) // ahora sí, captura tu buffer
+	r.Use(MiddlewaresInitLogger(), CustomLogFormatGin())
 
 	r.GET("/ok", func(c *gin.Context) {
 		c.Status(http.StatusNoContent)
@@ -150,7 +150,7 @@ func TestCustomLogFormatGin_RespectsSetMessageLog(t *testing.T) {
 	defer func() { gin.DefaultWriter = origWriter }()
 
 	r := gin.New()
-	r.Use(CustomLogFormatGin())
+	r.Use(MiddlewaresInitLogger(), CustomLogFormatGin())
 
 	r.GET("/custom", func(c *gin.Context) {
 		// Inyectamos atributos personalizados en el *request context*
@@ -229,7 +229,7 @@ func TestCustomLogFormatGin_WithAutoLogFalse_DisablesLogging(t *testing.T) {
 		c.Set(WithAutoLog, false)
 		c.Next()
 	})
-	r.Use(CustomLogFormatGin())
+	r.Use(MiddlewaresInitLogger(), CustomLogFormatGin())
 
 	r.GET("/silent", func(c *gin.Context) {
 		c.Status(http.StatusOK)
@@ -277,7 +277,7 @@ func TestSetMessageLog_SetsKeysInContext(t *testing.T) {
 	defer func() { gin.DefaultWriter = origWriter }()
 
 	r := gin.New()
-	r.Use(CustomLogFormatGin())
+	r.Use(MiddlewaresInitLogger(), CustomLogFormatGin())
 
 	r.GET("/keys", func(c *gin.Context) {
 		SetMessageLog(c, UNKNOWN, "hola")
@@ -285,7 +285,7 @@ func TestSetMessageLog_SetsKeysInContext(t *testing.T) {
 		if v, ok := c.Get(messageKey); !ok || v.(string) != "hola" {
 			t.Fatalf(`ctx.Keys["message"] no seteado correctamente; got=%v ok=%v`, v, ok)
 		}
-		if v, ok := c.Get(levelKey); !ok || v.(level) != UNKNOWN {
+		if v, ok := c.Get(LevelKey); !ok || v.(Level) != UNKNOWN {
 			t.Fatalf(`ctx.Keys["level"] no seteado correctamente; got=%v ok=%v`, v, ok)
 		}
 		c.Status(http.StatusOK)
@@ -330,48 +330,6 @@ func TestSetMessageLog_SetsKeysInContext(t *testing.T) {
 	}
 }
 
-func TestMiddlewaresInitLogger_AllowsNextHandler(t *testing.T) {
-	t.Parallel()
-
-	mocksLogger := new(Mocks)
-	mocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe().Return().Maybe()
-	emitOtel = mocksLogger.emitOtel
-	defer mocksLogger.AssertExpectations(t)
-
-	EnableMocks()
-	MocksLogger.On("emitOtel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe().Return().Maybe()
-	defer DisableMocks()
-	defer MocksLogger.AssertExpectations(t)
-
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-
-	// Forzamos la condición en la que el middleware SÍ llama a Next():
-	// Con WithAutoLog presente y false.
-	r.Use(func(c *gin.Context) {
-		c.Set(WithAutoLog, false)
-		c.Next()
-	})
-	r.Use(MiddlewaresInitLogger())
-
-	called := false
-	r.GET("/chain", func(c *gin.Context) {
-		called = true
-		c.String(http.StatusOK, "ok")
-	})
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/chain", nil)
-	r.ServeHTTP(w, req)
-
-	if !called {
-		t.Fatalf("se esperaba que el handler final fuera ejecutado (ctx.Next() en el middleware)")
-	}
-	if w.Code != http.StatusOK {
-		t.Fatalf("status inesperado: got=%d want=%d", w.Code, http.StatusOK)
-	}
-}
-
 func TestCustomLogFormatGin_DefaultErrorMessage(t *testing.T) {
 	t.Parallel()
 
@@ -386,7 +344,7 @@ func TestCustomLogFormatGin_DefaultErrorMessage(t *testing.T) {
 	defer func() { gin.DefaultWriter = orig }()
 
 	r := gin.New()
-	r.Use(CustomLogFormatGin())
+	r.Use(MiddlewaresInitLogger(), CustomLogFormatGin())
 
 	r.GET("/fail", func(c *gin.Context) {
 		// No seteamos message ni level → debe usar msgError

@@ -18,7 +18,7 @@ func DisableMocksConfig() {
 	MocksConfig = nil
 }
 
-var ReadInConfig = func() error {
+var readInConfig = func() error {
 	if MocksConfig != nil {
 		return MocksConfig.ReadInConfig()
 	}
