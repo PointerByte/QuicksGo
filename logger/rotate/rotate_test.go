@@ -120,7 +120,7 @@ func TestStart_AppliesDefaultsAndCancels(t *testing.T) {
 	if cfg.DateFormat != "2006-01-02T15:04:05.000Z" {
 		t.Fatalf("DateFormat default not applied, got %q", cfg.DateFormat)
 	}
-	if cfg.MaxSizeMB != 20 {
+	if cfg.MaxSizeMB != 5 {
 		t.Fatalf("MaxSizeMB default not applied, got %d", cfg.MaxSizeMB)
 	}
 }
