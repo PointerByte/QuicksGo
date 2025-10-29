@@ -44,7 +44,7 @@ func (cfg *RotatorCfg) Start(ctx context.Context, logPath string) {
 		cfg.DateFormat = "2006-01-02T15:04:05.000Z"
 	}
 	if cfg.MaxSizeMB <= 0 {
-		cfg.MaxSizeMB = 20
+		cfg.MaxSizeMB = 5
 	}
 	ticker := time.NewTicker(time.Minute)
 	go func() {
