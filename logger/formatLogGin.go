@@ -101,7 +101,7 @@ func init() {
 	loggerFormatGin = getDefaultLogGin
 }
 
-// SetLoggerFormat sets the global logger formatting handler.
+// SetLoggerFormatGin sets the global logger formatting handler for Gin formated.
 // The provided function is stored and later used to format log output.
 // It can be used to customize the log message structure across the application.
 func SetLoggerFormatGin(fn HandleLoggerFormatGin) {
