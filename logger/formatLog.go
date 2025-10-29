@@ -22,7 +22,8 @@ func traceCaller(skip int) (funcName string, file string, line int) {
 	return fn.Name(), file, line
 }
 
-func getDefaultLog(ctx *Context, level Level, message string) string {
+func getDefaultLog(ctx *Context, message string) string {
+	level, _ := ctx.Get(LevelKey)
 	// ---------- Atributes ----------
 	attrs := make(map[string]any)
 	if v, ok := ctx.Get(attributesKey); ok {
@@ -34,6 +35,7 @@ func getDefaultLog(ctx *Context, level Level, message string) string {
 	// ---------- Get Line ----------
 	funcName, file, line := traceCaller(3)
 
+	// ---------- TraceID OTEL / SpanID OTEL ----------
 	var traceID string
 	var spanID string
 	if v, ok := ctx.Get(TraceIdOtel); ok {
@@ -47,7 +49,7 @@ func getDefaultLog(ctx *Context, level Level, message string) string {
 		Timestamp:  time.Now().Format(viper.GetString("logger.dateFormat")),
 		TraceID:    traceID,
 		SpanID:     spanID,
-		Level:      level,
+		Level:      level.(Level),
 		Message:    message,
 		Attributes: attrs,
 		File:       file,
@@ -62,15 +64,31 @@ func getDefaultLog(ctx *Context, level Level, message string) string {
 	return string(jsonBytes)
 }
 
-func customLogFormat(ctx *Context, level Level, message string) string {
-	// Get func format logger
-	result := getDefaultLog(ctx, level, message)
+type HandleLoggerFormat func(ctx *Context, message string) string
 
+var loggerFormat HandleLoggerFormat
+
+func init() {
+	loggerFormat = getDefaultLog
+}
+
+// SetLoggerFormat sets the global logger formatting handler.
+// The provided function is stored and later used to format log output.
+// It can be used to customize the log message structure across the application.
+func SetLoggerFormat(fn HandleLoggerFormat) {
+	loggerFormat = fn
+}
+
+func customLogFormat(ctx *Context, message string) string {
+	// Get func format logger
+	result := loggerFormat(ctx, message)
+
+	level, _ := ctx.Get(LevelKey)
 	// Emit to Otel
 	traceID, ok1 := ctx.Get(TraceIdOtel)
 	spanID, ok2 := ctx.Get(SpanIdOtel)
 	if ok1 && ok2 {
-		go emitOtel(ctx, traceID.(string), spanID.(string), level, result)
+		go emitOtel(ctx, traceID.(string), spanID.(string), level.(Level), result)
 	}
 
 	// Return result
@@ -81,7 +99,8 @@ func customLogFormat(ctx *Context, level Level, message string) string {
 //
 // The log message is formatted via log format with the INFO level.
 func (c *Context) Info(message string) {
-	go log.Print(customLogFormat(c, INFO, message))
+	c.Set(LevelKey, INFO)
+	go log.Print(customLogFormat(c, message))
 }
 
 // Error logs an error message asynchronously using the default logger.
@@ -89,14 +108,16 @@ func (c *Context) Info(message string) {
 // It formats the error using the ERROR log level. The message includes
 // contextual information from the provided context.
 func (c *Context) Error(err error) {
-	go log.Print(customLogFormat(c, INFO, customLogFormat(c, ERROR, err.Error())))
+	c.Set(LevelKey, ERROR)
+	go log.Print(customLogFormat(c, err.Error()))
 }
 
 // Warning logs a warning message asynchronously using the default logger.
 //
 // It uses the WARNING log level to indicate non-critical issues or potential problems.
 func (c *Context) Warning(message string) {
-	go log.Print(customLogFormat(c, WARNING, message))
+	c.Set(LevelKey, WARNING)
+	go log.Print(customLogFormat(c, message))
 }
 
 // Fatal logs a fatal error message and then terminates the program.
@@ -104,12 +125,14 @@ func (c *Context) Warning(message string) {
 // This function does not run asynchronously — it calls log.Fatal directly,
 // which prints the message and exits the application.
 func (c *Context) Fatal(err error) {
-	log.Fatal(customLogFormat(c, FATAL, err.Error()))
+	c.Set(LevelKey, FATAL)
+	log.Fatal(customLogFormat(c, err.Error()))
 }
 
 // Panic logs an error message and then triggers a panic.
 //
 // The log entry is formatted using the PANIC log level before invoking log.Panic.
 func (c *Context) Panic(err error) {
-	log.Panic(customLogFormat(c, PANIC, err.Error()))
+	c.Set(LevelKey, PANIC)
+	log.Panic(customLogFormat(c, err.Error()))
 }

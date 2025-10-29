@@ -93,6 +93,21 @@ func getDefaultLogGin(params gin.LogFormatterParams) string {
 	return string(jsonBytes)
 }
 
+type HandleLoggerFormatGin func(params gin.LogFormatterParams) string
+
+var loggerFormatGin HandleLoggerFormatGin
+
+func init() {
+	loggerFormatGin = getDefaultLogGin
+}
+
+// SetLoggerFormat sets the global logger formatting handler.
+// The provided function is stored and later used to format log output.
+// It can be used to customize the log message structure across the application.
+func SetLoggerFormatGin(fn HandleLoggerFormatGin) {
+	loggerFormatGin = fn
+}
+
 // CustomLogFormatGin returns a Gin middleware that provides a custom log formatter.
 //
 // This middleware wraps gin.LoggerWithFormatter to define a custom log format
@@ -123,7 +138,7 @@ func CustomLogFormatGin() gin.HandlerFunc {
 		}
 
 		// Create a new log formatter and generate the formatted output.
-		result := getDefaultLogGin(params)
+		result := loggerFormatGin(params)
 
 		// Emit to Otel
 		traceID := params.Keys[TraceIdOtel]
