@@ -32,8 +32,10 @@ Because you want frictionless structure, not unnecessary complexity.
 
 Because you want freedom to scale, without being tied to heavy tools.
 
-## Ideal for:
+## Integreted technology:
 
-Modern microservices architectures.
+Generation of services using CLI
 
-Teams that need development speed and production performance.
+Automatic configuration of services from a configuration file.
+
+Monitoring support with OpenTelemetry (OTEL), enabling automatic and flexible configuration.

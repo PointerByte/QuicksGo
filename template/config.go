@@ -181,13 +181,20 @@ func createApp() (*gin.Engine, error) {
 	engine := gin.New()
 	engine.Use(
 		gin.Recovery(),
-		gzip.Gzip(gzip.DefaultCompression),
 		Limiter(),
 		MirrorHeaders(),
 		logger.MiddlewaresInitLogger(),
 		logger.CustomLogFormatGin(),
 		security.SecurityHeaders(),
 	)
+	engine.UseH2C = viper.GetBool("gin.UseH2C")
+	if viper.GetBool("server.gin.gzip.enable") {
+		engine.Use(
+			gzip.Gzip(gzip.DefaultCompression,
+				gzip.WithExcludedExtensions(viper.GetStringSlice("server.gin.gzip.excludedExtensions")),
+				gzip.WithExcludedPaths(viper.GetStringSlice("server.gin.gzip.excludedPaths")),
+			))
+	}
 	if viper.GetBool("otlp.enable") {
 		engine.Use(telemetry.MiddlewareOtel())
 	}

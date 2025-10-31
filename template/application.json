@@ -4,14 +4,18 @@
         "version": "0.0.1"
     },
     "server": {
-        "gin.mode": "release",
         "gin": {
+            "UseH2C": false,
+            "gzip": {
+                "enable": true,
+                "excludedExtensions": [".png", ".jpg", ".jpeg", ".gif", ".mp4", ".webm", ".zip", ".gz", ".rar", ".pdf", ".woff2", ".wasm", ".br", ".js.br", ".js.gz"],
+                "excludedPaths": ["/status"]
+            },
             "mode": "release",
             "ratelimit": 1000,
             "bursts": 2000
         },
         "api.name": "microservice-template",
-        "jwt.active": false,
         "port": ":8080",
         "expectedHosts": ["0.0.0.0:8080", "localhost:8080"],
         "basePaths": ["/service-template/v1"]

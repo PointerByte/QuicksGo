@@ -33,8 +33,10 @@ Porque buscas estructura sin fricción, no complejidad innecesaria.
 
 Porque quieres libertad para escalar, sin estar atado a herramientas pesadas.
 
-## Ideal para:
+## Tecnologia integradas:
 
-Arquitecturas de microservicios modernas.
+Generación de servicios usando CLI
 
-Equipos que necesitan velocidad de desarrollo y rendimiento de producción.
+Configuración automática de servicios a partir de un archivo de configuración.
+
+Soporte de monitoreo con OpenTelemetry (OTEL), habilitando una configuración automática y flexible.

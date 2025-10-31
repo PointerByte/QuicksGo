@@ -1,6 +1,6 @@
 module github.com/PointerByte/QuicksGo
 
-go 1.25.1
+go 1.25
 
 require (
 	github.com/gin-contrib/gzip v1.2.5
