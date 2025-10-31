@@ -1,6 +1,7 @@
 {
     "service": {
         "name": "service-template",
+        "api.name": "microservice-template",
         "version": "0.0.1"
     },
     "server": {
@@ -15,7 +16,6 @@
             "ratelimit": 1000,
             "bursts": 2000
         },
-        "api.name": "microservice-template",
         "port": ":8080",
         "expectedHosts": ["0.0.0.0:8080", "localhost:8080"],
         "basePaths": ["/service-template/v1"]
@@ -31,7 +31,7 @@
     "otlp": {
         "enable": false,
         "tls": {
-            "insegure": true,
+            "insegure": false,
             "mTLS": {
                 "enable": false,
                 "clientCertPath": "",

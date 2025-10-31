@@ -18,7 +18,7 @@ func TestStatus(t *testing.T) {
 	// Setup: configuramos los valores que usa viper internamente
 	viper.Set("service.version", "1.2.3")
 	viper.Set("service.name", "TestService")
-	viper.Set("server.api.name", "TestAPI")
+	viper.Set("service.api.name", "TestAPI")
 
 	// Set Gin en modo test
 	gin.SetMode(gin.TestMode)
@@ -35,9 +35,9 @@ func TestStatus(t *testing.T) {
 
 	// Estructura esperada
 	expected := models.Response[map[string]any]{
-		Status:      models.StatusSuccess,
-		ServiceName: "TestService",
-		ApiName:     "TestAPI",
+		Status:  models.StatusSuccess,
+		Service: "TestService",
+		API:     "TestAPI",
 		Details: map[string]any{
 			"version": "1.2.3",
 		},
@@ -49,7 +49,7 @@ func TestStatus(t *testing.T) {
 
 	// Validamos todos los campos
 	assert.Equal(t, expected.Status, got.Status)
-	assert.Equal(t, expected.ServiceName, got.ServiceName)
-	assert.Equal(t, expected.ApiName, got.ApiName)
+	assert.Equal(t, expected.Service, got.Service)
+	assert.Equal(t, expected.API, got.API)
 	assert.Equal(t, expected.Details["version"], got.Details["version"])
 }

@@ -1,4 +1,4 @@
-ARG GO_VERSION=1.25.1-alpine
+ARG GO_VERSION=1.25-alpine
 
 FROM otel/autoinstrumentation-go:v0.23.0 AS agent
 
@@ -28,7 +28,7 @@ RUN go build -o /app/goapp .
 
 # Run
 
-FROM alpine:3.15.11
+FROM alpine:3.22.2
 
 USER root
 

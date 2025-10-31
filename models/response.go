@@ -15,12 +15,17 @@ const (
 // service metadata, and a typed payload for data or additional details.
 //
 // Example usage:
-//   Response[any]{ Status: StatusSuccess, ServiceName: "viper.GetViper().GetString("service.name")", ApiName: "viper.GetViper().GetString("api.name")", Details: dettails }
+//   Response[any]{ Status: StatusSuccess, ServiceName: "viper.GetViper().GetString("service.name")", ApiName: "viper.GetViper().GetString("service.api.name")", Details: dettails }
 type Response[T any] struct {
-	Status      StatusType `json:"status"`            // "success" or "error"
-	ServiceName string     `json:"serviceName"`       // Service name
-	ApiName     string     `json:"apiName"`           // API name
-	Details     T          `json:"details,omitempty"` // Optional payload (for success)
+	Status  StatusType `json:"status"`            // "success" or "error"
+	Service string     `json:"service"`           // Service name
+	API     string     `json:"api"`               // API name
+	Details T          `json:"details,omitempty"` // Optional payload (for success)
+}
+
+func (r *Response[T]) SetDefaultData() {
+	r.Service = viper.GetString("service.name")
+	r.API = viper.GetString("service.api.name")
 }
 
 // GenericResponse creates a standardized response object for any data type.
@@ -30,13 +35,12 @@ type Response[T any] struct {
 // response data type while maintaining a consistent response format across the API.
 //
 // Configuration values such as service and API names are automatically loaded
-// from Viper (service.name and server.api.name).
+// from Viper (service.name and service.api.name).
 func GenericResponse[T any](status StatusType, Details T) *Response[T] {
-	vp := viper.GetViper()
-	return &Response[T]{
-		Status:      status,
-		ServiceName: vp.GetString("service.name"),
-		ApiName:     vp.GetString("server.api.name"),
-		Details:     Details,
+	resp := &Response[T]{
+		Status:  status,
+		Details: Details,
 	}
+	resp.SetDefaultData()
+	return resp
 }

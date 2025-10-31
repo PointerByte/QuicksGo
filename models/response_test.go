@@ -15,7 +15,7 @@ func TestGenericResponse(t *testing.T) {
 	}
 
 	viper.Set("service.name", "TestService")
-	viper.Set("server.api.name", "TestAPI")
+	viper.Set("service.api.name", "TestAPI")
 
 	tests := []struct {
 		name   string
@@ -28,10 +28,10 @@ func TestGenericResponse(t *testing.T) {
 			status: models.StatusSuccess,
 			input:  samplePayload{Message: "OK"},
 			want: &models.Response[samplePayload]{
-				Status:      models.StatusSuccess,
-				ServiceName: "TestService",
-				ApiName:     "TestAPI",
-				Details:     samplePayload{Message: "OK"},
+				Status:  models.StatusSuccess,
+				Service: "TestService",
+				API:     "TestAPI",
+				Details: samplePayload{Message: "OK"},
 			},
 		},
 	}
