@@ -47,7 +47,7 @@ func getDefaultLogGin(params gin.LogFormatterParams) string {
 	attrs["path"] = params.Path
 	attrs["proto"] = params.Request.Proto
 	attrs["userAgent"] = params.Request.UserAgent()
-	if v := params.Keys[attributesKey]; v != nil {
+	if v := params.Keys[AttributesKey]; v != nil {
 		if cast, ok := v.(map[string]any); ok {
 			maps.Copy(attrs, cast)
 		}

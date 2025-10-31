@@ -160,7 +160,7 @@ func TestCustomLogFormatGin_RespectsSetMessageLog(t *testing.T) {
 			// Sobrescribe la clave base "method"
 			"method": "PATCH",
 		}
-		c.Set(attributesKey, extra)
+		c.Set(AttributesKey, extra)
 		SetMessageLog(c, ERROR, "boom!")
 		c.String(http.StatusInternalServerError, "err")
 	})

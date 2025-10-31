@@ -23,7 +23,7 @@ type KeyContex string
 const (
 	LevelKey      KeyContex = "level"
 	messageKey    KeyContex = "message"
-	attributesKey KeyContex = "attributes"
+	AttributesKey KeyContex = "attributes"
 	WithAutoLog   KeyContex = "withAutoLog"
 	TraceIdOtel   KeyContex = "traceIdOtel"
 	SpanIdOtel    KeyContex = "spanIdOtel"

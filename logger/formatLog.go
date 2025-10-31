@@ -26,7 +26,7 @@ func getDefaultLog(ctx *Context, message string) string {
 	level, _ := ctx.Get(LevelKey)
 	// ---------- Atributes ----------
 	attrs := make(map[string]any)
-	if v, ok := ctx.Get(attributesKey); ok {
+	if v, ok := ctx.Get(AttributesKey); ok {
 		if cast, ok := v.(map[string]any); ok {
 			maps.Copy(attrs, cast)
 		}

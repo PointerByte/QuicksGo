@@ -42,7 +42,7 @@ func TestLogs(t *testing.T) {
 			ctx := New(context.Background())
 			attributesMap := make(map[string]any)
 			attributesMap["test"] = true
-			ctx.Set(attributesKey, attributesMap)
+			ctx.Set(AttributesKey, attributesMap)
 			switch tt.name {
 			case "test Info":
 				ctx.Info(tt.message)
