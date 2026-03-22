@@ -1,5 +1,7 @@
 # QuicksGo
 
+QuicksGo is a framework for bootstrapping Go services with a shared approach to configuration, transport, observability, and security. It helps you assemble HTTP and gRPC applications faster by combining server/client setup, structured logging, OpenTelemetry tracing, JWT protection, and configuration loading around the same conventions.
+
 QuicksGo is a modular Go framework for building services with:
 
 - Gin HTTP servers

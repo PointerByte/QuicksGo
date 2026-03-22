@@ -2,9 +2,10 @@ module github.com/PointerByte/QuicksGo/config
 
 go 1.26
 
-replace github.com/PointerByte/QuicksGo/logger => ../logger
-
-replace github.com/PointerByte/QuicksGo/security => ../security
+replace (
+	github.com/PointerByte/QuicksGo/logger => ../logger
+	github.com/PointerByte/QuicksGo/security => ../security
+)
 
 require (
 	github.com/PointerByte/QuicksGo/logger v0.0.1
