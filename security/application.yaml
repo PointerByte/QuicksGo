@@ -1,0 +1,10 @@
+jwt:
+  enable: true
+  algorithm: HS256
+  hmac:
+    algorithm: HS256
+    secret: "replace-with-your-hmac-secret"
+  rsa:
+    algorithm: RS256
+    private_key: "replace-with-base64-pkcs8-private-key"
+    public_key: "replace-with-base64-x509-public-key"

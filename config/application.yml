@@ -1,0 +1,84 @@
+app:
+  name: quicksgo-service
+  version: 0.0.1
+
+server:
+  groups:
+    - /api/v1
+  modeTest: false
+  gin:
+    port: ":8080"
+    mode: release
+    UseH2C: true
+    rate:
+      limit: 1000
+      burst: 2000
+    LoggerWithConfig:
+      enabled: true
+      SkipPaths:
+        - /api/v1/health
+      SkipQueryString: false
+  grpc:
+    port: ":50051"
+    tls:
+      enable: false
+      certFile: ./certs/server.crt
+      keyFile: ./certs/server.key
+      version: tlsv12
+    mtls:
+      enable: false
+      clientCAFile: ./certs/ca.crt
+      clientAuth: require_and_verify_client_cert
+
+gin:
+  autotls:
+    enable: false
+    domain: api.example.com
+    dirCache: ./certs
+    version: tlsv13
+
+client:
+  grpc:
+    tls:
+      enable: false
+      caFile: ./certs/ca.crt
+      serverName: localhost
+      version: tlsv12
+      insecureSkipVerify: false
+    mtls:
+      enable: false
+      certFile: ./certs/client.crt
+      keyFile: ./certs/client.key
+
+logger:
+  dir: logs
+  modeTest: false
+  level: info
+  ignoredHeaders:
+    - Authorization
+    - Cookie
+  formatter: json
+  formatDate: "2006-01-02T15:04:05.000"
+  rotate:
+    enable: true
+    maxSize: 10
+    maxBackups: 5
+    maxAge: 30
+    compress: true
+
+traces:
+  SkipPaths:
+    - /api/v1/health
+    - /api/v1/refresh
+
+jwt:
+  enable: true
+  algorithm: HS256
+  hmac:
+    secret: change-me-hmac-secret
+  rsa:
+    private_key: ""
+    public_key: ""
+  eddsa:
+    private_key: ""
+    public_key: ""

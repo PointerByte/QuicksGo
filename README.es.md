@@ -1,42 +1,153 @@
 # QuicksGo
-Velocidad imparable. Control total. Microservicios sin límites.
-[![Go Reference](https://pkg.go.dev/badge/github.com/PointerByte/QuicksGo.svg)](https://pkg.go.dev/github.com/PointerByte/QuicksGo)
-[![Go Report Card](https://goreportcard.com/badge/github.com/PointerByte/QuicksGo)](https://goreportcard.com/report/github.com/PointerByte/QuicksGo)
-[![License](https://github.com/PointerByte/QuicksGo/LICENSE)](LICENSE)
 
-## Descripción 
-QuicksGo es un framework moderno en Golang GIN diseñado para construir aplicaciones robustas, escalables y listas para producción en tiempo récord. Combinando el poder de Go con una arquitectura centrada en la eficiencia, QuicksGo simplifica la creación de microservicios, APIs RESTful, GraphQL, gRPC, sistemas distribuidos y aplicaciones backend de alto rendimiento.
+QuicksGo es un framework modular para construir servicios Go con:
 
-## Características principales:
+- servidor HTTP con Gin
+- servidor gRPC
+- clientes HTTP y gRPC
+- logging estructurado
+- tracing con OpenTelemetry
+- seguridad con JWT y middlewares
+- carga de configuración con `viper`
 
-⚙️ CLI inteligente para scaffolding y generación de servicios.
+## Módulos principales
 
-⚡ Servidor de desarrollo con hot reload y tiempos de arranque ultrarrápidos.
+- [config](/e:/Proyects/Practices/QuicksGoV2t/config/README.es.md): bootstrap de servidores, clientes y utilidades de configuración/tracing
+- [logger](/e:/Proyects/Practices/QuicksGoV2t/logger/README.es.md): logging estructurado, middlewares HTTP/gRPC y trazas satélite
+- [security](/e:/Proyects/Practices/QuicksGoV2t/security/README.es.md): JWT, middlewares de seguridad y utilidades criptográficas
 
-🧩 Modularidad basada en componentes: controladores, servicios, middlewares, eventos, workers, etc.
+## Cómo encajan las dependencias
 
-🛡️ Inyección de dependencias y configuración centralizada.
+Flujo típico de una aplicación QuicksGo:
 
-📊 Monitoreo mediante el sdk de OpenTelemetry y logging integrados listos para producción.
+1. `config` carga `application.yml` o `application.json` con `viper`
+2. `config` inicializa `logger`
+3. `config` inicializa tracing OTEL
+4. `server_Gin` o `server_gRPC` arrancan el servidor
+5. `security` usa la misma configuración ya cargada en `viper`
+6. `clientHttp` y `client_gRPC` reutilizan tracing y logging para llamadas salientes
 
-🌐 Compatible con gRPC, REST y GraphQL.
+## Plantilla de configuración
 
-🧵 Concurrency control y workers aprovechando la potencia de Go.
+La plantilla completa del framework quedó en:
 
-☁️ Listo para despliegue en Docker, Kubernetes y serverless.
+- [application.yml](/e:/Proyects/Practices/QuicksGoV2t/config/application.yml)
+- [application.json](/e:/Proyects/Practices/QuicksGoV2t/config/application.json)
 
-## ¿Por qué QuicksGo?
+Incluye configuración para:
 
-Porque necesitas la velocidad de Go, pero sin renunciar a la productividad de un framework completo.
+- `app.*`
+- `server.gin.*`
+- `server.gin.LoggerWithConfig.*`
+- `server.grpc.*`
+- `gin.autotls.*`
+- `client.grpc.*`
+- `logger.*`
+- `traces.SkipPaths`
+- `jwt.*`
 
-Porque buscas estructura sin fricción, no complejidad innecesaria.
+## Formato recomendado
 
-Porque quieres libertad para escalar, sin estar atado a herramientas pesadas.
+Aunque también existe template en JSON, el formato recomendado para nuevas aplicaciones es YAML.
 
-## Tecnologia integradas:
+El loader actual de `config` prioriza:
 
-Generación de servicios usando CLI
+1. `application.yml`
+2. `application.json`
+3. `.env`
+4. `.env.local`
+5. variables de entorno
 
-Configuración automática de servicios a partir de un archivo de configuración.
+Si vas a usar el template YAML del framework, úsalo como base para tu `application.yml`.
 
-Soporte de monitoreo con OpenTelemetry (OTEL), habilitando una configuración automática y flexible.
+## Variables de entorno
+
+QuicksGo puede sobreescribir configuración cargada desde archivo usando nombres derivados de la ruta de cada clave.
+
+Ejemplos:
+
+- `app.name` -> `APP_NAME`
+- `server.gin.port` -> `SERVER_GIN_PORT`
+- `server.grpc.port` -> `SERVER_GRPC_PORT`
+- `client.grpc.tls.serverName` -> `CLIENT_GRPC_TLS_SERVERNAME`
+- `jwt.hmac.secret` -> `JWT_HMAC_SECRET`
+
+## Servidor HTTP
+
+Para arrancar un servidor Gin con QuicksGo, normalmente usas `config/server_Gin`:
+
+```go
+srv, err := serverGin.CreateApp()
+if err != nil {
+	panic(err)
+}
+
+api := serverGin.GetRoute("/api/v1")
+api.GET("/hello", func(c *gin.Context) {
+	c.JSON(200, gin.H{"message": "ok"})
+})
+
+serverGin.Start(srv)
+```
+
+## Servidor gRPC
+
+Para arrancar un servidor gRPC con QuicksGo, normalmente usas `config/server_gRPC`:
+
+```go
+srv := serverGRPC.NewIUnitary(nil, nil)
+
+if err := srv.Register(func(r grpc.ServiceRegistrar) {
+	pb.RegisterGreeterServer(r, greeterServer{})
+}); err != nil {
+	panic(err)
+}
+
+panic(srv.Serve())
+```
+
+## Ejemplo ejecutable
+
+El módulo `config` incluye un ejemplo runnable en [main.go](/e:/Proyects/Practices/QuicksGoV2t/config/main.go).
+
+Gin:
+
+```powershell
+cd e:\Proyects\Practices\QuicksGoV2t\config
+$env:QUICKSGO_EXAMPLE_SERVER="gin"
+go run .
+```
+
+gRPC:
+
+```powershell
+cd e:\Proyects\Practices\QuicksGoV2t\config
+$env:QUICKSGO_EXAMPLE_SERVER="grpc"
+go run .
+```
+
+## Recomendación de uso
+
+Si vas a empezar una aplicación nueva con QuicksGo:
+
+1. toma como base [application.yml](/e:/Proyects/Practices/QuicksGoV2t/config/application.yml)
+2. carga configuración con `config/utilities.LoadEnv`
+3. usa `server_Gin` o `server_gRPC` como bootstrap
+4. define tus rutas o servicios protobuf
+5. usa `security` para JWT y protección de endpoints
+6. usa `clientHttp` o `client_gRPC` para llamadas salientes con tracing
+
+## Comandos útiles
+
+Ejecutar tests:
+
+```bash
+go test ./...
+```
+
+Coverage:
+
+```bash
+go test -cover -covermode=atomic -coverprofile="coverage.out" ./...
+go tool cover -html="coverage.out" -o "coverage.html"
+```

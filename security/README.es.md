@@ -1,0 +1,274 @@
+# QuicksGo Security
+
+Biblioteca de seguridad para Go con utilidades de:
+
+- JWT con `viper`
+- Middlewares para Gin
+- Cifrado simetrico
+- RSA
+- Firmas digitales
+
+## Instalacion
+
+```bash
+go get github.com/PointerByte/QuicksGo/security
+```
+
+## Paquetes
+
+- `auth/jwt`: creacion, validacion y lectura de JWT
+- `middlewares`: middlewares para Gin (`RequireJWT`, headers de seguridad)
+- `encrypt/symmetry`: AES-GCM, Fernet y hashes/HMAC
+- `encrypt/rsa`: parseo de llaves, cifrado RSA-OAEP, firma RSA SHA-256 y RSA-PSS
+- `encrypt/signs`: helpers para Ed25519 y RSA-PSS
+
+## Configuracion con Viper
+
+El paquete JWT usa `viper` para resolver configuracion.
+
+`security` no carga por si mismo `application.yaml`, `application.yml` ni `application.json`. La aplicacion host debe cargar uno de esos archivos en `viper` antes de crear el servicio JWT o de usar `RequireJWT`.
+
+En este repositorio, por ejemplo, el paquete `server` carga la configuracion desde la raiz de la aplicacion con esta prioridad:
+
+- `application.yml`
+- `application.json`
+
+Eso significa que valores como `jwt.enable` o `jwt.algorithm` salen del archivo que tu aplicacion cargo primero, y despues pueden ser sobreescritos por variables de entorno si tu bootstrap lo hace.
+
+Ejemplo cargando `application.yaml` o `application.yml`:
+
+```go
+import "github.com/spf13/viper"
+
+func loadConfig() error {
+	viper.SetConfigName("application")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	return viper.ReadInConfig()
+}
+```
+
+Ejemplo cargando `application.json`:
+
+```go
+import "github.com/spf13/viper"
+
+func loadConfig() error {
+	viper.SetConfigName("application")
+	viper.SetConfigType("json")
+	viper.AddConfigPath(".")
+	return viper.ReadInConfig()
+}
+```
+
+Claves principales:
+
+- `jwt.enable`
+- `jwt.algorithm`
+- `jwt.hmac.secret`
+- `jwt.rsa.private_key`
+- `jwt.rsa.public_key`
+- `jwt.eddsa.private_key`
+- `jwt.eddsa.public_key`
+
+Ejemplos incluidos:
+
+- [config.example.yaml](/e:/Proyects/Practices/QuicksGoV2t/security/config.example.yaml)
+- [config.example.json](/e:/Proyects/Practices/QuicksGoV2t/security/config.example.json)
+
+## Uso de JWT
+
+### Crear un servicio desde configuracion
+
+```go
+import (
+	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
+	"github.com/spf13/viper"
+)
+
+viper.Set("jwt.algorithm", "HS256")
+viper.Set("jwt.hmac.secret", "my-secret")
+
+service, err := jwtservice.NewConfiguredService(jwtservice.ConfigServiceInput{})
+if err != nil {
+	panic(err)
+}
+```
+
+### Crear un token
+
+```go
+token, err := service.Create(map[string]any{
+	"user_id": "42",
+	"role":    "admin",
+})
+```
+
+### Validar y leer claims
+
+```go
+var claims struct {
+	UserID string `json:"user_id"`
+	Role   string `json:"role"`
+}
+
+err := service.Read(token, &claims)
+```
+
+### Algoritmos soportados en JWT
+
+- `HS256`
+- `RS256`
+- `PS256`
+- `EdDSA`
+
+## Middleware JWT para Gin
+
+`RequireJWT` construye internamente el servicio usando `viper`.
+
+```go
+router.Use(middlewares.RequireJWT(
+	middlewares.WithJWTClaimsFactory(func() any { return &MyClaims{} }),
+	middlewares.WithJWTValidator(func(ctx context.Context, token jwtservice.Token) error {
+		return nil
+	}),
+))
+```
+
+### Claims tipados
+
+```go
+type MyClaims struct {
+	UserID string `json:"user_id"`
+	Role   string `json:"role"`
+}
+```
+
+Luego en el handler:
+
+```go
+claimsValue, _ := c.Get(middlewares.JWTClaimsContextKey.String())
+claims := claimsValue.(*MyClaims)
+```
+
+## Cifrado simetrico
+
+### AES-GCM
+
+```go
+import symmetry "github.com/PointerByte/QuicksGo/security/encrypt/symmetry"
+
+encrypted, err := symmetry.EncryptAES(aesKeyBase64, "hello")
+plainText, err := symmetry.DecryptAES(aesKeyBase64, encrypted)
+```
+
+### HMAC
+
+```go
+hash := symmetry.GenerateHMAC("message", "secret")
+ok := symmetry.ValidateHMAC("message", "secret", hash)
+```
+
+## RSA
+
+### Cifrado RSA-OAEP con SHA-256
+
+```go
+import rsautil "github.com/PointerByte/QuicksGo/security/encrypt/rsa"
+
+cipherText, err := rsautil.Encode(publicKeyBase64, "hello")
+plainText, err := rsautil.Decode(privateKeyBase64, cipherText)
+```
+
+### Firma RSA-PSS
+
+```go
+signature, err := rsautil.SignPSS(privateKeyBase64, "hello")
+err = rsautil.VerifyPSS(publicKeyBase64, "hello", signature)
+```
+
+## Firmas digitales
+
+### Ed25519
+
+```go
+import signutil "github.com/PointerByte/QuicksGo/security/encrypt/signs"
+
+signature, err := signutil.SignEd25519(privateKeyBase64, "hello")
+err = signutil.VerifyEd25519(publicKeyBase64, "hello", signature)
+```
+
+### RSA-PSS desde `encrypt/signs`
+
+```go
+signature, err := signutil.SignPSS(privateKeyBase64, "hello")
+err = signutil.VerifyPSS(publicKeyBase64, "hello", signature)
+```
+
+## Ejemplo ejecutable
+
+El proyecto incluye un ejemplo con Gin en [main.go](/e:/Proyects/Practices/QuicksGoV2t/security/main.go).
+
+Ejecutar:
+
+```bash
+go run .
+```
+
+Rutas de ejemplo:
+
+- `GET /health`
+- `POST /hmac/login`
+- `GET /hmac/api/me`
+- `GET /hmac/api/admin`
+- `POST /rsa/login`
+- `GET /rsa/api/me`
+- `GET /rsa/api/admin`
+
+## Pruebas
+
+```bash
+go test ./...
+```
+
+## Comandos utiles
+
+### Actualizar dependencias
+
+Actualiza las dependencias del modulo a versiones mas recientes permitidas.
+
+```bash
+go get -u ./...
+```
+
+### Limpiar cache de compilacion, pruebas y modulos
+
+Elimina la cache de build, la cache de tests y la cache de modulos descargados.
+
+```bash
+go clean -cache -testcache -modcache
+```
+
+### Ejecutar pruebas unitarias con coverage
+
+Ejecuta todos los tests del proyecto y genera el archivo `coverage.out`.
+
+```bash
+go test -cover -covermode=atomic -coverprofile="coverage.out" ./...
+```
+
+### Generar reporte HTML de coverage
+
+Convierte `coverage.out` en un reporte visual HTML.
+
+```bash
+go tool cover -html="coverage.out" -o "coverage.html"
+```
+
+### Mostrar coverage desde `coverage.out`
+
+Imprime en consola el porcentaje de coverage por funcion.
+
+```bash
+go tool cover -func="coverage.out"
+```

@@ -1,0 +1,69 @@
+THIRD PARTY LICENSES
+================================================================================
+
+This project uses the following third-party dependencies:
+
+1. github.com/gin-gonic/gin
+   Version: v1.12.0
+   License: MIT License
+
+2. github.com/google/uuid
+   Version: v1.6.0
+   License: BSD 3-Clause
+
+3. github.com/spf13/viper
+   Version: v1.21.0
+   License: MIT License
+
+4. go.opentelemetry.io/contrib/bridges/otelslog
+   Version: v0.17.0
+   License: Apache License 2.0
+
+5. go.opentelemetry.io/otel
+   Version: v1.42.0
+   License: Apache License 2.0
+
+6. go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp
+   Version: v0.18.0
+   License: Apache License 2.0
+
+7. go.opentelemetry.io/otel/sdk
+   Version: v1.42.0
+   License: Apache License 2.0
+
+8. go.opentelemetry.io/otel/sdk/log
+   Version: v0.18.0
+   License: Apache License 2.0
+
+9. go.opentelemetry.io/otel/trace
+   Version: v1.42.0
+   License: Apache License 2.0
+
+10. google.golang.org/grpc
+   Version: v1.79.3
+   License: Apache License 2.0
+
+11. gopkg.in/natefinch/lumberjack.v2
+   Version: v2.2.1
+   License: MIT License
+
+================================================================================
+SUMMARY BY LICENSE
+================================================================================
+
+Apache License 2.0: 7
+  - go.opentelemetry.io/contrib/bridges/otelslog
+  - go.opentelemetry.io/otel
+  - go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp
+  - go.opentelemetry.io/otel/sdk
+  - go.opentelemetry.io/otel/sdk/log
+  - go.opentelemetry.io/otel/trace
+  - google.golang.org/grpc
+
+BSD 3-Clause: 1
+  - github.com/google/uuid
+
+MIT License: 3
+  - github.com/gin-gonic/gin
+  - github.com/spf13/viper
+  - gopkg.in/natefinch/lumberjack.v2
