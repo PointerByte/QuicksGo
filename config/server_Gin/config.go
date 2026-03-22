@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -44,6 +45,7 @@ func loadConfigDefaultGin() {
 	viper.SetDefault("server.gin.UseH2C", true)
 	viper.SetDefault("server.gin.rate.Limit", 1000)
 	viper.SetDefault("server.gin.rate.burst", 2000)
+	viper.SetDefault("jwt.transport", "header")
 }
 
 var sleepFn = time.Sleep
@@ -186,7 +188,7 @@ func createApp(optionsJWT ...middlewares.JWTMiddlewareOption) (*http.Server, err
 	engine.NoMethod(noMethod())
 	engine.Use(
 		gin.Recovery(),
-		middlewares.RequireJWT(optionsJWT...),
+		authMiddleware(optionsJWT...),
 		limiter(),
 		middlewares.SecurityHeaders(),
 		traces.MiddlewareOtel(),
@@ -211,6 +213,15 @@ func createApp(optionsJWT ...middlewares.JWTMiddlewareOption) (*http.Server, err
 		Handler:   engine,
 		TLSConfig: tlsConfig,
 	}, nil
+}
+
+func authMiddleware(optionsJWT ...middlewares.JWTMiddlewareOption) gin.HandlerFunc {
+	switch strings.ToLower(strings.TrimSpace(viper.GetString("jwt.transport"))) {
+	case "cookie", "cookies":
+		return middlewares.RequireJWTCookie()
+	default:
+		return middlewares.RequireJWT(optionsJWT...)
+	}
 }
 
 // Start runs the provided HTTP server and coordinates the shutdown workflow.

@@ -61,6 +61,15 @@ server:
 logger:
   dir: logs
   level: info
+
+jwt:
+  enable: true
+  transport: cookie
+  cookie:
+    name: session_token
+  algorithm: HS256
+  hmac:
+    secret: change-me
 ```
 
 ### Optional format: JSON
@@ -89,6 +98,17 @@ logger:
   "logger": {
     "dir": "logs",
     "level": "info"
+  },
+  "jwt": {
+    "enable": true,
+    "transport": "cookie",
+    "cookie": {
+      "name": "session_token"
+    },
+    "algorithm": "HS256",
+    "hmac": {
+      "secret": "change-me"
+    }
   }
 }
 ```
@@ -192,7 +212,12 @@ The example `application.yml` and `application.json` include the most relevant k
 #### `jwt`
 
 - `jwt.enable`: enables or disables JWT middleware enforcement.
+- `jwt.transport`: selects where `server_Gin.CreateApp()` reads the JWT from. Supported values: `header` and `cookie`.
 - `jwt.algorithm`: JWT signing algorithm used by `security`, for example `HS256`, `RS256`, `PS256`, or `EdDSA`.
+
+#### `jwt.cookie`
+
+- `jwt.cookie.name`: cookie name used when `jwt.transport` is `cookie`. If omitted, `security` falls back to `access_token`.
 
 #### `jwt.hmac`
 
@@ -217,6 +242,7 @@ The example `application.yml` and `application.json` include the most relevant k
 - initializes OpenTelemetry
 - creates the `gin.Engine`
 - registers shared middleware
+- applies `RequireJWT` when `jwt.transport=header` or `RequireJWTCookie` when `jwt.transport=cookie`
 - creates route groups from `server.groups`
 - registers `/health` under each group
 
@@ -254,6 +280,9 @@ Main keys:
 - `server.gin.UseH2C`
 - `server.gin.rate.limit`
 - `server.gin.rate.burst`
+- `jwt.enable`
+- `jwt.transport`
+- `jwt.cookie.name`
 
 ## gRPC server
 

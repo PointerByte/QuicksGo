@@ -19,6 +19,7 @@ import (
 
 	"github.com/PointerByte/QuicksGo/logger/builder"
 	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
+	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
@@ -416,6 +417,59 @@ func TestCreateApp(t *testing.T) {
 		}
 		if srv.TLSConfig != expectedTLS {
 			t.Fatal("expected custom tls config to be preserved")
+		}
+	})
+
+	t.Run("supports jwt cookie transport", func(t *testing.T) {
+		resetServerTestState(t)
+		loadEnv = func(string) error {
+			viper.Set("logger.dir", "logs")
+			viper.Set("server.port", ":8080")
+			viper.Set("server.gin.port", ":8080")
+			viper.Set("server.groups", []string{"/api/v1"})
+			viper.Set("server.gin.UseH2C", true)
+			viper.Set("jwt.enable", true)
+			viper.Set("jwt.transport", "cookie")
+			viper.Set("jwt.algorithm", "HS256")
+			viper.Set("jwt.hmac.secret", "cookie-secret")
+			viper.Set("jwt.cookie.name", "session_token")
+			viper.Set("app.name", "svc")
+			viper.Set("app.version", "1.0.0")
+			return nil
+		}
+		initLogger = newLoggerProviderNoop
+		initOtel = tracesInitNoop
+
+		srv, err := createApp()
+		if err != nil {
+			t.Fatalf("createApp returned error: %v", err)
+		}
+		if srv == nil || srv.Handler == nil {
+			t.Fatal("expected configured server")
+		}
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+		GetEngine().ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected missing cookie request 401, got %d", rec.Code)
+		}
+
+		jwtService, err := jwtservice.NewConfiguredService(jwtservice.ConfigServiceInput{})
+		if err != nil {
+			t.Fatalf("expected jwt service without error, got %v", err)
+		}
+		token, err := jwtService.Create(map[string]any{"user_id": "42"})
+		if err != nil {
+			t.Fatalf("expected token without error, got %v", err)
+		}
+
+		rec = httptest.NewRecorder()
+		req = httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+		req.AddCookie(&http.Cookie{Name: "session_token", Value: token})
+		GetEngine().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected cookie-authenticated health endpoint 200, got %d", rec.Code)
 		}
 	})
 }

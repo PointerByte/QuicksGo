@@ -17,16 +17,17 @@ go get github.com/PointerByte/QuicksGo/security
 ## Paquetes
 
 - `auth/jwt`: creacion, validacion y lectura de JWT
-- `middlewares`: middlewares para Gin (`RequireJWT`, headers de seguridad)
+- `auth/cookies`: validacion y lectura de JWT desde cookies HTTP
+- `middlewares`: middlewares para Gin (`RequireJWT`, `RequireJWTCookie`, headers de seguridad)
 - `encrypt/symmetry`: AES-GCM, Fernet y hashes/HMAC
 - `encrypt/rsa`: parseo de llaves, cifrado RSA-OAEP, firma RSA SHA-256 y RSA-PSS
 - `encrypt/signs`: helpers para Ed25519 y RSA-PSS
 
 ## Configuracion con Viper
 
-El paquete JWT usa `viper` para resolver configuracion.
+Los paquetes JWT y auth por cookies usan `viper` para resolver configuracion.
 
-`security` no carga por si mismo `application.yaml`, `application.yml` ni `application.json`. La aplicacion host debe cargar uno de esos archivos en `viper` antes de crear el servicio JWT o de usar `RequireJWT`.
+`security` no carga por si mismo `application.yaml`, `application.yml` ni `application.json`. La aplicacion host debe cargar uno de esos archivos en `viper` antes de crear el servicio JWT o de usar `RequireJWT` / `RequireJWTCookie`.
 
 En este repositorio, por ejemplo, el paquete `server` carga la configuracion desde la raiz de la aplicacion con esta prioridad:
 
@@ -65,6 +66,7 @@ Claves principales:
 
 - `jwt.enable`
 - `jwt.algorithm`
+- `jwt.cookie.name`
 - `jwt.hmac.secret`
 - `jwt.rsa.private_key`
 - `jwt.rsa.public_key`
@@ -150,6 +152,51 @@ Luego en el handler:
 claimsValue, _ := c.Get(middlewares.JWTClaimsContextKey.String())
 claims := claimsValue.(*MyClaims)
 ```
+
+## Auth por cookies
+
+El paquete `auth/cookies` reutiliza el servicio JWT y lee el token desde una cookie HTTP.
+
+### Crear un servicio desde configuracion
+
+```go
+import (
+	cookiesauth "github.com/PointerByte/QuicksGo/security/auth/cookies"
+	"github.com/spf13/viper"
+)
+
+viper.Set("jwt.algorithm", "HS256")
+viper.Set("jwt.hmac.secret", "my-secret")
+viper.Set("jwt.cookie.name", "session_token")
+
+service, err := cookiesauth.NewConfiguredService(cookiesauth.ConfigServiceInput{})
+if err != nil {
+	panic(err)
+}
+```
+
+### Validar claims desde la cookie del request
+
+```go
+var claims struct {
+	UserID string `json:"user_id"`
+	Role   string `json:"role"`
+}
+
+err := service.Read(r, &claims)
+```
+
+## Middleware JWT por cookies para Gin
+
+`RequireJWTCookie` valida el JWT desde una cookie del request y guarda el token parseado y los claims en el contexto de Gin.
+
+```go
+router.Use(middlewares.RequireJWTCookie(
+	middlewares.WithJWTCookieClaimsFactory(func() any { return &MyClaims{} }),
+))
+```
+
+Por defecto lee la cookie configurada en `jwt.cookie.name`, o `access_token` cuando esa clave no esta definida.
 
 ## Cifrado simetrico
 
