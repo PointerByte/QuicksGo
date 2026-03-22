@@ -73,6 +73,22 @@ Ejemplos:
 - `client.grpc.tls.serverName` -> `CLIENT_GRPC_TLS_SERVERNAME`
 - `jwt.hmac.secret` -> `JWT_HMAC_SECRET`
 
+## Observabilidad
+
+Los servicios generados y levantados con QuicksGo ya vienen preparados para
+observabilidad usando el SDK de OpenTelemetry.
+
+Eso incluye soporte para:
+
+- trazas
+- logs
+- metricas
+
+QuicksGo tambien es compatible con Go Auto Instrumentation SDK de
+OpenTelemetry cuando tu despliegue requiere instrumentacion automatica encima
+de la configuracion que ya provee el framework.
+
+
 ## Servidor HTTP
 
 Para arrancar un servidor Gin con QuicksGo, normalmente usas `config/server_Gin`:
@@ -105,26 +121,6 @@ if err := srv.Register(func(r grpc.ServiceRegistrar) {
 }
 
 panic(srv.Serve())
-```
-
-## Ejemplo ejecutable
-
-El módulo `config` incluye un ejemplo runnable en [main.go](/e:/Proyects/Practices/QuicksGoV2t/config/main.go).
-
-Gin:
-
-```powershell
-cd e:\Proyects\Practices\QuicksGoV2t\config
-$env:QUICKSGO_EXAMPLE_SERVER="gin"
-go run .
-```
-
-gRPC:
-
-```powershell
-cd e:\Proyects\Practices\QuicksGoV2t\config
-$env:QUICKSGO_EXAMPLE_SERVER="grpc"
-go run .
 ```
 
 ## Recomendación de uso
