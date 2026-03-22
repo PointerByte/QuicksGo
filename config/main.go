@@ -38,7 +38,7 @@ var (
 	createGinAppFn   = func() (*http.Server, error) { return serverGin.CreateApp() }
 	getGinRouteFn    = serverGin.GetRoute
 	startGinServerFn = serverGin.Start
-	newGRPCServerFn  = func() serverGRPC.IConfig { return serverGRPC.NewIUnitary(nil, nil) }
+	newGRPCServerFn  = func() serverGRPC.IConfig { return serverGRPC.NewIConfig(nil, nil) }
 )
 
 func main() {

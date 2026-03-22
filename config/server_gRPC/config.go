@@ -1,7 +1,7 @@
 // Copyright 2026 PointerByte Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-//go:generate mockgen -source=IUnitary.go -destination=./mocksIUnitary.go -package=server_gRPC
+//go:generate mockgen -source=config.go -destination=./mocksConfig.go -package=server_gRPC
 
 package server_gRPC
 
@@ -106,14 +106,24 @@ func SetTLSConfig(config *tls.Config) {
 	tlsConfig = config
 }
 
-// NewIUnitary creates a new unary gRPC server wrapper.
+// NewIConfig creates a new unary gRPC server wrapper.
 //
-// If server is nil, the function creates a default grpc.Server.
-// If mocks is provided, all operations delegate to it, which is useful for tests generated with mockgen.
+// The server parameter lets callers inject an already constructed
+// *grpc.Server when they need explicit control over server options before
+// handing execution to this package.
+//
+// If server is nil, the function creates a default grpc.Server with the
+// package interceptors for traces and logging.
+//
+// If server is not nil, that instance is used as-is and its existing
+// configuration is preserved.
+//
+// If mocks is provided, all operations delegate to it, which is useful for
+// tests generated with mockgen.
 //
 // Common usage:
 //
-//	srv := unitary.NewIUnitary(nil, nil)
+//	srv := unitary.NewIConfig(nil, nil)
 //	srv.SetAddress(":50051")
 //	err := srv.Register(func(r grpc.ServiceRegistrar) {
 //		proto.RegisterGreeterServer(r, handler)
@@ -122,7 +132,12 @@ func SetTLSConfig(config *tls.Config) {
 //		return err
 //	}
 //	return srv.Serve()
-func NewIUnitary(mocks IConfig, server *grpc.Server) IConfig {
+//
+// Example with a custom gRPC server:
+//
+//	custom := grpc.NewServer()
+//	srv := unitary.NewIConfig(nil, custom)
+func NewIConfig(mocks IConfig, server *grpc.Server) IConfig {
 	return &Config{
 		mocks:  mocks,
 		server: server,

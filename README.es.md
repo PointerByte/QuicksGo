@@ -15,6 +15,7 @@ QuicksGo es un framework modular para construir servicios Go con:
 - [config](/e:/Proyects/Practices/QuicksGoV2t/config/README.es.md): bootstrap de servidores, clientes y utilidades de configuración/tracing
 - [logger](/e:/Proyects/Practices/QuicksGoV2t/logger/README.es.md): logging estructurado, middlewares HTTP/gRPC y trazas satélite
 - [security](/e:/Proyects/Practices/QuicksGoV2t/security/README.es.md): JWT, middlewares de seguridad y utilidades criptográficas
+- [cmd/qgo](/e:/Proyects/Practices/QuicksGo/cmd/README.es.md): CLI para generar servicios nuevos con Gin y gRPC
 
 ## Cómo encajan las dependencias
 
@@ -137,6 +138,14 @@ Si vas a empezar una aplicación nueva con QuicksGo:
 5. usa `security` para JWT y protección de endpoints
 6. usa `clientHttp` o `client_gRPC` para llamadas salientes con tracing
 
+Tambien puedes generar un servicio nuevo con `qgo`:
+
+```bash
+go install github.com/PointerByte/QuicksGo/cmd/qgo@latest
+qgo new gin
+qgo new grpc
+```
+
 ## Comandos útiles
 
 Ejecutar tests:
@@ -151,3 +160,4 @@ Coverage:
 go test -cover -covermode=atomic -coverprofile="coverage.out" ./...
 go tool cover -html="coverage.out" -o "coverage.html"
 ```
+

@@ -271,7 +271,7 @@ func generateSignedCertificate(t *testing.T, caCert *x509.Certificate, caKeyPEM 
 
 func TestNewIUnitary(t *testing.T) {
 	resetServerGRPCTestState(t)
-	got := NewIUnitary(nil, nil)
+	got := NewIConfig(nil, nil)
 	if got == nil {
 		t.Fatal("NewIUnitary() returned nil")
 	}
@@ -282,7 +282,7 @@ func TestNewIUnitary(t *testing.T) {
 
 func TestSubUnitaryConfiguration(t *testing.T) {
 	resetServerGRPCTestState(t)
-	srv := NewIUnitary(nil, grpc.NewServer()).(*Config)
+	srv := NewIConfig(nil, grpc.NewServer()).(*Config)
 	listener := bufconn.Listen(1024)
 	defer listener.Close()
 
@@ -307,20 +307,20 @@ func TestSubUnitaryRegister(t *testing.T) {
 		{
 			name: "delegates to mock",
 			setup: func() IConfig {
-				return NewIUnitary(&mockUnitary{}, grpc.NewServer())
+				return NewIConfig(&mockUnitary{}, grpc.NewServer())
 			},
 		},
 		{
 			name: "rejects nil register",
 			setup: func() IConfig {
-				return NewIUnitary(nil, grpc.NewServer())
+				return NewIConfig(nil, grpc.NewServer())
 			},
 			wantErr: true,
 		},
 		{
 			name: "registers proto service",
 			setup: func() IConfig {
-				return NewIUnitary(nil, grpc.NewServer())
+				return NewIConfig(nil, grpc.NewServer())
 			},
 		},
 	}
@@ -350,7 +350,7 @@ func TestSubUnitaryRegister(t *testing.T) {
 func TestSubUnitaryServeDelegatesToMock(t *testing.T) {
 	resetServerGRPCTestState(t)
 	expectedErr := errors.New("serve failed")
-	srv := NewIUnitary(&mockUnitary{serveErr: expectedErr}, grpc.NewServer())
+	srv := NewIConfig(&mockUnitary{serveErr: expectedErr}, grpc.NewServer())
 
 	err := srv.Serve()
 	if !errors.Is(err, expectedErr) {
@@ -363,7 +363,7 @@ func TestSubUnitaryServeLoadEnvError(t *testing.T) {
 
 	wantErr := errors.New("load env failed")
 	loadEnv = func(string) error { return wantErr }
-	srv := NewIUnitary(nil, grpc.NewServer())
+	srv := NewIConfig(nil, grpc.NewServer())
 
 	err := srv.Serve()
 	if !errors.Is(err, wantErr) {
@@ -373,7 +373,7 @@ func TestSubUnitaryServeLoadEnvError(t *testing.T) {
 
 func TestSubUnitaryServeRequiresAddressOrListener(t *testing.T) {
 	resetServerGRPCTestState(t)
-	srv := NewIUnitary(nil, grpc.NewServer())
+	srv := NewIConfig(nil, grpc.NewServer())
 
 	err := srv.Serve()
 	if err == nil {
@@ -391,7 +391,7 @@ func TestSubUnitaryServeUsesViperPort(t *testing.T) {
 	}
 	viper.Set("server.grpc.port", ":50051")
 
-	srv := NewIUnitary(nil, grpc.NewServer())
+	srv := NewIConfig(nil, grpc.NewServer())
 	srv.GetServer().Stop()
 
 	err := srv.Serve()
@@ -409,7 +409,7 @@ func TestSubUnitaryServeListenError(t *testing.T) {
 		return nil, errors.New("listen failed")
 	}
 
-	srv := NewIUnitary(nil, grpc.NewServer())
+	srv := NewIConfig(nil, grpc.NewServer())
 	srv.SetAddress("127.0.0.1:0")
 
 	err := srv.Serve()
@@ -424,7 +424,7 @@ func TestSubUnitaryServeListenError(t *testing.T) {
 func TestSubUnitaryServeUnaryFlowWithBufconn(t *testing.T) {
 	resetServerGRPCTestState(t)
 	listener := bufconn.Listen(1024 * 1024)
-	srv := NewIUnitary(nil, nil)
+	srv := NewIConfig(nil, nil)
 	srv.SetListener(listener)
 	if err := srv.Register(func(r grpc.ServiceRegistrar) {
 		pb.RegisterGreeterServer(r, greeterService{})
@@ -478,7 +478,7 @@ func TestSubUnitaryServeLogsServeError(t *testing.T) {
 	listener := bufconn.Listen(1024)
 	defer listener.Close()
 
-	srv := NewIUnitary(nil, grpc.NewServer())
+	srv := NewIConfig(nil, grpc.NewServer())
 	srv.SetListener(listener)
 	srv.GetServer().Stop()
 
@@ -517,7 +517,7 @@ func TestSubUnitaryStopAndGettersDelegateToMock(t *testing.T) {
 	defer listener.Close()
 
 	mock := &mockUnitary{server: server, listener: listener}
-	srv := NewIUnitary(mock, grpc.NewServer())
+	srv := NewIConfig(mock, grpc.NewServer())
 
 	srv.GracefulStop()
 	srv.Stop()
@@ -705,7 +705,7 @@ func TestServeWithTLSAndMTLS(t *testing.T) {
 		viper.Set("server.grpc.tls.keyFile", certs.serverKeyFile)
 
 		listener := bufconn.Listen(1024 * 1024)
-		srv := NewIUnitary(nil, nil)
+		srv := NewIConfig(nil, nil)
 		srv.SetListener(listener)
 		if err := srv.Register(func(r grpc.ServiceRegistrar) {
 			pb.RegisterGreeterServer(r, greeterService{})
@@ -765,7 +765,7 @@ func TestServeWithTLSAndMTLS(t *testing.T) {
 		viper.Set("server.grpc.mtls.clientCAFile", certs.caCertFile)
 
 		listener := bufconn.Listen(1024 * 1024)
-		srv := NewIUnitary(nil, nil)
+		srv := NewIConfig(nil, nil)
 		srv.SetListener(listener)
 		if err := srv.Register(func(r grpc.ServiceRegistrar) {
 			pb.RegisterGreeterServer(r, greeterService{})
