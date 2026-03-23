@@ -1,3 +1,6 @@
+// Copyright 2026 PointerByte Contributors
+// SPDX-License-Identifier: Apache-2.0
+
 package codigo
 
 import (
@@ -5,6 +8,7 @@ import (
 	"fmt"
 )
 
+// buildProjectFiles returns the generated file set for the requested service type and config format.
 func buildProjectFiles(serviceType string, options scaffoldOptions) (map[string]string, error) {
 	files := map[string]string{
 		"main.go": buildMainTemplate(serviceType, options.appName),
@@ -26,6 +30,7 @@ func buildProjectFiles(serviceType string, options scaffoldOptions) (map[string]
 	return files, nil
 }
 
+// buildMainTemplate renders the starter main.go for the selected transport.
 func buildMainTemplate(serviceType string, appName string) string {
 	switch serviceType {
 	case serviceTypeGin:
@@ -80,6 +85,7 @@ func main() {
 	}
 }
 
+// buildApplicationYAML renders the default YAML configuration for the generated service.
 func buildApplicationYAML(serviceType string, appName string) string {
 	if serviceType == serviceTypeGRPC {
 		return fmt.Sprintf(`app:
@@ -133,6 +139,7 @@ jwt:
 `, appName)
 }
 
+// buildApplicationJSON renders the default JSON configuration for the generated service.
 func buildApplicationJSON(serviceType string, appName string) (string, error) {
 	data := map[string]any{
 		"app": map[string]any{

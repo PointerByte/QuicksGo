@@ -1,3 +1,6 @@
+// Copyright 2026 PointerByte Contributors
+// SPDX-License-Identifier: Apache-2.0
+
 package codigo
 
 import (
@@ -26,6 +29,7 @@ type App struct {
 	runner  goRunner
 }
 
+// goRunner abstracts `go` command execution so scaffolding behavior can be tested.
 type goRunner func(dir string, args ...string) error
 
 // NewApp creates the default qgo application ready to execute from main.
@@ -51,6 +55,7 @@ func (app *App) Execute() error {
 	return app.rootCommand().Execute()
 }
 
+// rootCommand builds the top-level Cobra command tree for qgo.
 func (app *App) rootCommand() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "qgo",

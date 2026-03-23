@@ -1,3 +1,6 @@
+// Copyright 2026 PointerByte Contributors
+// SPDX-License-Identifier: Apache-2.0
+
 package codigo
 
 import (
@@ -29,6 +32,7 @@ type scaffoldOptions struct {
 	outputDir    string
 }
 
+// scaffolder coordinates filesystem writes and `go` commands for a generated service.
 type scaffolder struct {
 	streams     IOStreams
 	runner      goRunner
@@ -38,6 +42,7 @@ type scaffolder struct {
 	writeFileFn func(string, []byte, os.FileMode) error
 }
 
+// newScaffolder builds a scaffolder with the default filesystem helpers.
 func newScaffolder(streams IOStreams, runner goRunner) *scaffolder {
 	return &scaffolder{
 		streams:     streams,
@@ -49,6 +54,7 @@ func newScaffolder(streams IOStreams, runner goRunner) *scaffolder {
 	}
 }
 
+// resolveScaffoldOptions merges CLI flags and interactive prompts into a validated configuration.
 func resolveScaffoldOptions(streams IOStreams, options *scaffoldOptions) (scaffoldOptions, error) {
 	reader := bufio.NewReader(streams.In)
 
@@ -86,6 +92,7 @@ func resolveScaffoldOptions(streams IOStreams, options *scaffoldOptions) (scaffo
 	}, nil
 }
 
+// promptRequired reads a mandatory value unless one was already provided through flags.
 func promptRequired(reader *bufio.Reader, output io.Writer, label string, fallback string) (string, error) {
 	fallback = strings.TrimSpace(fallback)
 	if fallback != "" {
@@ -108,6 +115,7 @@ func promptRequired(reader *bufio.Reader, output io.Writer, label string, fallba
 	return value, nil
 }
 
+// promptConfigFormat resolves the config format, defaulting to YAML when the user leaves it blank.
 func promptConfigFormat(reader *bufio.Reader, output io.Writer, fallback string) (string, error) {
 	fallback = strings.ToLower(strings.TrimSpace(fallback))
 	if fallback != "" {
@@ -136,18 +144,22 @@ func promptConfigFormat(reader *bufio.Reader, output io.Writer, fallback string)
 	return value, nil
 }
 
+// isValidConfigFormat reports whether the requested config format is supported.
 func isValidConfigFormat(value string) bool {
 	return value == configYAML || value == configJSON
 }
 
+// isValidModulePath validates the module/package path accepted by the scaffold.
 func isValidModulePath(value string) bool {
 	return modulePathPattern.MatchString(value) && !strings.Contains(value, " ")
 }
 
+// isValidServiceName validates the app.name value used for generated services.
 func isValidServiceName(value string) bool {
 	return serviceNamePattern.MatchString(value) && !strings.Contains(value, " ")
 }
 
+// createService materializes the scaffolded project, initializes the module, and installs dependencies.
 func (scaffolder *scaffolder) createService(serviceType string, options scaffoldOptions) error {
 	outputDir, err := scaffolder.absFn(options.outputDir)
 	if err != nil {

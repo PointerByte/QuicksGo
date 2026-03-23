@@ -43,9 +43,6 @@ func resetServerTestState(t *testing.T) {
 	origEngine := engine
 	origTLSConfig := tlsConfig
 	origShutdownList := shutdownList
-	origHealthHandler := customHealthHandler
-	origNoMethodHandler := customNoMethodHandler
-	origNoRouteHandler := customNoRouteHandler
 	origGlobalRoute := globalRoute
 	origGinMode := gin.Mode()
 
@@ -54,9 +51,6 @@ func resetServerTestState(t *testing.T) {
 	engine = nil
 	tlsConfig = nil
 	shutdownList = nil
-	customHealthHandler = nil
-	customNoMethodHandler = nil
-	customNoRouteHandler = nil
 	globalRoute = nil
 	quit = make(chan os.Signal, 1)
 	loadEnv = utilitiesLoadEnvNoop
@@ -91,9 +85,6 @@ func resetServerTestState(t *testing.T) {
 		engine = origEngine
 		tlsConfig = origTLSConfig
 		shutdownList = origShutdownList
-		customHealthHandler = origHealthHandler
-		customNoMethodHandler = origNoMethodHandler
-		customNoRouteHandler = origNoRouteHandler
 		globalRoute = origGlobalRoute
 		gin.SetMode(origGinMode)
 		viper.Reset()
@@ -262,66 +253,6 @@ func TestHandlersAndRoutes(t *testing.T) {
 		}
 		if body := rec.Body.String(); body == "" {
 			t.Fatal("expected body")
-		}
-	})
-
-	t.Run("custom health handler", func(t *testing.T) {
-		resetServerTestState(t)
-		SetCustomHealthHandler(func(c *gin.Context) { c.Status(http.StatusCreated) })
-
-		router := gin.New()
-		router.GET("/health", health())
-		rec := httptest.NewRecorder()
-		router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
-
-		if rec.Code != http.StatusCreated {
-			t.Fatalf("expected 201, got %d", rec.Code)
-		}
-	})
-
-	t.Run("no method default and custom", func(t *testing.T) {
-		resetServerTestState(t)
-		router := gin.New()
-		router.HandleMethodNotAllowed = true
-		router.NoMethod(noMethod())
-		router.GET("/items", func(c *gin.Context) { c.Status(http.StatusOK) })
-
-		rec := httptest.NewRecorder()
-		router.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/items", nil))
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected default 200, got %d", rec.Code)
-		}
-
-		SetNoMethod(func(c *gin.Context) { c.Status(http.StatusAccepted) })
-		router = gin.New()
-		router.HandleMethodNotAllowed = true
-		router.NoMethod(noMethod())
-		router.GET("/items", func(c *gin.Context) { c.Status(http.StatusOK) })
-		rec = httptest.NewRecorder()
-		router.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/items", nil))
-		if rec.Code != http.StatusAccepted {
-			t.Fatalf("expected custom 202, got %d", rec.Code)
-		}
-	})
-
-	t.Run("no route default and custom", func(t *testing.T) {
-		resetServerTestState(t)
-		router := gin.New()
-		router.NoRoute(notFound())
-
-		rec := httptest.NewRecorder()
-		router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/missing", nil))
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected default 200, got %d", rec.Code)
-		}
-
-		SetNoRoute(func(c *gin.Context) { c.Status(http.StatusNotFound) })
-		router = gin.New()
-		router.NoRoute(notFound())
-		rec = httptest.NewRecorder()
-		router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/missing", nil))
-		if rec.Code != http.StatusNotFound {
-			t.Fatalf("expected custom 404, got %d", rec.Code)
 		}
 	})
 

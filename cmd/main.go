@@ -1,3 +1,7 @@
+// Copyright 2026 PointerByte Contributors
+// SPDX-License-Identifier: Apache-2.0
+
+// Package main exposes the qgo CLI entrypoint.
 package main
 
 import (
@@ -21,10 +25,12 @@ func main() {
 	}
 }
 
+// executeApp runs the initialized CLI application.
 func executeApp(app *codigo.App) error {
 	return app.Execute()
 }
 
+// writeError sends a user-facing error message to standard error.
 func writeError(message string) {
 	fmt.Fprintln(os.Stderr, message)
 }

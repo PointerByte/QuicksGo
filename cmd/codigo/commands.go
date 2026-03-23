@@ -1,3 +1,6 @@
+// Copyright 2026 PointerByte Contributors
+// SPDX-License-Identifier: Apache-2.0
+
 package codigo
 
 import (
@@ -16,16 +19,19 @@ type newCommand struct {
 	app *App
 }
 
+// newServiceCommand binds a concrete service type to the shared scaffold flow.
 type newServiceCommand struct {
 	app         *App
 	serviceType string
 	options     *scaffoldOptions
 }
 
+// newNewCommand creates the parent `new` command.
 func newNewCommand(app *App) Command {
 	return &newCommand{app: app}
 }
 
+// newServiceGeneratorCommand creates a generator command for a specific service type.
 func newServiceGeneratorCommand(app *App, serviceType string) Command {
 	return &newServiceCommand{
 		app:         app,
@@ -34,6 +40,7 @@ func newServiceGeneratorCommand(app *App, serviceType string) Command {
 	}
 }
 
+// Cobra converts the logical `new` command into a Cobra command with subcommands.
 func (command *newCommand) Cobra() *cobra.Command {
 	newCmd := &cobra.Command{
 		Use:   "new",
@@ -45,6 +52,7 @@ func (command *newCommand) Cobra() *cobra.Command {
 	return newCmd
 }
 
+// Cobra creates the executable Cobra command that resolves options and scaffolds the service.
 func (command *newServiceCommand) Cobra() *cobra.Command {
 	cobraCmd := &cobra.Command{
 		Use:   command.serviceType,

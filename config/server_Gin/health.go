@@ -10,18 +10,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var customHealthHandler gin.HandlerFunc
-
-// SetCustomHealthHandler replaces the default `/health` endpoint handler used
-// for every configured route group.
-func SetCustomHealthHandler(resp gin.HandlerFunc) {
-	customHealthHandler = resp
-}
-
 func health() gin.HandlerFunc {
-	if customHealthHandler != nil {
-		return customHealthHandler
-	}
 	return func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
 			"aplicacion": viper.GetString("app.name"),

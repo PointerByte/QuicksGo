@@ -117,9 +117,19 @@ func limiter() gin.HandlerFunc {
 
 var engine *gin.Engine
 
-// GetEngine returns the Gin engine created by CreateApp.
+// GetEngine returns the shared Gin engine initialized by CreateApp.
 //
-// It returns nil until the application has been initialized.
+// Its main purpose is to expose the configured router after package startup so
+// application code can keep registering routes, groups, middleware, or test
+// requests against the same engine instance that the HTTP server will use.
+//
+// Typical usage is:
+//   - call CreateApp to load configuration and build the server
+//   - call GetEngine to access the initialized router
+//   - register endpoints directly or through groups returned by GetRoute
+//   - pass the returned server to Start
+//
+// It returns nil until CreateApp finishes successfully.
 func GetEngine() *gin.Engine {
 	return engine
 }
