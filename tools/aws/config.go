@@ -8,7 +8,14 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws"
 )
 
-var LoadAWSConfig = func(ctx context.Context) (aws.Config, error) {
+// LoadAWSConfig loads the default AWS SDK configuration for the current
+// environment and attaches OpenTelemetry middlewares to instrument AWS API
+// calls.
+//
+// It is intended to be reused by packages that need a shared, trace-enabled
+// AWS client configuration, and it can also be replaced in tests to avoid
+// loading real cloud credentials.
+func LoadAWSConfig(ctx context.Context) (aws.Config, error) {
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return cfg, err
