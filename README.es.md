@@ -142,18 +142,41 @@ qgo new gin
 qgo new grpc
 ```
 
-## Comandos útiles
-
-Ejecutar tests:
+## Pruebas
 
 ```bash
 go test ./...
 ```
 
-Coverage:
+## Comandos útiles
+
+### Actualizar dependencias
+
+```bash
+go get -u ./...
+```
+
+### Limpiar cache de build, tests y módulos
+
+```bash
+go clean -cache -testcache -modcache
+```
+
+### Ejecutar pruebas con coverage
 
 ```bash
 go test -cover -covermode=atomic -coverprofile="coverage.out" ./...
+```
+
+### Generar reporte HTML de coverage
+
+```bash
 go tool cover -html="coverage.out" -o "coverage.html"
+```
+
+### Mostrar coverage por función
+
+```bash
+go tool cover -func="coverage.out"
 ```
 

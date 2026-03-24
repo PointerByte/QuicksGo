@@ -143,17 +143,40 @@ qgo new gin
 qgo new grpc
 ```
 
-## Useful commands
-
-Run tests:
+## Tests
 
 ```bash
 go test ./...
 ```
 
-Coverage:
+## Useful commands
+
+### Update dependencies
+
+```bash
+go get -u ./...
+```
+
+### Clean build, test, and module cache
+
+```bash
+go clean -cache -testcache -modcache
+```
+
+### Run tests with coverage
 
 ```bash
 go test -cover -covermode=atomic -coverprofile="coverage.out" ./...
+```
+
+### Generate HTML coverage report
+
+```bash
 go tool cover -html="coverage.out" -o "coverage.html"
+```
+
+### Show coverage by function
+
+```bash
+go tool cover -func="coverage.out"
 ```
