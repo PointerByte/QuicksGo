@@ -67,8 +67,61 @@ func New(mock IToolsECS) IToolsECS {
 	}
 }
 
-// GetTaskECSHosts returns the private IPs of peer ECS tasks that belong to the same
-// service as the current task.
+// GetTaskECSHosts returns the private IPs of peer ECS tasks that belong to the
+// same ECS service as the current task.
+//
+// Example usage with a Gin server prepared for testing:
+//
+//	type ECSHostDiscovery interface {
+//		GetTaskECSHosts(ctx context.Context, ctxLogger *builder.Context) ([]string, error)
+//	}
+//
+//	type RefreshHandler struct {
+//		discovery ECSHostDiscovery
+//	}
+//
+//	func NewRefreshHandler(discovery ECSHostDiscovery) *RefreshHandler {
+//		return &RefreshHandler{discovery: discovery}
+//	}
+//
+//	func (h *RefreshHandler) Register(api *gin.RouterGroup) {
+//		api.GET("/refresh/hosts", h.GetHosts)
+//	}
+//
+//	func (h *RefreshHandler) GetHosts(c *gin.Context) {
+//		ctx := c.Request.Context()
+//		ctxLogger := builder.New(ctx)
+//
+//		hosts, err := h.discovery.GetTaskECSHosts(ctx, ctxLogger)
+//		if err != nil {
+//			c.JSON(500, gin.H{"error": err.Error()})
+//			return
+//		}
+//
+//		serverGRPC.SetHostsRefresh(hosts...)
+//		c.JSON(200, gin.H{"hosts": hosts})
+//	}
+//
+// Production setup:
+//
+//	srv, err := serverGin.CreateApp()
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//	api := serverGin.GetRoute("/api/v1")
+//	handler := NewRefreshHandler(ecs.New(nil))
+//	handler.Register(api)
+//
+//	serverGin.Start(srv)
+//
+// Test setup:
+//
+//	type mockECSDiscovery struct{}
+//
+//	func (m *mockECSDiscovery) GetTaskECSHosts(_ context.Context, _ *builder.Context) ([]string, error) {
+//		return []string{"10.1.0.20", "10.1.0.21"}, nil
+//	}
 func (t *ToolsECS) GetTaskECSHosts(ctx context.Context, ctxLogger *builder.Context) (result []string, _ error) {
 	if t.mocks != nil {
 		return t.mocks.GetTaskECSHosts(ctx, ctxLogger)

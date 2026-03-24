@@ -1,6 +1,44 @@
 // Copyright 2026 PointerByte Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+// Package main provides practical runnable examples for bootstrapping QuicksGo
+// servers from the config module.
+//
+// Gin example:
+//
+//	srv, err := serverGin.CreateApp()
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//	api := serverGin.GetRoute("/api/v1")
+//	api.GET("/hello", func(c *gin.Context) {
+//		c.JSON(200, gin.H{"message": "ok"})
+//	})
+//
+//	serverGin.Start(srv)
+//
+// gRPC example:
+//
+//	srv := serverGRPC.NewIConfig(nil, nil)
+//
+//	if err := srv.Register(func(r grpc.ServiceRegistrar) {
+//		pb.RegisterGreeterServer(r, greeterServer{})
+//	}); err != nil {
+//		panic(err)
+//	}
+//
+//	if err := srv.Serve(); err != nil {
+//		panic(err)
+//	}
+//
+// To run the executable examples in this file:
+//
+//	QUICKSGO_EXAMPLE_SERVER=gin
+//
+// or:
+//
+//	QUICKSGO_EXAMPLE_SERVER=grpc
 package main
 
 import (

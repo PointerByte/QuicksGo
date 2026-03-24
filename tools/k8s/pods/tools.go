@@ -55,8 +55,62 @@ func New(mock IToolsK8S) IToolsK8S {
 	}
 }
 
-// GetPodHosts obtiene las IPs de los pods en estado Running y Ready que pertenecen
-// al servicio configurado en `app.name` dentro del namespace indicado.
+// GetPodHosts obtains the IPs of Running and Ready pods selected by the
+// configured Kubernetes Service in the provided namespace.
+//
+// Example usage with a Gin server prepared for testing:
+//
+//	type PodHostDiscovery interface {
+//		GetPodHosts(ctx context.Context, ctxLogger *builder.Context, namespace string) ([]string, error)
+//	}
+//
+//	type RefreshHandler struct {
+//		discovery PodHostDiscovery
+//	}
+//
+//	func NewRefreshHandler(discovery PodHostDiscovery) *RefreshHandler {
+//		return &RefreshHandler{discovery: discovery}
+//	}
+//
+//	func (h *RefreshHandler) Register(api *gin.RouterGroup) {
+//		api.GET("/refresh/hosts", h.GetHosts)
+//	}
+//
+//	func (h *RefreshHandler) GetHosts(c *gin.Context) {
+//		ctx := c.Request.Context()
+//		ctxLogger := builder.New(ctx)
+//		namespace := viper.GetString("app.namespace")
+//
+//		hosts, err := h.discovery.GetPodHosts(ctx, ctxLogger, namespace)
+//		if err != nil {
+//			c.JSON(500, gin.H{"error": err.Error()})
+//			return
+//		}
+//
+//		serverGRPC.SetHostsRefresh(hosts...)
+//		c.JSON(200, gin.H{"hosts": hosts})
+//	}
+//
+// Production setup:
+//
+//	srv, err := serverGin.CreateApp()
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//	api := serverGin.GetRoute("/api/v1")
+//	handler := NewRefreshHandler(pods.New(nil))
+//	handler.Register(api)
+//
+//	serverGin.Start(srv)
+//
+// Test setup:
+//
+//	type mockPodDiscovery struct{}
+//
+//	func (m *mockPodDiscovery) GetPodHosts(_ context.Context, _ *builder.Context, _ string) ([]string, error) {
+//		return []string{"10.0.0.10", "10.0.0.11"}, nil
+//	}
 func (t *ToolsK8S) GetPodHosts(ctx context.Context, ctxLogger *builder.Context, namespace string) ([]string, error) {
 	if t.mocks != nil {
 		return t.mocks.GetPodHosts(ctx, ctxLogger, namespace)

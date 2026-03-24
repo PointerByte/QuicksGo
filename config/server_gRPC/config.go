@@ -292,7 +292,6 @@ func defaultServerOptions(cfg *Config) ([]grpc.ServerOption, error) {
 			loggerMiddlewares.LoggerWithConfigStreamServerInterceptor(),
 			loggerMiddlewares.CaptureBodyStreamServerInterceptor(),
 		),
-		grpc.UnknownServiceHandler(unknownServiceHandler(cfg)),
 	}
 
 	config, err := resolveTLSConfig()
