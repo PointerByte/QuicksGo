@@ -98,8 +98,7 @@ func refreshGin() gin.HandlerFunc {
 // getGeneric wraps the HTTP client used to notify the refresh endpoint on
 // remote hosts and can be replaced in tests.
 var getGeneric = func(ctx context.Context, input clientHttp.RequestGeneric) error {
-	tr := http.DefaultTransport.(*http.Transport).Clone()
-	newRestGeneric := clientHttp.NewGenericRest(nil, time.Minute, tr)
+	newRestGeneric := clientHttp.NewGenericRest(nil, time.Minute, nil)
 	return newRestGeneric.GetGeneric(ctx, input)
 }
 

@@ -1,3 +1,4 @@
-*/.vscode
-*/logs
-*/coverage.html
+**/.vscode
+**/logs
+**/coverage.html
+**/.gocache

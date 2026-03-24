@@ -21,6 +21,7 @@ import (
 	"github.com/PointerByte/QuicksGo/logger/builder"
 	"github.com/PointerByte/QuicksGo/logger/formatter"
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -294,6 +295,7 @@ func defaultTraceDialOptions() []grpc.DialOption {
 	return []grpc.DialOption{
 		grpc.WithChainUnaryInterceptor(traceUnaryClientInterceptor()),
 		grpc.WithChainStreamInterceptor(traceStreamClientInterceptor()),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	}
 }
 

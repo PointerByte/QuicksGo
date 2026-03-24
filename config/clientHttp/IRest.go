@@ -70,6 +70,10 @@ type Rest struct {
 	req         *http.Request
 }
 
+// NewIRest creates a new instance of IRest.
+//
+// The timeOut parameter defines the maximum duration for each request.
+// The tr parameter allows injecting a custom HTTP transport.
 func NewIRest(mocks IRest, timeout time.Duration, tr *http.Transport) IRest {
 	s := &Rest{
 		mocks:      mocks,
