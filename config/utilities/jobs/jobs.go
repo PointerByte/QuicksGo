@@ -1,12 +1,26 @@
 // Copyright 2026 PointerByte Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-// Package jobs provides concurrent execution of periodic and daily scheduled
-// jobs.
+// Package jobs provides in-process scheduling for periodic and trigger-aligned
+// background jobs.
 //
 // The package supports two usage styles:
-//   - instance-based scheduling with [NewJobs]
+//   - instance-based scheduling with [newJobs]
 //   - process-wide scheduling through the package-level helpers
+//
+// The package-level helpers are:
+//   - [Job] to register fixed-interval work
+//   - [CronJob] to register jobs aligned to a daily trigger
+//   - [StartJobs] to start the global scheduler
+//   - [RestartJobs] to restart global jobs without clearing their definitions
+//   - [StopAllJobs] to stop global jobs, optionally clearing them
+//   - [CheckStatusJobs] to inspect whether the global scheduler is active
+//
+// Important behavior:
+//   - registering a job does not start it immediately
+//   - jobs begin running when [StartJobs] is called
+//   - jobs added after startup begin executing immediately
+//   - if `server.modeTest=true`, [StartJobs] does not run jobs
 //
 // Basic usage:
 //
@@ -25,26 +39,26 @@ import (
 	"github.com/spf13/viper"
 )
 
-var globalJobs IJobs
+var globalJobs ijobs
 var checkJobsStop atomic.Bool
 
 func init() {
-	globalJobs = NewJobs()
+	globalJobs = newJobs()
 }
 
-// CronTrigger defines the daily execution time for a CronJob using hour, minute,
+// cronTrigger defines the daily execution time for a CronJob using hour, minute,
 // and second fields.
 //
 // Example:
 //
-//	trg := jobs.CronTrigger{Hour: 9, Minute: 0, Second: 0} // every day at 09:00:00
-type CronTrigger struct {
+//	trg := jobs.cronTrigger{Hour: 9, Minute: 0, Second: 0} // every day at 09:00:00
+type cronTrigger struct {
 	Hour   uint
 	Minute uint
 	Second uint
 }
 
-// IJobs defines the public operations used to schedule and start jobs.
+// ijobs defines the public operations used to schedule and start jobs.
 // It is implemented by *Jobs.
 //
 // Recommendation: create instances with NewJobs().
@@ -55,8 +69,8 @@ type CronTrigger struct {
 //	j.Job(func() { /* ... */ }, 2*time.Second, nil)
 //	j.CronJob(func() { /* ... */ }, jobs.CronTrigger{Hour: 9}, 0)
 //	j.StartJobs()
-type IJobs interface {
-	// Job schedules fn to run periodically every interval.
+type ijobs interface {
+	// job schedules fn to run periodically every interval.
 	// If timeout != nil and *timeout > 0, the job stops automatically when
 	// the timeout expires. If timeout is nil, the job keeps running until
 	// StopAllJobs, Destroy, or process shutdown.
@@ -64,10 +78,10 @@ type IJobs interface {
 	// Example:
 	//
 	//	timeout := 10 * time.Second
-	//	j.Job(func() { fmt.Println("every 500ms") }, 500*time.Millisecond, &timeout)
-	Job(fn func(), interval time.Duration, timeout *time.Duration)
+	//	j.job(func() { fmt.Println("every 500ms") }, 500*time.Millisecond, &timeout)
+	job(fn func(), interval time.Duration, timeout *time.Duration)
 
-	// CronJob schedules fn to start at the time defined by trigger.
+	// cronJob schedules fn to start at the time defined by trigger.
 	// If interval <= 0, the job runs daily.
 	// If interval > 0, the first execution is aligned to trigger and the job
 	// then repeats every interval until the instance is stopped.
@@ -75,23 +89,22 @@ type IJobs interface {
 	// Examples:
 	//
 	//  // 1) Daily schedule:
-	//  j.CronJob(func() { fmt.Println("daily") },
+	//  j.cronJob(func() { fmt.Println("daily") },
 	//      jobs.CronTrigger{Hour: 7, Minute: 45, Second: 0}, 0)
 	//
 	//  // 2) First run at 09:00, then every 5 seconds:
-	//  j.CronJob(func() { fmt.Println("starts at 09:00 and then runs every 5s") },
+	//  j.cronJob(func() { fmt.Println("starts at 09:00 and then runs every 5s") },
 	//      jobs.CronTrigger{Hour: 9, Minute: 0, Second: 0}, 5*time.Second)
-	CronJob(fn func(), trigger CronTrigger, interval time.Duration)
+	cronJob(fn func(), trigger cronTrigger, interval time.Duration)
 
-	// StartJobs starts all jobs registered in the instance.
+	// startJobs starts all jobs registered in the instance.
 	// The operation is idempotent: multiple calls do not duplicate running jobs.
-	StartJobs()
+	startJobs()
 }
 
-// Jobs manages the lifecycle of periodic and cron jobs for a single instance.
+// jobs manages the lifecycle of periodic and cron jobs for a single instance.
 // Create it with NewJobs and stop it with Destroy or globally with StopAllJobs.
-type Jobs struct {
-	_       noCopy
+type jobs struct {
 	started atomic.Bool
 	stopCh  atomic.Value
 
@@ -102,21 +115,21 @@ type Jobs struct {
 	wg sync.WaitGroup
 }
 
-// NewJobs creates and registers a new Jobs instance in the global registry.
-// Any instance created with NewJobs is affected by StopAllJobs.
+// newJobs creates and registers a new Jobs instance in the global registry.
+// Any instance created with newJobs is affected by StopAllJobs.
 //
 // Example:
 //
-//	j := jobs.NewJobs()
+//	j := jobs.newJobs()
 //	j.Job(func() { fmt.Println("hello") }, time.Second, nil)
 //	j.StartJobs()
-func NewJobs() *Jobs {
-	j := &Jobs{}
+func newJobs() *jobs {
+	j := &jobs{}
 	register(j)
 	return j
 }
 
-// Job registers a job that runs fn every interval.
+// job registers a job that runs fn every interval.
 // If timeout is not nil and greater than zero, the job stops automatically
 // when the timeout expires.
 //
@@ -126,12 +139,12 @@ func NewJobs() *Jobs {
 // Examples:
 //
 //	// 1) No timeout:
-//	j.Job(func() { fmt.Println("tick") }, 500*time.Millisecond, nil)
+//	j.job(func() { fmt.Println("tick") }, 500*time.Millisecond, nil)
 //
 //	// 2) With timeout (stops after 5 seconds):
 //	t := 5 * time.Second
-//	j.Job(func() { fmt.Println("timed tick") }, 500*time.Millisecond, &t)
-func (j *Jobs) Job(fn func(), interval time.Duration, timeout *time.Duration) {
+//	j.job(func() { fmt.Println("timed tick") }, 500*time.Millisecond, &t)
+func (j *jobs) job(fn func(), interval time.Duration, timeout *time.Duration) {
 	if fn == nil || interval <= 0 {
 		return
 	}
@@ -149,19 +162,27 @@ func (j *Jobs) Job(fn func(), interval time.Duration, timeout *time.Duration) {
 	j.mu.Unlock()
 }
 
+// Job registers a fixed-interval job in the package-level scheduler.
+//
+// The job runs once immediately when the scheduler starts, and then repeats
+// every interval. If timeout is nil, the job keeps running until it is stopped
+// by [StopAllJobs] or process shutdown. If timeout is non-nil and greater than
+// zero, the job stops automatically when that duration expires.
+//
+// The job is only registered here; execution begins when [StartJobs] runs.
 func Job(fn func(), interval time.Duration, timeout *time.Duration) {
-	globalJobs.Job(fn, interval, timeout)
+	globalJobs.job(fn, interval, timeout)
 }
 
-// CronJob registers a job that starts according to the provided trigger.
+// cronJob registers a job that starts according to the provided trigger.
 // If the instance is already running, scheduling begins immediately and waits
 // for the next trigger. Otherwise, the job is queued until StartJobs.
 //
 // Example:
 //
-//	j.CronJob(func() { fmt.Println("daily") },
+//	j.cronJob(func() { fmt.Println("daily") },
 //		jobs.CronTrigger{Hour: 7, Minute: 45, Second: 0})
-func (j *Jobs) CronJob(fn func(), trigger CronTrigger, interval time.Duration) {
+func (j *jobs) cronJob(fn func(), trigger cronTrigger, interval time.Duration) {
 	if fn == nil {
 		return
 	}
@@ -179,8 +200,15 @@ func (j *Jobs) CronJob(fn func(), trigger CronTrigger, interval time.Duration) {
 	j.mu.Unlock()
 }
 
-func CronJob(fn func(), trigger CronTrigger, interval time.Duration) {
-	globalJobs.CronJob(fn, trigger, interval)
+// CronJob registers a trigger-aligned job in the package-level scheduler.
+//
+// If interval <= 0, the job runs once per day at the time defined by trigger.
+// If interval > 0, the first execution waits until the next matching trigger,
+// and the job then repeats every interval.
+//
+// The job is only registered here; execution begins when [StartJobs] runs.
+func CronJob(fn func(), trigger cronTrigger, interval time.Duration) {
+	globalJobs.cronJob(fn, trigger, interval)
 }
 
 var restartJobs chan struct{}
@@ -190,13 +218,20 @@ func init() {
 	go RestartJobs()
 }
 
+// StartJobs starts the package-level jobs scheduler.
+//
+// Internally it waits for restart signals and starts the global job registry
+// when requested. This is the entry point used by higher-level server packages
+// such as `server_Gin.Start(...)`.
+//
+// When `server.modeTest=true`, registered jobs are not started.
 func StartJobs() {
 	go func() {
 		for {
 			select {
 			case <-restartJobs:
 				StopAllJobs(false)
-				globalJobs.StartJobs()
+				globalJobs.startJobs()
 			default:
 				if !CheckStatusJobs() {
 					return
@@ -207,20 +242,24 @@ func StartJobs() {
 	}()
 }
 
+// RestartJobs requests a restart of the package-level scheduler.
+//
+// The restart flow stops currently running jobs without clearing their
+// registered definitions and starts them again from the current process state.
 func RestartJobs() {
 	restartJobs <- struct{}{}
 }
 
-// StartJobs starts all previously registered jobs.
+// startJobs starts all previously registered jobs.
 // If the instance is already started, the call has no additional effect.
 //
-// Jobs added after StartJobs begin executing immediately.
+// Jobs added after startJobs begin executing immediately.
 //
 // Example:
 //
-//	j.StartJobs()
+//	j.startJobs()
 //	j.Job(func() { fmt.Println("starts now") }, 200*time.Millisecond, nil) // starts immediately
-func (j *Jobs) StartJobs() {
+func (j *jobs) startJobs() {
 	if viper.GetBool("server.modeTest") {
 		return
 	}
@@ -245,7 +284,7 @@ func (j *Jobs) StartJobs() {
 	checkJobsStop.Store(true)
 }
 
-func (j *Jobs) stop() {
+func (j *jobs) stop() {
 	if j.started.CompareAndSwap(true, false) {
 		if ch, _ := j.stopCh.Load().(chan struct{}); ch != nil {
 			close(ch)
@@ -256,7 +295,7 @@ func (j *Jobs) stop() {
 
 // StopAndClear stops and clears only this instance.
 // It is used internally by Destroy and global resets.
-func (j *Jobs) stopAndClear() {
+func (j *jobs) stopAndClear() {
 	j.stop()
 
 	j.mu.Lock()
@@ -265,13 +304,13 @@ func (j *Jobs) stopAndClear() {
 	j.mu.Unlock()
 }
 
-// Destroy stops the instance jobs and removes the instance from the global registry.
-// After Destroy, StopAllJobs no longer affects the instance.
+// destroy stops the instance jobs and removes the instance from the global registry.
+// After destroy, StopAllJobs no longer affects the instance.
 //
 // Example:
 //
-//	j.Destroy() // stops and unregisters this instance
-func (j *Jobs) Destroy() {
+//	j.destroy() // stops and unregisters this instance
+func (j *jobs) destroy() {
 	j.stopAndClear()
 	unregister(j)
 }
@@ -282,9 +321,14 @@ func (j *Jobs) Destroy() {
 // Example:
 //
 //	jobs.StopAllJobs(true) // stops and clears all registered jobs in the process
+// StopAllJobs stops every globally registered jobs instance.
+//
+// If clearJobs is false, the jobs stop but remain registered and can be
+// started again later. If clearJobs is true, the jobs stop and their stored
+// definitions are removed from each registered instance.
 func StopAllJobs(clearJobs bool) {
 	regMu.Lock()
-	list := make([]*Jobs, 0, len(registry))
+	list := make([]*jobs, 0, len(registry))
 	for j := range registry {
 		list = append(list, j)
 	}
@@ -301,16 +345,16 @@ func StopAllJobs(clearJobs bool) {
 	checkJobsStop.Store(false)
 }
 
+// CheckStatusJobs reports whether the package-level scheduler is currently
+// marked as active.
+//
+// It returns true after jobs have started and false after they have been fully
+// stopped.
 func CheckStatusJobs() bool {
 	return checkJobsStop.Load()
 }
 
 // -------------------- Unexported internals --------------------
-
-type noCopy struct{}
-
-func (*noCopy) Lock()   {}
-func (*noCopy) Unlock() {}
 
 type intervalJob struct {
 	fn       func()
@@ -320,32 +364,29 @@ type intervalJob struct {
 
 type cronJob struct {
 	fn       func()
-	trigger  CronTrigger
+	trigger  cronTrigger
 	interval time.Duration
 }
 
 var (
 	regMu    sync.Mutex
-	registry = make(map[*Jobs]struct{})
+	registry = make(map[*jobs]struct{})
 )
 
-func register(j *Jobs) {
+func register(j *jobs) {
 	regMu.Lock()
 	registry[j] = struct{}{}
 	regMu.Unlock()
 }
 
-func unregister(j *Jobs) {
+func unregister(j *jobs) {
 	regMu.Lock()
 	delete(registry, j)
 	regMu.Unlock()
 }
 
-func (j *Jobs) startIntervalJob(ij intervalJob, stopCh chan struct{}) {
-	j.wg.Add(1)
-	go func() {
-		defer j.wg.Done()
-
+func (j *jobs) startIntervalJob(ij intervalJob, stopCh chan struct{}) {
+	j.wg.Go(func() {
 		ticker := time.NewTicker(ij.interval)
 		defer ticker.Stop()
 
@@ -370,10 +411,10 @@ func (j *Jobs) startIntervalJob(ij intervalJob, stopCh chan struct{}) {
 				return
 			}
 		}
-	}()
+	})
 }
 
-func (j *Jobs) startCronJob(cj cronJob, stopCh chan struct{}) {
+func (j *jobs) startCronJob(cj cronJob, stopCh chan struct{}) {
 	j.wg.Add(1)
 	go func() {
 		defer j.wg.Done()
@@ -428,7 +469,7 @@ func (j *Jobs) startCronJob(cj cronJob, stopCh chan struct{}) {
 	}()
 }
 
-func nextDelay(trg CronTrigger, now time.Time) time.Duration {
+func nextDelay(trg cronTrigger, now time.Time) time.Duration {
 	loc := now.Location()
 	next := time.Date(now.Year(), now.Month(), now.Day(),
 		int(trg.Hour), int(trg.Minute), int(trg.Second), 0, loc)

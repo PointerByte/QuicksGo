@@ -100,9 +100,6 @@ func TestMiddlewareCaptureBody(t *testing.T) {
 			var handlerSawBody string
 
 			r := gin.New()
-
-			// Este middleware va antes para poder validar DESPUÃ‰S de que
-			// MiddlewareCaptureBody ya ejecutÃ³ su post-procesamiento.
 			r.Use(func(c *gin.Context) {
 				c.Next()
 
@@ -155,7 +152,6 @@ func TestMiddlewareCaptureBody(t *testing.T) {
 				t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
 			}
 
-			// Valida que el body fue reinyectado y sÃ­ pudo leerlo el handler.
 			if handlerSawBody != tt.wantRequestBody {
 				t.Fatalf("handlerSawBody = %q, want %q", handlerSawBody, tt.wantRequestBody)
 			}
@@ -270,8 +266,6 @@ func TestLoggerWithConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			viperdata.ResetViperDataSingleton()
-
-			// Config mÃ­nima para que el middleware no falle al leer Viper.
 			viper.Set(string(viperdata.GinLoggerWithConfigEnabledAtribute), tt.enabled)
 			viper.Set(string(viperdata.GinLoggerWithConfigSkipPathsAtribute), []string{"/skip"})
 			viper.Set(string(viperdata.GinLoggerWithConfigSkipQueryStringAtribute), false)

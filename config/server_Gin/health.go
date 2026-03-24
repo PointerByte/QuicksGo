@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func health() gin.HandlerFunc {
+func healthGin() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
 			"aplicacion": viper.GetString("app.name"),

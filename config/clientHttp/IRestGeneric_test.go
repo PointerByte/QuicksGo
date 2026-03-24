@@ -23,18 +23,18 @@ import (
 
 func getDefaultTransport() *http.Transport {
 	return &http.Transport{
-		MaxIdleConns:          100,              // MÃ¡ximo de conexiones ociosas
-		MaxConnsPerHost:       200,              // LÃ­mite de conexiones por host simultÃ¡neas
-		MaxIdleConnsPerHost:   10,               // MÃ¡ximo de conexiones ociosas por host
-		IdleConnTimeout:       90 * time.Second, // tiempo de espera para conexiones ociosas
-		TLSHandshakeTimeout:   10 * time.Second, // tiempo mÃ¡ximo para el handshake TLS
-		ExpectContinueTimeout: 1 * time.Second,  // tiempo de espera para Expect: 100-continue
+		MaxIdleConns:          100,
+		MaxConnsPerHost:       200,
+		MaxIdleConnsPerHost:   10,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
 		DialContext: (&net.Dialer{
-			Timeout:   10 * time.Second, // tiempo mÃ¡ximo para conexiones
-			KeepAlive: 30 * time.Second, // Mantener conexiones activas
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
 		}).DialContext,
 		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
-		ForceAttemptHTTP2: true, // Intenta HTTP/2 incluso para HTTP
+		ForceAttemptHTTP2: true,
 	}
 }
 

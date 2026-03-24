@@ -5,7 +5,6 @@ package middlewares
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"net/textproto"
 	"reflect"
@@ -316,7 +315,6 @@ func writeGRPCLog(ctxLogger *builder.Context, fullMethod string, err error) {
 		}
 	}
 	if !hasError(err) {
-		log.Fatal(err)
 		return
 	}
 	ctxLogger.Error(err)

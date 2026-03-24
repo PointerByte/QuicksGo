@@ -213,8 +213,8 @@ func createApp(optionsJWT ...middlewares.JWTMiddlewareOption) (*http.Server, err
 	groups := viper.GetStringSlice("server.groups")
 	for _, g := range groups {
 		routes[g] = engine.Group(g)
-		//routes[g].GET("/refresh", refresh())
-		routes[g].GET("/health", health())
+		routes[g].GET("/refresh", refreshGin())
+		routes[g].GET("/health", healthGin())
 	}
 	setRoute(routes)
 	resolveTLSAutoConfig()

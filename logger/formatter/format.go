@@ -42,8 +42,6 @@ func (f *CustomFormatter) FormatJSON(log LogFormat) ([]byte, error) {
 
 func (f *CustomFormatter) FormatText(log LogFormat) ([]byte, error) {
 	var b strings.Builder
-
-	// LÃ­nea principal
 	fmt.Fprintf(
 		&b,
 		"[%s] [%v] [%s] %s:%d - %s",

@@ -244,7 +244,7 @@ The example `application.yml` and `application.json` include the most relevant k
 - registers shared middleware
 - applies `RequireJWT` when `jwt.transport=header` or `RequireJWTCookie` when `jwt.transport=cookie`
 - creates route groups from `server.groups`
-- registers `/health` under each group
+- registers `/health` and `/refresh` under each group
 
 Basic usage:
 
@@ -283,6 +283,29 @@ Main keys:
 - `jwt.enable`
 - `jwt.transport`
 - `jwt.cookie.name`
+
+### Gin refresh endpoint
+
+Each route group created from `server.groups` also gets a `GET /refresh`
+endpoint. For example, if the group is `/api/v1`, the refresh endpoint becomes
+`/api/v1/refresh`.
+
+What it does:
+
+- calls `jobs.RestartJobs()` through the internal `restartJobs` function variable
+- forwards the refresh request to the hosts registered with `SetHostsRefresh(...)`
+- preserves inbound headers while adding `broadcast-refresh=true`
+- avoids infinite loops by returning immediately when the request already
+  carries that broadcast marker
+
+Typical use:
+
+- reload cache or in-memory state after configuration changes
+- reschedule package-level background jobs across multiple instances
+- keep a cluster of Gin services synchronized through a simple fan-out request
+
+If you need local refresh logic before fan-out, register callbacks with
+`SetFunctionsRefresh(...)`.
 
 ## gRPC server
 
@@ -348,6 +371,27 @@ Main keys:
 - `server.grpc.mtls.clientCAFile`
 - `server.grpc.mtls.clientAuth`
 
+### gRPC refresh endpoint
+
+`server_gRPC` exposes an administrative refresh RPC through the internal method
+name `"/quicksgo.admin/Refresh"`.
+
+What it does:
+
+- calls `jobs.RestartJobs()` through the internal `restartJobs` function variable
+- executes callbacks registered with `SetFunctionsRefresh(...)`
+- propagates the same RPC to the hosts registered with `SetHostsRefresh(...)`
+- uses metadata `broadcast-refresh=true` to avoid fan-out loops between nodes
+
+Typical use:
+
+- refresh process-local state on all nodes
+- restart package-level scheduled jobs in a coordinated way
+- propagate a manual or operational reload event across gRPC instances
+
+The request and response body for this administrative RPC are empty, and the
+flow is intended for internal service-to-service coordination.
+
 ## HTTP client
 
 `clientHttp` exposes a generic REST client with request/response tracing.
@@ -395,6 +439,235 @@ Main keys:
 - `client.grpc.mtls.enable`
 - `client.grpc.mtls.certFile`
 - `client.grpc.mtls.keyFile`
+
+## Background jobs
+
+`utilities/jobs` provides simple in-process background execution for recurring tasks.
+
+There are two common ways to use it:
+
+- package-level helpers like `jobs.Job(...)`, `jobs.CronJob(...)`, and `jobs.StartJobs()`
+- an isolated instance created with `jobs.NewJobs()` when you want separate lifecycle control
+
+Important behavior:
+
+- jobs do not start when they are registered; they start when `StartJobs()` runs
+- `server_Gin.Start(...)` already calls `jobs.StartJobs()` internally
+- if you register jobs after `StartJobs()`, they start immediately
+- when `server.modeTest=true`, `StartJobs()` does not run jobs
+
+### Package-level lifecycle helpers
+
+These helpers operate on the process-wide scheduler used by the package:
+
+#### `StartJobs()`
+
+Starts the package-level scheduler loop.
+
+What it does:
+
+- starts the registered jobs in the global scheduler
+- keeps an internal watcher alive while jobs are marked as running
+- is the entry point used by `server_Gin.Start(...)`
+
+Notes:
+
+- jobs must already be registered with `Job(...)` or `CronJob(...)`
+- if `server.modeTest=true`, jobs are not started
+
+#### `RestartJobs()`
+
+Requests a restart of the global scheduler.
+
+What it does:
+
+- sends an internal restart signal
+- causes the scheduler to stop current jobs without clearing their definitions
+- starts them again from the current state
+
+Useful when:
+
+- configuration changed and you want the current set of jobs to restart
+- you need to reschedule active jobs without rebuilding the process
+
+#### `StopAllJobs(clearJobs bool)`
+
+Stops all jobs registered globally with `NewJobs()`.
+
+Behavior:
+
+- if `clearJobs=false`, jobs are stopped but remain registered, so they can be started again
+- if `clearJobs=true`, jobs are stopped and their definitions are removed from each registered instance
+
+Typical use:
+
+- `StopAllJobs(false)` for temporary stop / restart flows
+- `StopAllJobs(true)` for tests, shutdown, or full reset
+
+#### `CheckStatusJobs() bool`
+
+Returns whether the package currently considers the global jobs system active.
+
+In practice:
+
+- `true` means jobs were started and not fully stopped yet
+- `false` means the global scheduler is stopped
+
+This is mainly useful for diagnostics, tests, or operational checks.
+
+### `Job(fn func(), interval time.Duration, timeout *time.Duration)`
+
+Use `Job` for fixed intervals such as "every 30 seconds" or "every 5 minutes".
+
+Parameters:
+
+- `fn`: function executed on every cycle
+- `interval`: execution frequency; if `interval <= 0` the job is ignored
+- `timeout`: optional total lifetime for that job; if `nil`, the job keeps running until shutdown or `StopAllJobs`
+
+Behavior:
+
+- the first execution happens immediately when the job starts
+- later executions use the provided `interval`
+- if `timeout != nil` and `*timeout > 0`, the job stops automatically when the timeout expires
+
+Example without timeout:
+
+```go
+import (
+	"time"
+
+	"github.com/PointerByte/QuicksGo/config/utilities/jobs"
+)
+
+func registerJobs() {
+	jobs.Job(func() {
+		refreshCache()
+	}, 30*time.Second, nil)
+}
+```
+
+Example with timeout:
+
+```go
+func registerJobs() {
+	timeout := 10 * time.Minute
+
+	jobs.Job(func() {
+		pollTemporarySource()
+	}, 15*time.Second, &timeout)
+}
+```
+
+### `CronJob(fn func(), trigger CronTrigger, interval time.Duration)`
+
+Use `CronJob` when the first execution must be aligned to a specific hour/minute/second.
+
+Parameters:
+
+- `fn`: function to execute
+- `trigger`: daily start time using `Hour`, `Minute`, and `Second`
+- `interval`: controls what happens after the first aligned execution
+
+Behavior:
+
+- if `interval <= 0`, the job runs once per day at the given `trigger`
+- if `interval > 0`, the first run waits until the next matching `trigger`, and after that it repeats every `interval`
+
+Example: run every day at 09:00:00
+
+```go
+func registerJobs() {
+	jobs.CronJob(func() {
+		buildDailyReport()
+	}, jobs.CronTrigger{
+		Hour:   9,
+		Minute: 0,
+		Second: 0,
+	}, 0)
+}
+```
+
+Example: first run at 08:30:00, then every 5 minutes
+
+```go
+func registerJobs() {
+	jobs.CronJob(func() {
+		syncMorningWindow()
+	}, jobs.CronTrigger{
+		Hour:   8,
+		Minute: 30,
+		Second: 0,
+	}, 5*time.Minute)
+}
+```
+
+### Complete package-level example
+
+```go
+func registerJobs() {
+	timeout := 30 * time.Minute
+
+	jobs.Job(func() {
+		refreshCache()
+	}, time.Minute, &timeout)
+
+	jobs.CronJob(func() {
+		buildDailyReport()
+	}, jobs.CronTrigger{
+		Hour:   2,
+		Minute: 0,
+		Second: 0,
+	}, 0)
+}
+
+func main() {
+	registerJobs()
+
+	jobs.StartJobs()
+
+	if jobs.CheckStatusJobs() {
+		log.Println("jobs are running")
+	}
+
+	// Example operational restart:
+	jobs.RestartJobs()
+
+	// Example final shutdown:
+	jobs.StopAllJobs(true)
+}
+```
+
+### Recommended integration pattern
+
+When you use the Gin server, a common pattern is:
+
+```go
+func main() {
+	registerJobs()
+
+	srv, err := serverGin.CreateApp()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	serverGin.Start(srv) // this starts registered jobs too
+}
+```
+
+If you want manual control outside the Gin bootstrap, call `jobs.StartJobs()` explicitly:
+
+```go
+func main() {
+	jobs.Job(func() {
+		cleanup()
+	}, time.Minute, nil)
+
+	jobs.StartJobs()
+
+	select {}
+}
+```
 
 ## Runnable example
 

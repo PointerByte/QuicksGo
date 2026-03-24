@@ -8,7 +8,7 @@ replace (
 )
 
 require (
-	github.com/PointerByte/QuicksGo/logger v0.0.3
+	github.com/PointerByte/QuicksGo/logger v0.0.4
 	github.com/PointerByte/QuicksGo/security v0.0.3
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.12.0

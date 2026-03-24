@@ -365,7 +365,7 @@ Configuración del servidor HTTP.
 | `port` | Puerto donde corre el servidor |
 | `groups` | Lista de prefijos base para las rutas de la API |
 
-`groups` permite definir mÃºltiples grupos de rutas para organizar los endpoints del servicio.
+`groups` permite definir múltiples grupos de rutas para organizar los endpoints del servicio.
 
 ---
 
@@ -507,7 +507,7 @@ Se recomienda usar `true` cuando:
 
 - el query string puede contener datos sensibles
 - no se desea generar alta cardinalidad en los logs
-- se quiere un path más limpio y estable para bÃºsqueda y agregación
+- se quiere un path más limpio y estable para búsqueda y agregación
 
 Se puede dejar en `false` cuando el query string forma parte importante del análisis funcional y no representa un riesgo de seguridad o ruido excesivo.
 
@@ -583,7 +583,7 @@ Define el nivel mínimo de logs que serán registrados.
 
 # logger.ignoredHeaders
 
-Define quÃ© headers HTTP deben excluirse del log estructurado, específicamente del campo `details.headers`.
+Define qué headers HTTP deben excluirse del log estructurado, específicamente del campo `details.headers`.
 
 ## Objetivo
 
@@ -611,7 +611,7 @@ Content-Type: application/json
 X-Trace-Id: 12345
 ```
 
-el resultado esperado en el log sería conservar Ãºnicamente los headers no ignorados, por ejemplo:
+el resultado esperado en el log sería conservar únicamente los headers no ignorados, por ejemplo:
 
 ```json
 "details": {
@@ -654,9 +654,9 @@ Configuración de rotación automática de archivos de log.
 | Campo | Descripción |
 |------|-------------|
 | `enable` | Habilita la rotación de logs |
-| `maxSize` | TamaÃ±o máximo del archivo en MB antes de rotar |
-| `maxBackups` | NÃºmero máximo de archivos antiguos a mantener |
-| `maxAge` | NÃºmero máximo de días que se guardan los logs |
+| `maxSize` | Tamaño máximo del archivo en MB antes de rotar |
+| `maxBackups` | Número máximo de archivos antiguos a mantener |
+| `maxAge` | Número máximo de días que se guardan los logs |
 | `compress` | Comprime archivos antiguos en `.gz` |
 
 ---
@@ -746,7 +746,7 @@ entonces ese valor se interpreta como el template completo que definirá la sali
 
 ## Nivel de personalización soportado
 
-Este nivel de personalización permite cambiar no solo el contenido del log, sino tambiÃ©n su estructura completa.
+Este nivel de personalización permite cambiar no solo el contenido del log, sino también su estructura completa.
 
 Con un template personalizado puedes:
 
@@ -757,7 +757,7 @@ Con un template personalizado puedes:
 - emitir JSON de una sola línea
 - emitir texto libre
 - mezclar texto con fragmentos JSON
-- reducir el tamaÃ±o del log final
+- reducir el tamaño del log final
 - adaptar la salida a integraciones legacy o plataformas específicas
 
 ---
@@ -869,15 +869,15 @@ y en su lugar imprime:
 
 ---
 
-## QuÃ© puedes personalizar
+## Qué puedes personalizar
 
-Con templates se puede decidir exactamente quÃ© mostrar del log, por ejemplo:
+Con templates se puede decidir exactamente qué mostrar del log, por ejemplo:
 
 - solo el mensaje
-- mensaje más mÃ©todo y línea
+- mensaje más método y línea
 - request y response
 - traza principal
-- consumos o satÃ©lites de `services`
+- consumos o satélites de `services`
 - un JSON completamente distinto al template por defecto
 
 ## Información disponible para personalizar
@@ -938,7 +938,7 @@ Salida:
 Request processed successfully
 ```
 
-### 2) Mensaje con mÃ©todo y línea
+### 2) Mensaje con método y línea
 
 ```json
 "formatter": "{{.Message}} | {{.Method}}:{{.Line}}"
@@ -986,7 +986,7 @@ Salida aproximada:
 {"timestamp":"2026-03-13T01:10:23.123","traceID":"8f3a5d9c-9f2a-4e1d-b3a7-7f23d9a1e4aa","level":"INFO","message":"Request processed successfully","details":{},"services":[],"method":"ProcessPayment","line":142,"totalTime":155}
 ```
 
-### 6) Imprimir satÃ©lites o consumos
+### 6) Imprimir satélites o consumos
 
 ```json
 "formatter": "{{.Message}}{{range .Services}} | svc={{.System}} process={{.Process}} method={{.Method}} path={{.Path}} code={{.Code}} status={{.Status}} latency={{.Latency}}ms{{end}}"
@@ -998,7 +998,7 @@ Salida aproximada:
 Request processed successfully | svc=auth-service process=validate-token method=POST path=/auth/validate code=200 status=SUCCESS latency=18ms | svc=customer-core process=get-profile method=GET path=/customers/profile code=200 status=SUCCESS latency=32ms
 ```
 
-### 7) Imprimir satÃ©lites con trace individual
+### 7) Imprimir satélites con trace individual
 
 ```json
 "formatter": "{{range .Services}}[trace={{.IdTrace}}] {{.System}} {{.Process}} status={{.Status}} latency={{.Latency}}ms {{end}}"
@@ -1029,16 +1029,16 @@ Salida aproximada:
 ### Usa `json` cuando:
 
 - quieras observabilidad estructurada
-- necesites bÃºsquedas por campo
+- necesites búsquedas por campo
 - el destino del log sea Kibana, Loki, CloudWatch o Elastic
-- quieras ver tambiÃ©n `details` y `services` completos
+- quieras ver también `details` y `services` completos
 - quieras una salida compacta en una sola línea
 - quieras omitir automáticamente nulos y vacíos
 
 ### Usa `text` cuando:
 
 - quieras leer el log fácilmente en consola
-- estÃ©s en desarrollo local
+- estés en desarrollo local
 - necesites una salida rápida y compacta
 
 ### Usa personalización cuando:
@@ -1046,7 +1046,7 @@ Salida aproximada:
 - quieras adaptar el log a un formato legado
 - solo necesites imprimir ciertos campos
 - quieras mezclar texto libre con bloques JSON
-- quieras incluir los consumos o satÃ©lites de `Services` en una sola línea
+- quieras incluir los consumos o satélites de `Services` en una sola línea
 - quieras cambiar la estructura del JSON por defecto
 
 ---

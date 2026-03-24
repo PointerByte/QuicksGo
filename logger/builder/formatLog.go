@@ -42,7 +42,7 @@ func (c *Context) customLogFormat() map[string]any {
 		details.System = viperdata.GetViperData(string(viperdata.AppAtribute)).(string)
 	}
 
-	// ---------- SatÃ©lites ----------
+	// ---------- Services ----------
 	var services *[]formatter.Service
 	if v, ok := c.Get(servicesKey); ok {
 		services = v.(*[]formatter.Service)

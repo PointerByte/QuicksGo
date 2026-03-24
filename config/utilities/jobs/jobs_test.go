@@ -42,15 +42,15 @@ func waitFor(t *testing.T, timeout time.Duration, check func() bool) {
 func TestJobRunsWithIntervalAndTimeout(t *testing.T) {
 	setupJobsTest(t)
 
-	j := NewJobs()
+	j := newJobs()
 	var hits int32
 
 	timeout := 80 * time.Millisecond
-	j.Job(func() {
+	j.job(func() {
 		atomic.AddInt32(&hits, 1)
 	}, 15*time.Millisecond, &timeout)
 
-	j.StartJobs()
+	j.startJobs()
 
 	waitFor(t, 120*time.Millisecond, func() bool {
 		return atomic.LoadInt32(&hits) >= 2
@@ -66,15 +66,15 @@ func TestJobRunsWithIntervalAndTimeout(t *testing.T) {
 func TestStartJobsIsIdempotentAndJobAddedAfterStartRunsImmediately(t *testing.T) {
 	setupJobsTest(t)
 
-	j := NewJobs()
+	j := newJobs()
 	var beforeCount int32
 
-	j.Job(func() {
+	j.job(func() {
 		atomic.AddInt32(&beforeCount, 1)
 	}, 200*time.Millisecond, nil)
 
-	j.StartJobs()
-	j.StartJobs()
+	j.startJobs()
+	j.startJobs()
 
 	waitFor(t, 50*time.Millisecond, func() bool {
 		return atomic.LoadInt32(&beforeCount) == 1
@@ -86,7 +86,7 @@ func TestStartJobsIsIdempotentAndJobAddedAfterStartRunsImmediately(t *testing.T)
 	}
 
 	var afterCount int32
-	j.Job(func() {
+	j.job(func() {
 		atomic.AddInt32(&afterCount, 1)
 	}, 100*time.Millisecond, nil)
 
@@ -98,18 +98,18 @@ func TestStartJobsIsIdempotentAndJobAddedAfterStartRunsImmediately(t *testing.T)
 func TestCronJobRunsAtNextTrigger(t *testing.T) {
 	setupJobsTest(t)
 
-	j := NewJobs()
-	j.StartJobs()
+	j := newJobs()
+	j.startJobs()
 
 	var fired int32
 	trigTime := time.Now().Add(2 * time.Second)
-	trigger := CronTrigger{
+	trigger := cronTrigger{
 		Hour:   uint(trigTime.Hour()),
 		Minute: uint(trigTime.Minute()),
 		Second: uint(trigTime.Second()),
 	}
 
-	j.CronJob(func() {
+	j.cronJob(func() {
 		atomic.AddInt32(&fired, 1)
 	}, trigger, 0)
 
@@ -121,18 +121,18 @@ func TestCronJobRunsAtNextTrigger(t *testing.T) {
 func TestCronJobWithIntervalRunsAgainAfterFirstTrigger(t *testing.T) {
 	setupJobsTest(t)
 
-	j := NewJobs()
-	j.StartJobs()
+	j := newJobs()
+	j.startJobs()
 
 	var hits int32
 	trigTime := time.Now().Add(2 * time.Second)
-	trigger := CronTrigger{
+	trigger := cronTrigger{
 		Hour:   uint(trigTime.Hour()),
 		Minute: uint(trigTime.Minute()),
 		Second: uint(trigTime.Second()),
 	}
 
-	j.CronJob(func() {
+	j.cronJob(func() {
 		atomic.AddInt32(&hits, 1)
 	}, trigger, time.Second)
 
@@ -144,17 +144,17 @@ func TestCronJobWithIntervalRunsAgainAfterFirstTrigger(t *testing.T) {
 func TestStopAllJobsStopsAllRegisteredInstances(t *testing.T) {
 	setupJobsTest(t)
 
-	a := NewJobs()
-	b := NewJobs()
+	a := newJobs()
+	b := newJobs()
 
 	var countA int32
 	var countB int32
 
-	a.Job(func() { atomic.AddInt32(&countA, 1) }, 20*time.Millisecond, nil)
-	b.Job(func() { atomic.AddInt32(&countB, 1) }, 20*time.Millisecond, nil)
+	a.job(func() { atomic.AddInt32(&countA, 1) }, 20*time.Millisecond, nil)
+	b.job(func() { atomic.AddInt32(&countB, 1) }, 20*time.Millisecond, nil)
 
-	a.StartJobs()
-	b.StartJobs()
+	a.startJobs()
+	b.startJobs()
 
 	waitFor(t, 120*time.Millisecond, func() bool {
 		return atomic.LoadInt32(&countA) > 1 && atomic.LoadInt32(&countB) > 1
@@ -181,22 +181,22 @@ func TestStopAllJobsStopsAllRegisteredInstances(t *testing.T) {
 func TestDestroyUnregistersInstanceFromGlobalStop(t *testing.T) {
 	setupJobsTest(t)
 
-	j := NewJobs()
+	j := newJobs()
 	var hits int32
 
-	j.Job(func() { atomic.AddInt32(&hits, 1) }, 15*time.Millisecond, nil)
-	j.StartJobs()
+	j.job(func() { atomic.AddInt32(&hits, 1) }, 15*time.Millisecond, nil)
+	j.startJobs()
 
 	waitFor(t, 80*time.Millisecond, func() bool {
 		return atomic.LoadInt32(&hits) >= 2
 	})
 
-	j.Destroy()
+	j.destroy()
 
 	var afterDestroyHits int32
-	j.Job(func() { atomic.AddInt32(&afterDestroyHits, 1) }, 15*time.Millisecond, nil)
-	j.StartJobs()
-	defer j.Destroy()
+	j.job(func() { atomic.AddInt32(&afterDestroyHits, 1) }, 15*time.Millisecond, nil)
+	j.startJobs()
+	defer j.destroy()
 
 	waitFor(t, 80*time.Millisecond, func() bool {
 		return atomic.LoadInt32(&afterDestroyHits) >= 2
@@ -217,11 +217,11 @@ func TestStartJobsDoesNothingInModeTest(t *testing.T) {
 
 	viper.Set("server.modeTest", true)
 
-	j := NewJobs()
+	j := newJobs()
 	var hits int32
 
-	j.Job(func() { atomic.AddInt32(&hits, 1) }, 15*time.Millisecond, nil)
-	j.StartJobs()
+	j.job(func() { atomic.AddInt32(&hits, 1) }, 15*time.Millisecond, nil)
+	j.startJobs()
 
 	time.Sleep(60 * time.Millisecond)
 

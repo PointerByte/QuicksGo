@@ -269,7 +269,7 @@ func (su *Config) ensureServerLocked() error {
 		return su.serverErr
 	}
 
-	options, err := defaultServerOptions()
+	options, err := defaultServerOptions(su)
 	if err != nil {
 		su.serverErr = err
 		return err
@@ -278,7 +278,7 @@ func (su *Config) ensureServerLocked() error {
 	return nil
 }
 
-func defaultServerOptions() ([]grpc.ServerOption, error) {
+func defaultServerOptions(cfg *Config) ([]grpc.ServerOption, error) {
 	options := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(
 			traces.MiddlewareOtelGRPCUnary(),
@@ -292,6 +292,7 @@ func defaultServerOptions() ([]grpc.ServerOption, error) {
 			loggerMiddlewares.LoggerWithConfigStreamServerInterceptor(),
 			loggerMiddlewares.CaptureBodyStreamServerInterceptor(),
 		),
+		grpc.UnknownServiceHandler(unknownServiceHandler(cfg)),
 	}
 
 	config, err := resolveTLSConfig()

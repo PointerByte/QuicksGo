@@ -244,7 +244,7 @@ func TestHandlersAndRoutes(t *testing.T) {
 		viper.Set("app.version", "1.0.0")
 
 		router := gin.New()
-		router.GET("/health", health())
+		router.GET("/health", healthGin())
 
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
