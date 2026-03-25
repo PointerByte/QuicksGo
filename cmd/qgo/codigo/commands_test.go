@@ -332,7 +332,7 @@ func TestCreateServiceErrorBranches(t *testing.T) {
 }
 
 func TestTemplateBranches(t *testing.T) {
-	if got := buildMainTemplate(serviceTypeGRPC, "app"); !strings.Contains(got, "serverGRPC.NewIUnitary(nil, nil)") {
+	if got := buildMainTemplate(serviceTypeGRPC, "app"); !strings.Contains(got, "serverGRPC.NewIConfig(nil, nil)") {
 		t.Fatalf("expected grpc main template, got %q", got)
 	}
 
