@@ -11,6 +11,11 @@ from pathlib import Path
 OUTPUT_FILE = "../../THIRD_PARTY_LICENSES.txt"
 MAX_DEPS = 10000
 
+# 🔥 Ignore internal modules
+IGNORE_PREFIXES = [
+    "github.com/PointerByte/QuicksGo",
+]
+
 LICENSE_CANDIDATES = [
     "LICENSE",
     "LICENSE.txt",
@@ -33,6 +38,10 @@ LICENSE_PATTERNS = [
     ("MPL 2.0", [r"mozilla public license", r"2\.0"]),
     ("CC0 1.0 Universal", [r"(creative commons(?: zero)?|cc0)", r"1\.0", r"(universal|public domain)"]),
 ]
+
+
+def should_ignore(module_path: str) -> bool:
+    return any(module_path.startswith(prefix) for prefix in IGNORE_PREFIXES)
 
 
 def run(cmd: list[str], cwd: Path) -> str:
@@ -119,6 +128,13 @@ def find_license_file(module_dir: Path) -> Path | None:
 def detect_license_type(text: str) -> str:
     content = text.lower()
 
+    # 🔥 Strong CC0 detection
+    if (
+        (re.search(r"(creative commons(?: zero)?|cc0)", content) and re.search(r"1\.0", content))
+        or (re.search(r"public domain", content) and re.search(r"no copyright", content))
+    ):
+        return "CC0 1.0 Universal"
+
     for license_name, patterns in LICENSE_PATTERNS:
         if all(re.search(pattern, content) for pattern in patterns):
             return license_name
@@ -179,7 +195,13 @@ def merge_dependencies(projects: list[Path]) -> list[dict]:
         deps = get_direct_dependencies(project_path)
 
         for dep in deps:
-            key = (dep.get("Path", ""), dep.get("Version", ""))
+            module_path = dep.get("Path", "")
+
+            # 🔥 Ignore internal modules
+            if should_ignore(module_path):
+                continue
+
+            key = (module_path, dep.get("Version", ""))
             if key not in merged:
                 merged[key] = dep
 
@@ -295,6 +317,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-# Example:
-# python .\main.py --project "../../cmd" --project "../../security" --project "../../logger" --project "../../config" --project "../../"

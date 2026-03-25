@@ -11,178 +11,159 @@ Scanned Go projects:
 
 This project uses the following third-party direct dependencies:
 
-1. github.com/PointerByte/QuicksGo/config
-   Version: v0.0.6
-   License: Unknown
-   Notes: License file was not found.
-
-2. github.com/PointerByte/QuicksGo/logger
-   Version: v0.0.6
-   License: Unknown
-   Notes: License file was not found.
-
-3. github.com/PointerByte/QuicksGo/security
-   Version: v0.0.4
-   License: Unknown
-   Notes: License file was not found.
-
-4. github.com/aws/aws-sdk-go-v2
+1. github.com/aws/aws-sdk-go-v2
    Version: v1.41.4
    License: Apache License 2.0
 
-5. github.com/aws/aws-sdk-go-v2/config
+2. github.com/aws/aws-sdk-go-v2/config
    Version: v1.32.12
    License: Apache License 2.0
 
-6. github.com/aws/aws-sdk-go-v2/service/ecs
+3. github.com/aws/aws-sdk-go-v2/service/ecs
    Version: v1.74.0
    License: Apache License 2.0
 
-7. github.com/aws/smithy-go
+4. github.com/aws/smithy-go
    Version: v1.24.2
    License: Apache License 2.0
 
-8. github.com/gin-contrib/cors
+5. github.com/gin-contrib/cors
    Version: v1.7.6
    License: MIT License
 
-9. github.com/gin-gonic/gin
+6. github.com/gin-gonic/gin
    Version: v1.12.0
    License: MIT License
 
-10. github.com/golang/mock
+7. github.com/golang/mock
    Version: v1.6.0
    License: Apache License 2.0
 
-11. github.com/google/uuid
+8. github.com/google/uuid
    Version: v1.6.0
    License: BSD 3-Clause
 
-12. github.com/joho/godotenv
+9. github.com/joho/godotenv
    Version: v1.5.1
    License: MIT License
 
-13. github.com/spf13/cobra
-   Version: v1.10.2
-   License: Apache License 2.0
-
-14. github.com/spf13/viper
+10. github.com/spf13/viper
    Version: v1.21.0
    License: MIT License
 
-15. github.com/zeebo/blake3
+11. github.com/zeebo/blake3
    Version: v0.2.4
    License: CC0 1.0 Universal
 
-16. go.opentelemetry.io/auto/sdk
+12. go.opentelemetry.io/auto/sdk
    Version: v1.2.1
    License: Apache License 2.0
 
-17. go.opentelemetry.io/contrib/bridges/otelslog
+13. go.opentelemetry.io/contrib/bridges/otelslog
    Version: v0.17.0
    License: Apache License 2.0
 
-18. go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws
+14. go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws
    Version: v0.67.0
    License: Apache License 2.0
 
-19. go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin
+15. go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin
    Version: v0.67.0
    License: Apache License 2.0
 
-20. go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc
+16. go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc
    Version: v0.67.0
    License: Apache License 2.0
 
-21. go.opentelemetry.io/contrib/propagators/b3
+17. go.opentelemetry.io/contrib/propagators/b3
    Version: v1.42.0
    License: Apache License 2.0
 
-22. go.opentelemetry.io/otel
+18. go.opentelemetry.io/otel
    Version: v1.42.0
    License: Apache License 2.0
 
-23. go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp
+19. go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp
    Version: v0.18.0
    License: Apache License 2.0
 
-24. go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc
+20. go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc
    Version: v1.42.0
    License: Apache License 2.0
 
-25. go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp
+21. go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp
    Version: v1.42.0
    License: Apache License 2.0
 
-26. go.opentelemetry.io/otel/exporters/otlp/otlptrace
+22. go.opentelemetry.io/otel/exporters/otlp/otlptrace
    Version: v1.42.0
    License: Apache License 2.0
 
-27. go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc
+23. go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc
    Version: v1.42.0
    License: Apache License 2.0
 
-28. go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
+24. go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
    Version: v1.42.0
    License: Apache License 2.0
 
-29. go.opentelemetry.io/otel/exporters/prometheus
+25. go.opentelemetry.io/otel/exporters/prometheus
    Version: v0.64.0
    License: Apache License 2.0
 
-30. go.opentelemetry.io/otel/exporters/stdout/stdouttrace
+26. go.opentelemetry.io/otel/exporters/stdout/stdouttrace
    Version: v1.42.0
    License: Apache License 2.0
 
-31. go.opentelemetry.io/otel/metric
+27. go.opentelemetry.io/otel/metric
    Version: v1.42.0
    License: Apache License 2.0
 
-32. go.opentelemetry.io/otel/sdk
+28. go.opentelemetry.io/otel/sdk
    Version: v1.42.0
    License: Apache License 2.0
 
-33. go.opentelemetry.io/otel/sdk/log
+29. go.opentelemetry.io/otel/sdk/log
    Version: v0.18.0
    License: Apache License 2.0
 
-34. go.opentelemetry.io/otel/sdk/metric
+30. go.opentelemetry.io/otel/sdk/metric
    Version: v1.42.0
    License: Apache License 2.0
 
-35. go.opentelemetry.io/otel/trace
+31. go.opentelemetry.io/otel/trace
    Version: v1.42.0
    License: Apache License 2.0
 
-36. golang.org/x/crypto
+32. golang.org/x/crypto
    Version: v0.49.0
    License: BSD 3-Clause
 
-37. golang.org/x/time
+33. golang.org/x/time
    Version: v0.15.0
    License: BSD 3-Clause
 
-38. google.golang.org/grpc
+34. google.golang.org/grpc
    Version: v1.79.3
    License: Apache License 2.0
 
-39. google.golang.org/protobuf
+35. google.golang.org/protobuf
    Version: v1.36.11
    License: BSD 3-Clause
 
-40. gopkg.in/natefinch/lumberjack.v2
+36. gopkg.in/natefinch/lumberjack.v2
    Version: v2.2.1
    License: MIT License
 
-41. k8s.io/api
+37. k8s.io/api
    Version: v0.35.3
    License: Apache License 2.0
 
-42. k8s.io/apimachinery
+38. k8s.io/apimachinery
    Version: v0.35.3
    License: Apache License 2.0
 
-43. k8s.io/client-go
+39. k8s.io/client-go
    Version: v0.35.3
    License: Apache License 2.0
 
@@ -190,13 +171,12 @@ This project uses the following third-party direct dependencies:
 SUMMARY BY LICENSE
 ================================================================================
 
-Apache License 2.0: 30
+Apache License 2.0: 29
   - github.com/aws/aws-sdk-go-v2
   - github.com/aws/aws-sdk-go-v2/config
   - github.com/aws/aws-sdk-go-v2/service/ecs
   - github.com/aws/smithy-go
   - github.com/golang/mock
-  - github.com/spf13/cobra
   - go.opentelemetry.io/auto/sdk
   - go.opentelemetry.io/contrib/bridges/otelslog
   - go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws
