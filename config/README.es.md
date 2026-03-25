@@ -165,7 +165,11 @@ Los ejemplos `application.yml` y `application.json` incluyen las llaves más imp
 
 - `server.grpc.mtls.enable`: habilita validación mTLS en el servidor gRPC.
 - `server.grpc.mtls.clientCAFile`: archivo CA usado para validar certificados cliente.
-- `server.grpc.mtls.clientAuth`: política de certificados cliente. Valores soportados: `request_client_cert`, `require_any_client_cert`, `verify_client_cert_if_given` y `require_and_verify_client_cert`.
+- `server.grpc.mtls.clientAuth`: política de certificados cliente. Valores soportados:
+- `request_client_cert`: solicita un certificado cliente, pero permite continuar aunque el cliente no lo envíe.
+- `require_any_client_cert`: exige que el cliente envíe un certificado, pero por sí sola no aplica una validación estricta de confianza.
+- `verify_client_cert_if_given`: hace opcional el certificado, pero lo valida si el cliente lo presenta.
+- `require_and_verify_client_cert`: exige certificado cliente y lo valida contra la CA configurada. Es la opción recomendada para mTLS estricto.
 
 #### `gin.autotls`
 

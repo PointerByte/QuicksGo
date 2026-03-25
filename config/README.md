@@ -165,7 +165,11 @@ The example `application.yml` and `application.json` include the most relevant k
 
 - `server.grpc.mtls.enable`: enables mutual TLS validation on the gRPC server.
 - `server.grpc.mtls.clientCAFile`: CA file used to validate client certificates.
-- `server.grpc.mtls.clientAuth`: client certificate policy. Supported values include `request_client_cert`, `require_any_client_cert`, `verify_client_cert_if_given`, and `require_and_verify_client_cert`.
+- `server.grpc.mtls.clientAuth`: client certificate policy. Supported values:
+- `request_client_cert`: requests a client certificate, but allows the connection to continue when the client does not provide one.
+- `require_any_client_cert`: requires the client to provide a certificate, but does not enforce full trust validation by itself.
+- `verify_client_cert_if_given`: makes the certificate optional, but validates it when the client sends one.
+- `require_and_verify_client_cert`: requires a client certificate and validates it against the configured client CA. This is the recommended option for strict mTLS.
 
 #### `gin.autotls`
 
