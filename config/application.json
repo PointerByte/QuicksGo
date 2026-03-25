@@ -83,8 +83,7 @@
   },
   "traces": {
     "SkipPaths": [
-      "/api/v1/health",
-      "/api/v1/refresh"
+      "/api/v1/health"
     ]
   },
   "jwt": {

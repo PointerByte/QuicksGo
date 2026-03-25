@@ -69,7 +69,6 @@ logger:
 traces:
   SkipPaths:
     - /api/v1/health
-    - /api/v1/refresh
 
 jwt:
   enable: true

@@ -138,7 +138,6 @@ logger:
 traces:
   SkipPaths:
     - /health
-    - /refresh
 
 jwt:
   enable: false
@@ -215,7 +214,6 @@ logger:
 traces:
   SkipPaths:
     - /api/v1/health
-    - /api/v1/refresh
 
 jwt:
   enable: false
@@ -317,7 +315,7 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 		}
 	} else {
 		data["server"] = map[string]any{
-			"groups": []string{"/api/v1"},
+			"groups":   []string{"/api/v1"},
 			"modeTest": false,
 			"gin": map[string]any{
 				"port":   ":8080",
