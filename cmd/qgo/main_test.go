@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/PointerByte/QuicksGo/cmd/qgo/codigo"
+	"github.com/PointerByte/QuicksGo/cmd/codigo"
 )
 
 func TestMainSuccess(t *testing.T) {

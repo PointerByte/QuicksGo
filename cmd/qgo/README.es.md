@@ -5,7 +5,7 @@
 ## Instalacion
 
 ```bash
-go install github.com/PointerByte/QuicksGo/cmd/qgo@latest
+go install github.com/PointerByte/QuicksGo/cmd@latest
 ```
 
 ## Comandos
