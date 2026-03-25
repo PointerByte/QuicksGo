@@ -31,6 +31,7 @@ LICENSE_PATTERNS = [
     ("GPL", [r"gnu general public license"]),
     ("LGPL", [r"gnu lesser general public license"]),
     ("MPL 2.0", [r"mozilla public license", r"2\.0"]),
+    ("CC0 1.0 Universal", [r"(creative commons(?: zero)?|cc0)", r"1\.0", r"(universal|public domain)"]),
 ]
 
 
@@ -47,14 +48,14 @@ def run(cmd: list[str], cwd: Path) -> str:
 
 def validate_go_project(project_path: Path) -> None:
     if not project_path.exists():
-        raise FileNotFoundError(f"No existe la ruta: {project_path}")
+        raise FileNotFoundError(f"Path does not exist: {project_path}")
 
     if not project_path.is_dir():
-        raise NotADirectoryError(f"La ruta no es un directorio: {project_path}")
+        raise NotADirectoryError(f"Path is not a directory: {project_path}")
 
     go_mod = project_path / "go.mod"
     if not go_mod.exists():
-        raise FileNotFoundError(f"No se encontró go.mod en: {project_path}")
+        raise FileNotFoundError(f"go.mod was not found in: {project_path}")
 
 
 def get_direct_dependencies(project_path: Path) -> list[dict]:
@@ -149,18 +150,18 @@ def collect_dependency_licenses(deps: list[dict]) -> list[dict]:
         }
 
         if not module_dir:
-            item["notes"] = "El módulo no incluye directorio local. Ejecuta `go mod download`."
+            item["notes"] = "The module does not include a local directory. Run `go mod download`."
             results.append(item)
             continue
 
         if not module_dir.exists():
-            item["notes"] = "El directorio del módulo no existe en caché. Ejecuta `go mod download`."
+            item["notes"] = "The module directory does not exist in cache. Run `go mod download`."
             results.append(item)
             continue
 
         license_file = find_license_file(module_dir)
         if not license_file:
-            item["notes"] = "No se encontró archivo de licencia."
+            item["notes"] = "License file was not found."
             results.append(item)
             continue
 
@@ -171,18 +172,44 @@ def collect_dependency_licenses(deps: list[dict]) -> list[dict]:
     return results
 
 
-def build_report(deps: list[dict]) -> str:
+def merge_dependencies(projects: list[Path]) -> list[dict]:
+    merged: dict[tuple[str, str], dict] = {}
+
+    for project_path in projects:
+        deps = get_direct_dependencies(project_path)
+
+        for dep in deps:
+            key = (dep.get("Path", ""), dep.get("Version", ""))
+            if key not in merged:
+                merged[key] = dep
+
+    return sorted(
+        merged.values(),
+        key=lambda item: (item.get("Path", ""), item.get("Version", "")),
+    )
+
+
+def build_report(projects: list[Path], deps: list[dict]) -> str:
     lines = [
         "THIRD PARTY LICENSES",
         "=" * 80,
         "",
-        "This project uses the following third-party dependencies:",
+        "Scanned Go projects:",
         "",
     ]
 
+    for project in projects:
+        lines.append(f"- {project}")
+
+    lines.extend([
+        "",
+        "This project uses the following third-party direct dependencies:",
+        "",
+    ])
+
     if not deps:
         lines.extend([
-            "No se encontraron dependencias directas.",
+            "No direct dependencies were found.",
             "",
         ])
         return "\n".join(lines)
@@ -207,8 +234,9 @@ def build_report(deps: list[dict]) -> str:
     lines.append("")
 
     for license_type in sorted(grouped.keys()):
-        lines.append(f"{license_type}: {len(grouped[license_type])}")
-        for module_name in sorted(grouped[license_type]):
+        unique_modules = sorted(set(grouped[license_type]))
+        lines.append(f"{license_type}: {len(unique_modules)}")
+        for module_name in unique_modules:
             lines.append(f"  - {module_name}")
         lines.append("")
 
@@ -217,45 +245,50 @@ def build_report(deps: list[dict]) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Genera THIRD_PARTY_LICENSES.txt resumido a partir de un proyecto Go"
+        description="Generate a summarized THIRD_PARTY_LICENSES.txt from one or more Go projects"
     )
     parser.add_argument(
         "--project",
+        action="append",
         required=True,
-        help="Ruta al proyecto Go donde existe go.mod",
+        help="Path to a Go project containing go.mod. Can be used multiple times.",
     )
     parser.add_argument(
         "--output",
         default=OUTPUT_FILE,
-        help="Archivo de salida",
+        help="Output file path",
     )
     args = parser.parse_args()
 
-    project_path = Path(args.project).resolve()
+    project_paths = [Path(project).resolve() for project in args.project]
     output_path = Path(args.output).resolve()
 
     try:
-        validate_go_project(project_path)
+        for project_path in project_paths:
+            validate_go_project(project_path)
 
-        deps = get_direct_dependencies(project_path)
+        deps = merge_dependencies(project_paths)
 
-        print(f"Proyecto Go: {project_path}")
-        print("Dependencias directas encontradas:")
+        print("Scanned Go projects:")
+        for project_path in project_paths:
+            print(f"- {project_path}")
+
+        print("\nDirect dependencies found:")
         if not deps:
-            print("- Ninguna")
+            print("- None")
         else:
             for dep in deps:
                 print(f"- {dep['Path']} {dep['Version']}")
 
-        report = build_report(deps)
+        report = build_report(project_paths, deps)
         output_path.write_text(report, encoding="utf-8")
 
-        print(f"\nArchivo generado: {output_path}")
+        print(f"\nGenerated file: {output_path}")
 
     except subprocess.CalledProcessError as exc:
-        print("Error ejecutando comando:")
+        print("Command execution failed:")
         print("CMD:", " ".join(exc.cmd) if isinstance(exc.cmd, list) else exc.cmd)
-        print("STDERR:", exc.stderr.strip() if exc.stderr else "Sin detalle")
+        print("STDERR:", exc.stderr.strip() if exc.stderr else "No details")
     except Exception as exc:
         print(f"Error: {exc}")
 
@@ -263,4 +296,5 @@ def main() -> None:
 if __name__ == "__main__":
     main()
 
-# python .\main.py --project "../../config" --project "../../security" --project "../../logger"
+# Example:
+# python .\main.py --project "../../cmd" --project "../../security" --project "../../logger" --project "../../config" --project "../../"
