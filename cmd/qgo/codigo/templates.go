@@ -221,12 +221,6 @@ jwt:
   algorithm: HS256
   hmac:
     secret: change-me-hmac-secret
-  rsa:
-    private_key: ""
-    public_key: ""
-  eddsa:
-    private_key: ""
-    public_key: ""
 `, appName)
 }
 
@@ -303,14 +297,6 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 			"algorithm": "HS256",
 			"hmac": map[string]any{
 				"secret": "change-me-hmac-secret",
-			},
-			"rsa": map[string]any{
-				"private_key": "",
-				"public_key":  "",
-			},
-			"eddsa": map[string]any{
-				"private_key": "",
-				"public_key":  "",
 			},
 		}
 	} else {
