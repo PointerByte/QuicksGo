@@ -1,34 +1,6 @@
 // Copyright 2026 PointerByte Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-// Package jobs provides in-process scheduling for periodic and trigger-aligned
-// background jobs.
-//
-// The package supports two usage styles:
-//   - instance-based scheduling with [newJobs]
-//   - process-wide scheduling through the package-level helpers
-//
-// The package-level helpers are:
-//   - [Job] to register fixed-interval work
-//   - [CronJob] to register jobs aligned to a daily trigger
-//   - [StartJobs] to start the global scheduler
-//   - [RestartJobs] to restart global jobs without clearing their definitions
-//   - [StopAllJobs] to stop global jobs, optionally clearing them
-//   - [CheckStatusJobs] to inspect whether the global scheduler is active
-//
-// Important behavior:
-//   - registering a job does not start it immediately
-//   - jobs begin running when [StartJobs] is called
-//   - jobs added after startup begin executing immediately
-//   - if `server.modeTest=true`, [StartJobs] does not run jobs
-//
-// Basic usage:
-//
-//	j := jobs.NewJobs()
-//	j.Job(func() { fmt.Println("tick") }, time.Second, nil) // no timeout
-//	j.StartJobs()
-//	// ...
-//	jobs.StopAllJobs(true) // stops and clears all registered instances
 package jobs
 
 import (
@@ -222,7 +194,7 @@ func init() {
 //
 // Internally it waits for restart signals and starts the global job registry
 // when requested. This is the entry point used by higher-level server packages
-// such as `server_Gin.Start(...)`.
+// such as `server/gin.Start(...)`.
 //
 // When `server.modeTest=true`, registered jobs are not started.
 func StartJobs() {
@@ -321,6 +293,7 @@ func (j *jobs) destroy() {
 // Example:
 //
 //	jobs.StopAllJobs(true) // stops and clears all registered jobs in the process
+//
 // StopAllJobs stops every globally registered jobs instance.
 //
 // If clearJobs is false, the jobs stop but remain registered and can be

@@ -39,7 +39,7 @@ func buildMainTemplate(serviceType string, appName string) string {
 import (
 	"log"
 
-	serverGin "github.com/PointerByte/QuicksGo/config/server_Gin"
+	serverGin "github.com/PointerByte/QuicksGo/config/server/gin"
 	"github.com/gin-gonic/gin"
 )
 
@@ -70,11 +70,11 @@ func main() {
 import (
 	"log"
 
-	serverGRPC "github.com/PointerByte/QuicksGo/config/server_gRPC"
+	serverGRPC "github.com/PointerByte/QuicksGo/config/server/grpc"
 )
 
 func main() {
-	srv := serverGRPC.NewIUnitary(nil, nil)
+	srv := serverGRPC.NewIConfig(nil, nil)
 	if err := srv.Serve(); err != nil {
 		log.Fatal(err)
 	}

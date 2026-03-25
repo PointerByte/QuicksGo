@@ -51,8 +51,8 @@ import (
 	"os"
 
 	pb "github.com/PointerByte/QuicksGo/config/proto"
-	serverGin "github.com/PointerByte/QuicksGo/config/server_Gin"
-	serverGRPC "github.com/PointerByte/QuicksGo/config/server_gRPC"
+	serverGin "github.com/PointerByte/QuicksGo/config/server/gin"
+	serverGRPC "github.com/PointerByte/QuicksGo/config/server/grpc"
 	serverLogger "github.com/PointerByte/QuicksGo/logger/builder"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"

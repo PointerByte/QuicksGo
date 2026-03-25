@@ -14,9 +14,9 @@ QuicksGo is a modular Go framework for building services with:
 
 ## Main modules
 
-- [config](/e:/Proyects/Practices/QuicksGoV2t/config/README.md): server/client bootstrap plus configuration and tracing utilities
-- [logger](/e:/Proyects/Practices/QuicksGoV2t/logger/README.md): structured logging, HTTP/gRPC middleware, and satellite traces
-- [security](/e:/Proyects/Practices/QuicksGoV2t/security/README.md): JWT, security middleware, and cryptographic helpers
+- [config](/e:/Proyects/Practices/QuicksGo/config/README.md): server/client bootstrap plus configuration and tracing utilities
+- [logger](/e:/Proyects/Practices/QuicksGo/logger/README.md): structured logging, HTTP/gRPC middleware, and satellite traces
+- [security](/e:/Proyects/Practices/QuicksGo/security/README.md): JWT, security middleware, and cryptographic helpers
 - [cmd/qgo](/e:/Proyects/Practices/QuicksGo/cmd/README.md): CLI generator for new Gin and gRPC services
 
 ## How the dependencies fit together
@@ -26,16 +26,16 @@ A typical QuicksGo application flow looks like this:
 1. `config` loads `application.yml` or `application.json` into `viper`
 2. `config` initializes `logger`
 3. `config` initializes OTEL tracing
-4. `server_Gin` or `server_gRPC` starts the server
+4. `server/gin` or `server/grpc` starts the server
 5. `security` consumes the same `viper` configuration
-6. `clientHttp` and `client_gRPC` reuse tracing and logging for outbound calls
+6. `client/http` and `client/grpc` reuse tracing and logging for outbound calls
 
 ## Configuration template
 
 The complete framework template is available at:
 
-- [application.yml](/e:/Proyects/Practices/QuicksGoV2t/config/application.yml)
-- [application.json](/e:/Proyects/Practices/QuicksGoV2t/config/application.json)
+- [application.yml](/e:/Proyects/Practices/QuicksGo/config/application.yml)
+- [application.json](/e:/Proyects/Practices/QuicksGo/config/application.json)
 
 It includes configuration for:
 
@@ -92,7 +92,7 @@ framework-provided setup.
 
 ## HTTP server
 
-To start a Gin server with QuicksGo, you typically use `config/server_Gin`:
+To start a Gin server with QuicksGo, you typically use `config/server/gin`:
 
 ```go
 srv, err := serverGin.CreateApp()
@@ -110,10 +110,10 @@ serverGin.Start(srv)
 
 ## gRPC server
 
-To start a gRPC server with QuicksGo, you typically use `config/server_gRPC`:
+To start a gRPC server with QuicksGo, you typically use `config/server/grpc`:
 
 ```go
-srv := serverGRPC.NewIUnitary(nil, nil)
+srv := serverGRPC.NewIConfig(nil, nil)
 
 if err := srv.Register(func(r grpc.ServiceRegistrar) {
 	pb.RegisterGreeterServer(r, greeterServer{})
@@ -128,12 +128,12 @@ panic(srv.Serve())
 
 If you are starting a new application with QuicksGo:
 
-1. start from [application.yml](/e:/Proyects/Practices/QuicksGoV2t/config/application.yml)
+1. start from [application.yml](/e:/Proyects/Practices/QuicksGo/config/application.yml)
 2. load configuration with `config/utilities.LoadEnv`
-3. use `server_Gin` or `server_gRPC` as your bootstrap layer
+3. use `server/gin` or `server/grpc` as your bootstrap layer
 4. define your routes or protobuf services
 5. use `security` for JWT and endpoint protection
-6. use `clientHttp` or `client_gRPC` for traced outbound calls
+6. use `client/http` or `client/grpc` for traced outbound calls
 
 You can also scaffold a new service with `qgo`:
 

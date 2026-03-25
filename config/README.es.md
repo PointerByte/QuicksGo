@@ -17,10 +17,10 @@ go get github.com/PointerByte/QuicksGo/config
 
 ## Paquetes
 
-- `server_Gin`: bootstrap del servidor HTTP con Gin, middlewares, rutas base y shutdown
-- `server_gRPC`: bootstrap del servidor gRPC, interceptores, TLS/mTLS y shutdown por señal
-- `clientHttp`: cliente HTTP genérico con tracing y deserialización
-- `client_gRPC`: cliente gRPC con tracing, TLS y mTLS
+- `server/gin`: bootstrap del servidor HTTP con Gin, middlewares, rutas base y shutdown
+- `server/grpc`: bootstrap del servidor gRPC, interceptores, TLS/mTLS y shutdown por señal
+- `client/http`: cliente HTTP genérico con tracing y deserialización
+- `client/grpc`: cliente gRPC con tracing, TLS y mTLS
 - `utilities`: helpers compartidos, incluida la carga de `application.yml`/`application.json`
 - `utilities/traces`: inicialización OTEL y middlewares/interceptores HTTP y gRPC
 - `utilities/jobs`: jobs simples en background
@@ -133,7 +133,7 @@ Los ejemplos `application.yml` y `application.json` incluyen las llaves más imp
 
 #### `server`
 
-- `server.groups`: grupos de rutas Gin que `server_Gin.CreateApp()` crea automáticamente.
+- `server.groups`: grupos de rutas Gin que `server/gin.CreateApp()` crea automáticamente.
 - `server.modeTest`: bandera auxiliar usada en pruebas para simplificar comportamiento en runtime.
 
 #### `server.gin`
@@ -212,7 +212,7 @@ Los ejemplos `application.yml` y `application.json` incluyen las llaves más imp
 #### `jwt`
 
 - `jwt.enable`: activa o desactiva la validación JWT en middleware.
-- `jwt.transport`: define desde dónde `server_Gin.CreateApp()` lee el JWT. Valores soportados: `header` y `cookie`.
+- `jwt.transport`: define desde dónde `server/gin.CreateApp()` lee el JWT. Valores soportados: `header` y `cookie`.
 - `jwt.algorithm`: algoritmo de firma JWT usado por `security`, por ejemplo `HS256`, `RS256`, `PS256` o `EdDSA`.
 
 #### `jwt.cookie`
@@ -235,7 +235,7 @@ Los ejemplos `application.yml` y `application.json` incluyen las llaves más imp
 
 ## Servidor HTTP con Gin
 
-`server_Gin.CreateApp()`:
+`server/gin.CreateApp()`:
 
 - carga configuración con `utilities.LoadEnv`
 - inicializa `logger`
@@ -254,7 +254,7 @@ package main
 import (
 	"log"
 
-	serverGin "github.com/PointerByte/QuicksGo/config/server_Gin"
+	serverGin "github.com/PointerByte/QuicksGo/config/server/gin"
 )
 
 func main() {
@@ -309,7 +309,7 @@ Si necesitas lógica local antes de la propagación, registra callbacks con
 
 ## Servidor gRPC
 
-`server_gRPC`:
+`server/grpc`:
 
 - carga configuración con `utilities.LoadEnv(".")` al ejecutar `Serve()`
 - resuelve `server.grpc.port` desde `viper`
@@ -327,7 +327,7 @@ import (
 	"log"
 
 	pb "github.com/PointerByte/QuicksGo/config/proto"
-	serverGRPC "github.com/PointerByte/QuicksGo/config/server_gRPC"
+	serverGRPC "github.com/PointerByte/QuicksGo/config/server/grpc"
 	"google.golang.org/grpc"
 )
 
@@ -348,7 +348,7 @@ func (s greeterServer) StreamAlerts(stream grpc.BidiStreamingServer[pb.AlertMess
 }
 
 func main() {
-	srv := serverGRPC.NewIUnitary(nil, nil)
+	srv := serverGRPC.NewIConfig(nil, nil)
 
 	if err := srv.Register(func(r grpc.ServiceRegistrar) {
 		pb.RegisterGreeterServer(r, greeterServer{})
@@ -373,7 +373,7 @@ Claves principales:
 
 ### Endpoint refresh en gRPC
 
-`server_gRPC` expone un RPC administrativo de refresh mediante el nombre interno
+`server/grpc` expone un RPC administrativo de refresh mediante el nombre interno
 de método `"/quicksgo.admin/Refresh"`.
 
 Qué hace:
@@ -394,7 +394,7 @@ está pensado para coordinación interna entre servicios.
 
 ## Cliente HTTP
 
-`clientHttp` expone un cliente REST genérico con trazabilidad de request/response.
+`client/http` expone un cliente REST genérico con trazabilidad de request/response.
 
 Uso básico:
 
@@ -412,7 +412,7 @@ err := client.GetGeneric(ctx, clientHttp.RequestGeneric{
 
 ## Cliente gRPC
 
-`client_gRPC` envuelve `grpc.ClientConn` y puede:
+`client/grpc` envuelve `grpc.ClientConn` y puede:
 
 - crear clientes protobuf con `BuildClient`
 - resolver TLS/mTLS desde `viper`
@@ -421,9 +421,9 @@ err := client.GetGeneric(ctx, clientHttp.RequestGeneric{
 Uso básico:
 
 ```go
-cli := client_gRPC.NewIClient(nil, nil)
+cli := clientGRPC.NewIClient(nil, nil)
 
-greeter, err := client_gRPC.BuildClient(cli, pb.NewGreeterClient)
+greeter, err := clientGRPC.BuildClient(cli, pb.NewGreeterClient)
 if err != nil {
 	panic(err)
 }
@@ -452,7 +452,7 @@ Hay dos formas comunes de usarlo:
 Comportamiento importante:
 
 - registrar un job no lo inicia automáticamente; comienza cuando se ejecuta `StartJobs()`
-- `server_Gin.Start(...)` ya invoca `jobs.StartJobs()` internamente
+- `server/gin.Start(...)` ya invoca `jobs.StartJobs()` internamente
 - si registras jobs después de `StartJobs()`, comienzan inmediatamente
 - cuando `server.modeTest=true`, `StartJobs()` no ejecuta jobs
 
@@ -468,7 +468,7 @@ Qué hace:
 
 - arranca los jobs registrados en el scheduler global
 - mantiene un watcher interno activo mientras el sistema de jobs siga marcado como iniciado
-- es el punto de entrada que usa `server_Gin.Start(...)`
+- es el punto de entrada que usa `server/gin.Start(...)`
 
 Notas:
 
@@ -671,7 +671,7 @@ func main() {
 
 ## Ejemplo ejecutable
 
-El proyecto incluye un ejemplo en [main.go](/e:/Proyects/Practices/QuicksGoV2t/config/main.go).
+El proyecto incluye un ejemplo en [main.go](/e:/Proyects/Practices/QuicksGo/config/main.go).
 
 Ejecutar ejemplo Gin:
 

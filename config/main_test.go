@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	pb "github.com/PointerByte/QuicksGo/config/proto"
-	serverGRPC "github.com/PointerByte/QuicksGo/config/server_gRPC"
+	serverGRPC "github.com/PointerByte/QuicksGo/config/server/grpc"
 	"github.com/PointerByte/QuicksGo/logger/builder"
 	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
 	"github.com/gin-gonic/gin"

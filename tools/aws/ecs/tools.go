@@ -1,6 +1,8 @@
 // Copyright 2026 PointerByte Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+//go:generate mockgen -source=tools.go -destination=./mocksTools.go -package=ecs
+
 package ecs
 
 import (
@@ -9,6 +11,7 @@ import (
 	"net"
 	"strings"
 
+	serverGin "github.com/PointerByte/QuicksGo/config/server/gin"
 	"github.com/PointerByte/QuicksGo/logger/builder"
 	"github.com/PointerByte/QuicksGo/logger/formatter"
 	awsTools "github.com/PointerByte/QuicksGo/tools/aws"
@@ -37,6 +40,8 @@ var (
 	loadAWSConfigFn   = awsTools.LoadAWSConfig
 	discoverSelfFn    = discoverSelfInECS
 	localPrivateIPsFn = localPrivateIPs
+	setHostsRefreshFn = serverGin.SetHostsRefresh
+	builderNewFn      = builder.New
 	newECSClientFn    = func(cfg aws.Config) ecsAPI {
 		return ecs.NewFromConfig(cfg)
 	}
@@ -98,7 +103,7 @@ func New(mock IToolsECS) IToolsECS {
 //			return
 //		}
 //
-//		serverGRPC.SetHostsRefresh(hosts...)
+//		serverGin.SetHostsRefresh(hosts...)
 //		c.JSON(200, gin.H{"hosts": hosts})
 //	}
 //
@@ -359,6 +364,18 @@ func extractPrivateIPv4(task ecsTypes.Task) string {
 			}
 		}
 	}
-
 	return ""
+}
+
+var _New = New
+
+func GetHosts() {
+	ctx := context.Background()
+	ctxLogger := builderNewFn(ctx)
+	host, err := _New(nil).GetTaskECSHosts(ctx, ctxLogger)
+	if err != nil {
+		ctxLogger.Error(fmt.Errorf("Error configuring the service task hosts in the refresh handler: %v", err))
+		return
+	}
+	setHostsRefreshFn(host...)
 }

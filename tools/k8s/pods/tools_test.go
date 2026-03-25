@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/PointerByte/QuicksGo/logger/builder"
+	"github.com/golang/mock/gomock"
+	"github.com/spf13/viper"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,44 +23,24 @@ import (
 	ktesting "k8s.io/client-go/testing"
 )
 
-type mockToolsK8S struct {
-	hosts     []string
-	err       error
-	namespace string
-	called    bool
-}
-
-func (m *mockToolsK8S) GetPodHosts(_ context.Context, _ *builder.Context, namespace string) ([]string, error) {
-	m.called = true
-	m.namespace = namespace
-	return m.hosts, m.err
-}
-
 func TestNewDelegatesToMock(t *testing.T) {
 	builder.EnableModeTest()
 	defer builder.DisableModeTest()
 
-	mock := &mockToolsK8S{
-		hosts: []string{"10.0.0.1"},
-	}
+	ctrl := gomock.NewController(t)
+	mock := NewMockIToolsK8S(ctrl)
 
 	tool := New(mock)
 	ctx := context.Background()
-	hosts, err := tool.GetPodHosts(ctx, builder.New(ctx), "demo")
+	ctxLogger := builder.New(ctx)
+	mock.EXPECT().GetPodHosts(ctx, ctxLogger, "demo").Return([]string{"10.0.0.1"}, nil)
+
+	hosts, err := tool.GetPodHosts(ctx, ctxLogger, "demo")
 	if err != nil {
 		t.Fatalf("GetPodHosts() error = %v", err)
 	}
-
-	if !mock.called {
-		t.Fatal("expected mock to be called")
-	}
-
-	if mock.namespace != "demo" {
-		t.Fatalf("expected namespace demo, got %s", mock.namespace)
-	}
-
-	if !reflect.DeepEqual(hosts, mock.hosts) {
-		t.Fatalf("expected hosts %v, got %v", mock.hosts, hosts)
+	if !reflect.DeepEqual(hosts, []string{"10.0.0.1"}) {
+		t.Fatalf("expected hosts %v, got %v", []string{"10.0.0.1"}, hosts)
 	}
 }
 
@@ -170,6 +152,24 @@ func TestGetPodHostsReturnsErrorWhenConfigFails(t *testing.T) {
 	_, err := tool.GetPodHosts(ctx, builder.New(ctx), "demo")
 	if err == nil || !strings.Contains(err.Error(), "failed to create in-cluster config") {
 		t.Fatalf("expected config error, got %v", err)
+	}
+}
+
+func TestGetPodHostsReturnsNoHostsWhenNotInCluster(t *testing.T) {
+	builder.EnableModeTest()
+	defer builder.DisableModeTest()
+
+	tool := &ToolsK8S{}
+	restore := stubClusterDependencies(t, nil, rest.ErrNotInCluster, "broadcast-svc")
+	defer restore()
+
+	ctx := context.Background()
+	hosts, err := tool.GetPodHosts(ctx, builder.New(ctx), "demo")
+	if err != nil {
+		t.Fatalf("expected no error when not in cluster, got %v", err)
+	}
+	if hosts != nil {
+		t.Fatalf("expected nil hosts when not in cluster, got %v", hosts)
 	}
 }
 
@@ -310,6 +310,79 @@ func TestIsPodHostAvailable(t *testing.T) {
 	pod.Status.PodIP = ""
 	if isPodHostAvailable(pod) {
 		t.Fatal("expected pod without IP to be unavailable")
+	}
+}
+
+func TestGetHostsStoresRefreshHosts(t *testing.T) {
+	builder.EnableModeTest()
+	defer builder.DisableModeTest()
+
+	prevNew := _New
+	prevSetHosts := setHostsRefreshFn
+	prevBuilderNew := builderNewFn
+	t.Cleanup(func() {
+		_New = prevNew
+		setHostsRefreshFn = prevSetHosts
+		builderNewFn = prevBuilderNew
+	})
+
+	viper.Set("app.namespace", "demo")
+
+	var captured []string
+	ctrl := gomock.NewController(t)
+	mock := NewMockIToolsK8S(ctrl)
+	_New = func(IToolsK8S) IToolsK8S { return mock }
+	setHostsRefreshFn = func(input ...string) {
+		captured = append(captured, input...)
+	}
+	builderNewFn = func(context.Context) *builder.Context {
+		return builder.New(context.Background())
+	}
+	mock.EXPECT().
+		GetPodHosts(gomock.Any(), gomock.Any(), "demo").
+		Return([]string{"10.0.0.10", "10.0.0.11"}, nil)
+
+	GetHosts()
+
+	expected := []string{"10.0.0.10", "10.0.0.11"}
+	if !reflect.DeepEqual(captured, expected) {
+		t.Fatalf("expected captured hosts %v, got %v", expected, captured)
+	}
+}
+
+func TestGetHostsDoesNotStoreHostsWhenDiscoveryFails(t *testing.T) {
+	builder.EnableModeTest()
+	defer builder.DisableModeTest()
+
+	prevNew := _New
+	prevSetHosts := setHostsRefreshFn
+	prevBuilderNew := builderNewFn
+	t.Cleanup(func() {
+		_New = prevNew
+		setHostsRefreshFn = prevSetHosts
+		builderNewFn = prevBuilderNew
+	})
+
+	viper.Set("app.namespace", "demo")
+
+	called := false
+	ctrl := gomock.NewController(t)
+	mock := NewMockIToolsK8S(ctrl)
+	_New = func(IToolsK8S) IToolsK8S { return mock }
+	setHostsRefreshFn = func(...string) {
+		called = true
+	}
+	builderNewFn = func(context.Context) *builder.Context {
+		return builder.New(context.Background())
+	}
+	mock.EXPECT().
+		GetPodHosts(gomock.Any(), gomock.Any(), "demo").
+		Return(nil, errors.New("boom"))
+
+	GetHosts()
+
+	if called {
+		t.Fatal("did not expect hosts to be stored on discovery error")
 	}
 }
 

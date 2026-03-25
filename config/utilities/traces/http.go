@@ -1,15 +1,6 @@
 // Copyright 2026 PointerByte Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-// Package traces configures OpenTelemetry tracing and metrics for the server.
-//
-// It centralizes three responsibilities:
-//   - initialization of tracer and meter providers from OTEL_* environment variables
-//   - resource construction using application metadata from Viper
-//   - Gin middleware wiring for HTTP request instrumentation
-//
-// The package follows OpenTelemetry defaults where practical and falls back to
-// no-op providers when telemetry is explicitly disabled.
 package traces
 
 import (

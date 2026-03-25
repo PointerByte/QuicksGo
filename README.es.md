@@ -24,9 +24,9 @@ Flujo típico de una aplicación QuicksGo:
 1. `config` carga `application.yml` o `application.json` con `viper`
 2. `config` inicializa `logger`
 3. `config` inicializa tracing OTEL
-4. `server_Gin` o `server_gRPC` arrancan el servidor
+4. `server/gin` o `server/grpc` arrancan el servidor
 5. `security` usa la misma configuración ya cargada en `viper`
-6. `clientHttp` y `client_gRPC` reutilizan tracing y logging para llamadas salientes
+6. `client/http` y `client/grpc` reutilizan tracing y logging para llamadas salientes
 
 ## Plantilla de configuración
 
@@ -91,7 +91,7 @@ de la configuracion que ya provee el framework.
 
 ## Servidor HTTP
 
-Para arrancar un servidor Gin con QuicksGo, normalmente usas `config/server_Gin`:
+Para arrancar un servidor Gin con QuicksGo, normalmente usas `config/server/gin`:
 
 ```go
 srv, err := serverGin.CreateApp()
@@ -109,10 +109,10 @@ serverGin.Start(srv)
 
 ## Servidor gRPC
 
-Para arrancar un servidor gRPC con QuicksGo, normalmente usas `config/server_gRPC`:
+Para arrancar un servidor gRPC con QuicksGo, normalmente usas `config/server/grpc`:
 
 ```go
-srv := serverGRPC.NewIUnitary(nil, nil)
+srv := serverGRPC.NewIConfig(nil, nil)
 
 if err := srv.Register(func(r grpc.ServiceRegistrar) {
 	pb.RegisterGreeterServer(r, greeterServer{})
@@ -129,10 +129,10 @@ Si vas a empezar una aplicación nueva con QuicksGo:
 
 1. toma como base [application.yml](/e:/Proyects/Practices/QuicksGoV2t/config/application.yml)
 2. carga configuración con `config/utilities.LoadEnv`
-3. usa `server_Gin` o `server_gRPC` como bootstrap
+3. usa `server/gin` o `server/grpc` como bootstrap
 4. define tus rutas o servicios protobuf
 5. usa `security` para JWT y protección de endpoints
-6. usa `clientHttp` o `client_gRPC` para llamadas salientes con tracing
+6. usa `client/http` o `client/grpc` para llamadas salientes con tracing
 
 Tambien puedes generar un servicio nuevo con `qgo`:
 

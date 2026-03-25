@@ -17,19 +17,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/golang/mock/gomock"
 	"github.com/spf13/viper"
 )
-
-type mockToolsECS struct {
-	hosts  []string
-	err    error
-	called bool
-}
-
-func (m *mockToolsECS) GetTaskECSHosts(_ context.Context, _ *builder.Context) ([]string, error) {
-	m.called = true
-	return m.hosts, m.err
-}
 
 type stubECSClient struct {
 	listTasksOutput     *ecs.ListTasksOutput
@@ -114,18 +104,20 @@ func (s *stubListTasksPager) NextPage(_ context.Context, _ ...func(*ecs.Options)
 }
 
 func TestNewDelegatesToMock(t *testing.T) {
-	mock := &mockToolsECS{hosts: []string{"10.0.0.1"}}
+	ctrl := gomock.NewController(t)
+	mock := NewMockIToolsECS(ctrl)
 
 	tool := New(mock)
-	hosts, err := tool.GetTaskECSHosts(context.Background(), testLoggerContext())
+	ctx := context.Background()
+	ctxLogger := testLoggerContext()
+	mock.EXPECT().GetTaskECSHosts(ctx, ctxLogger).Return([]string{"10.0.0.1"}, nil)
+
+	hosts, err := tool.GetTaskECSHosts(ctx, ctxLogger)
 	if err != nil {
 		t.Fatalf("GetPodHosts() error = %v", err)
 	}
-	if !mock.called {
-		t.Fatal("expected mock to be called")
-	}
-	if !reflect.DeepEqual(hosts, mock.hosts) {
-		t.Fatalf("expected hosts %v, got %v", mock.hosts, hosts)
+	if !reflect.DeepEqual(hosts, []string{"10.0.0.1"}) {
+		t.Fatalf("expected hosts %v, got %v", []string{"10.0.0.1"}, hosts)
 	}
 }
 
@@ -498,6 +490,166 @@ func TestLocalPrivateIPsReturnsOnlyIPv4NonLoopback(t *testing.T) {
 		if ip.To4() == nil {
 			t.Fatalf("expected IPv4 address, got %q", value)
 		}
+	}
+}
+
+func TestGetHostsStoresRefreshHosts(t *testing.T) {
+	restore := stubECSDeps(t)
+	defer restore()
+
+	prevNew := _New
+	prevSetHosts := setHostsRefreshFn
+	prevBuilderNew := builderNewFn
+	t.Cleanup(func() {
+		_New = prevNew
+		setHostsRefreshFn = prevSetHosts
+		builderNewFn = prevBuilderNew
+	})
+
+	var captured []string
+	ctrl := gomock.NewController(t)
+	mock := NewMockIToolsECS(ctrl)
+	_New = func(IToolsECS) IToolsECS { return mock }
+	setHostsRefreshFn = func(input ...string) {
+		captured = append(captured, input...)
+	}
+	builderNewFn = func(context.Context) *builder.Context {
+		return testLoggerContext()
+	}
+	mock.EXPECT().
+		GetTaskECSHosts(gomock.Any(), gomock.Any()).
+		Return([]string{"10.1.0.20", "10.1.0.21"}, nil)
+
+	GetHosts()
+
+	expected := []string{"10.1.0.20", "10.1.0.21"}
+	if !reflect.DeepEqual(captured, expected) {
+		t.Fatalf("expected captured hosts %v, got %v", expected, captured)
+	}
+}
+
+func TestGetHostsDoesNotStoreHostsWhenDiscoveryFails(t *testing.T) {
+	restore := stubECSDeps(t)
+	defer restore()
+
+	prevNew := _New
+	prevSetHosts := setHostsRefreshFn
+	prevBuilderNew := builderNewFn
+	t.Cleanup(func() {
+		_New = prevNew
+		setHostsRefreshFn = prevSetHosts
+		builderNewFn = prevBuilderNew
+	})
+
+	called := false
+	ctrl := gomock.NewController(t)
+	mock := NewMockIToolsECS(ctrl)
+	_New = func(IToolsECS) IToolsECS { return mock }
+	setHostsRefreshFn = func(...string) {
+		called = true
+	}
+	builderNewFn = func(context.Context) *builder.Context {
+		return testLoggerContext()
+	}
+	mock.EXPECT().
+		GetTaskECSHosts(gomock.Any(), gomock.Any()).
+		Return(nil, errors.New("boom"))
+
+	GetHosts()
+
+	if called {
+		t.Fatal("did not expect hosts to be stored on discovery error")
+	}
+}
+
+func TestGeneratedMockecsAPI(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mock := NewMockecsAPI(ctrl)
+
+	mock.EXPECT().
+		ListClusters(gomock.Any(), gomock.Any()).
+		Return(&ecs.ListClustersOutput{ClusterArns: []string{"cluster-a"}}, nil)
+	mock.EXPECT().
+		ListTasks(gomock.Any(), gomock.Any()).
+		Return(&ecs.ListTasksOutput{TaskArns: []string{"task-a"}}, nil)
+	mock.EXPECT().
+		DescribeTasks(gomock.Any(), gomock.Any()).
+		Return(&ecs.DescribeTasksOutput{}, nil)
+
+	ctx := context.Background()
+
+	clusters, err := mock.ListClusters(ctx, &ecs.ListClustersInput{})
+	if err != nil {
+		t.Fatalf("ListClusters() error = %v", err)
+	}
+	if !reflect.DeepEqual(clusters.ClusterArns, []string{"cluster-a"}) {
+		t.Fatalf("unexpected clusters: %v", clusters.ClusterArns)
+	}
+
+	tasks, err := mock.ListTasks(ctx, &ecs.ListTasksInput{})
+	if err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+	if !reflect.DeepEqual(tasks.TaskArns, []string{"task-a"}) {
+		t.Fatalf("unexpected tasks: %v", tasks.TaskArns)
+	}
+
+	if _, err := mock.DescribeTasks(ctx, &ecs.DescribeTasksInput{}); err != nil {
+		t.Fatalf("DescribeTasks() error = %v", err)
+	}
+}
+
+func TestGeneratedMocklistClustersPager(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mock := NewMocklistClustersPager(ctrl)
+
+	gomock.InOrder(
+		mock.EXPECT().HasMorePages().Return(true),
+		mock.EXPECT().NextPage(gomock.Any()).Return(&ecs.ListClustersOutput{ClusterArns: []string{"cluster-a"}}, nil),
+		mock.EXPECT().HasMorePages().Return(false),
+	)
+
+	if !mock.HasMorePages() {
+		t.Fatal("expected HasMorePages() to return true")
+	}
+
+	page, err := mock.NextPage(context.Background())
+	if err != nil {
+		t.Fatalf("NextPage() error = %v", err)
+	}
+	if !reflect.DeepEqual(page.ClusterArns, []string{"cluster-a"}) {
+		t.Fatalf("unexpected cluster page: %v", page.ClusterArns)
+	}
+
+	if mock.HasMorePages() {
+		t.Fatal("expected HasMorePages() to return false")
+	}
+}
+
+func TestGeneratedMocklistTasksPager(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mock := NewMocklistTasksPager(ctrl)
+
+	gomock.InOrder(
+		mock.EXPECT().HasMorePages().Return(true),
+		mock.EXPECT().NextPage(gomock.Any()).Return(&ecs.ListTasksOutput{TaskArns: []string{"task-a"}}, nil),
+		mock.EXPECT().HasMorePages().Return(false),
+	)
+
+	if !mock.HasMorePages() {
+		t.Fatal("expected HasMorePages() to return true")
+	}
+
+	page, err := mock.NextPage(context.Background())
+	if err != nil {
+		t.Fatalf("NextPage() error = %v", err)
+	}
+	if !reflect.DeepEqual(page.TaskArns, []string{"task-a"}) {
+		t.Fatalf("unexpected task page: %v", page.TaskArns)
+	}
+
+	if mock.HasMorePages() {
+		t.Fatal("expected HasMorePages() to return false")
 	}
 }
 

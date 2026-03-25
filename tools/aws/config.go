@@ -8,6 +8,11 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws"
 )
 
+var (
+	loadDefaultAWSConfigFn  = config.LoadDefaultConfig
+	appendOTelMiddlewaresFn = otelaws.AppendMiddlewares
+)
+
 // LoadAWSConfig loads the default AWS SDK configuration for the current
 // environment and attaches OpenTelemetry middlewares to instrument AWS API
 // calls.
@@ -16,11 +21,10 @@ import (
 // AWS client configuration, and it can also be replaced in tests to avoid
 // loading real cloud credentials.
 func LoadAWSConfig(ctx context.Context) (aws.Config, error) {
-	cfg, err := config.LoadDefaultConfig(ctx)
+	cfg, err := loadDefaultAWSConfigFn(ctx)
 	if err != nil {
 		return cfg, err
 	}
-	// Attach OpenTelemetry instrumentation
-	otelaws.AppendMiddlewares(&cfg.APIOptions)
+	appendOTelMiddlewaresFn(&cfg.APIOptions)
 	return cfg, nil
 }

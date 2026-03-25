@@ -1,13 +1,17 @@
 // Copyright 2026 PointerByte Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+//go:generate mockgen -source=tools.go -destination=./mocksTools.go -package=pods
+
 package pods
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	serverGin "github.com/PointerByte/QuicksGo/config/server/gin"
 	"github.com/PointerByte/QuicksGo/logger/builder"
 	"github.com/PointerByte/QuicksGo/logger/formatter"
 	"github.com/spf13/viper"
@@ -34,6 +38,9 @@ var (
 	appNameFn = func() string {
 		return viper.GetString("app.name")
 	}
+
+	setHostsRefreshFn = serverGin.SetHostsRefresh
+	builderNewFn      = builder.New
 )
 
 // IToolsK8S define las operaciones del paquete k8s que pueden ser usadas o simuladas
@@ -87,7 +94,7 @@ func New(mock IToolsK8S) IToolsK8S {
 //			return
 //		}
 //
-//		serverGRPC.SetHostsRefresh(hosts...)
+//		serverGin.SetHostsRefresh(hosts...)
 //		c.JSON(200, gin.H{"hosts": hosts})
 //	}
 //
@@ -126,6 +133,9 @@ func (t *ToolsK8S) GetPodHosts(ctx context.Context, ctxLogger *builder.Context, 
 
 	config, err := inClusterConfigFn()
 	if err != nil {
+		if errors.Is(err, rest.ErrNotInCluster) {
+			return nil, nil
+		}
 		process.Status = formatter.ERROR
 		return nil, fmt.Errorf("failed to create in-cluster config: %w", err)
 	}
@@ -194,4 +204,19 @@ func isPodHostAvailable(pod v1.Pod) bool {
 		}
 	}
 	return false
+}
+
+var _New = New
+
+func GetHosts() {
+	ctx := context.Background()
+	ctxLogger := builderNewFn(ctx)
+	namespace := viper.GetString("app.namespace")
+	host, err := _New(nil).GetPodHosts(ctx, ctxLogger, namespace)
+	if err != nil {
+		ctxLogger.Error(fmt.Errorf("Error configuring the service task hosts in the refresh handler: %v", err))
+		return
+	}
+	setHostsRefreshFn(host...)
+	ctxLogger.Info("The service task hosts were configured in the refresh handler")
 }

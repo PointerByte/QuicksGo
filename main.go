@@ -8,8 +8,32 @@
 // OpenTelemetry tracing, and JWT-based security helpers.
 package main
 
-import "fmt"
+import (
+	"net/http"
+
+	serverGin "github.com/PointerByte/QuicksGo/config/server/gin"
+	"github.com/PointerByte/QuicksGo/security/middlewares"
+	"github.com/gin-gonic/gin"
+)
+
+var (
+	createAppFn = func(optionsJWT ...middlewares.JWTMiddlewareOption) (*http.Server, error) {
+		return serverGin.CreateApp(optionsJWT...)
+	}
+	getRouteFn = serverGin.GetRoute
+	startFn    = serverGin.Start
+)
 
 func main() {
-	fmt.Println("Hello word!")
+	srv, err := createAppFn()
+	if err != nil {
+		panic(err)
+	}
+
+	api := getRouteFn("/api/v1")
+	api.GET("/hello", func(c *gin.Context) {
+		c.JSON(200, gin.H{"message": "ok"})
+	})
+
+	startFn(srv)
 }
