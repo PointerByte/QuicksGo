@@ -1,4 +1,4 @@
-module github.com/PointerByte/QuicksGo/cmd
+module github.com/PointerByte/QuicksGo/cmd/qgo
 
 go 1.26
 
