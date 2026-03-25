@@ -9,8 +9,8 @@ replace (
 )
 
 require (
-	github.com/PointerByte/QuicksGo/config v0.0.6
-	github.com/PointerByte/QuicksGo/logger v0.0.6
+	github.com/PointerByte/QuicksGo/config v0.0.8
+	github.com/PointerByte/QuicksGo/logger v0.0.7
 	github.com/PointerByte/QuicksGo/security v0.0.5
 	github.com/aws/aws-sdk-go-v2 v1.41.4
 	github.com/aws/aws-sdk-go-v2/config v1.32.12

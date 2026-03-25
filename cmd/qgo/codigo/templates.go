@@ -50,10 +50,6 @@ func main() {
 	}
 
 	api := serverGin.GetRoute("/api/v1")
-	if api == nil {
-		log.Fatal("route group /api/v1 is not configured")
-	}
-
 	api.GET("/hello", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"app":     "%s",
@@ -93,7 +89,6 @@ func buildApplicationYAML(serviceType string, appName string) string {
   version: 0.0.1
 
 server:
-  modeTest: false
   grpc:
     port: ":50051"
     tls:
@@ -121,7 +116,6 @@ client:
 
 logger:
   dir: logs
-  modeTest: false
   level: info
   ignoredHeaders:
     - Authorization
@@ -161,7 +155,6 @@ jwt:
 server:
   groups:
     - /api/v1
-  modeTest: false
   gin:
     port: ":8080"
     mode: release
@@ -197,7 +190,6 @@ client:
 
 logger:
   dir: logs
-  modeTest: false
   level: info
   ignoredHeaders:
     - Authorization
@@ -232,9 +224,8 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 			"version": "0.0.1",
 		},
 		"logger": map[string]any{
-			"dir":      "logs",
-			"modeTest": false,
-			"level":    "info",
+			"dir":   "logs",
+			"level": "info",
 			"ignoredHeaders": []string{
 				"Authorization",
 				"Cookie",
@@ -253,7 +244,6 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 
 	if serviceType == serviceTypeGRPC {
 		data["server"] = map[string]any{
-			"modeTest": false,
 			"grpc": map[string]any{
 				"port": ":50051",
 				"tls": map[string]any{
@@ -301,8 +291,7 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 		}
 	} else {
 		data["server"] = map[string]any{
-			"groups":   []string{"/api/v1"},
-			"modeTest": false,
+			"groups": []string{"/api/v1"},
 			"gin": map[string]any{
 				"port":   ":8080",
 				"mode":   "release",

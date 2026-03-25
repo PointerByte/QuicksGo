@@ -7,7 +7,6 @@
     "groups": [
       "/api/v1"
     ],
-    "modeTest": false,
     "gin": {
       "port": ":8080",
       "mode": "release",
@@ -65,7 +64,6 @@
   },
   "logger": {
     "dir": "logs",
-    "modeTest": false,
     "level": "info",
     "ignoredHeaders": [
       "Authorization",

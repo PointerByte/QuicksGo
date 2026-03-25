@@ -440,7 +440,7 @@ Puede desactivarse si el logging HTTP ya está cubierto por otro middleware o si
 
 ## `SkipPaths`
 
-Permite definir rutas que no deben registrarse en el logger HTTP de Gin.
+Controla qué rutas debe omitir el logger HTTP de Gin.
 
 ```json
 "SkipPaths": ["/health"]
@@ -450,7 +450,7 @@ Permite definir rutas que no deben registrarse en el logger HTTP de Gin.
 
 Se usa para evitar ruido en el log cuando existen endpoints que se consultan con mucha frecuencia y que normalmente no aportan valor de observabilidad detallada.
 
-Casos tíicos:
+Casos típicos:
 
 - health checks
 - readiness probes
@@ -467,7 +467,7 @@ Casos tíicos:
 ]
 ```
 
-Con esta configuración, esas rutas no deberían aparecer en el log HTTP de Gin.
+Con esta configuración, las peticiones a esas rutas no deberían aparecer en el log HTTP de Gin.
 
 ### Recomendación
 
@@ -477,7 +477,7 @@ Agregar aquí endpoints operativos o de infraestructura que puedan generar mucho
 
 ## `SkipQueryString`
 
-Define si el query string debe excluirse del path registrado por Gin.
+Controla si el logger HTTP de Gin incluye el query string dentro del path registrado.
 
 ```json
 "SkipQueryString": false
@@ -485,8 +485,8 @@ Define si el query string debe excluirse del path registrado por Gin.
 
 ### Comportamiento
 
-- `false`: el logger puede registrar la ruta incluyendo query string
-- `true`: el logger registra la ruta sin el query string
+- `false`: el path registrado conserva el query string cuando existe
+- `true`: el path registrado omite el query string y deja solo la ruta base
 
 ### Ejemplo
 

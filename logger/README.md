@@ -440,7 +440,7 @@ It can be disabled if HTTP logging is already covered by another middleware or i
 
 ## `SkipPaths`
 
-Allows defining routes that must not be logged by Gin's HTTP logger.
+Controls which request paths Gin's HTTP logger must skip.
 
 ```json
 "SkipPaths": ["/health"]
@@ -467,7 +467,7 @@ Typical cases:
 ]
 ```
 
-With this configuration, those routes should not appear in Gin HTTP logs.
+With this configuration, requests to those paths should not appear in Gin HTTP logs.
 
 ### Recommendation
 
@@ -477,7 +477,7 @@ Add operational or infrastructure endpoints here if they can generate too much n
 
 ## `SkipQueryString`
 
-Defines whether the query string should be excluded from the path logged by Gin.
+Controls whether Gin's HTTP logger includes the query string in the logged path.
 
 ```json
 "SkipQueryString": false
@@ -485,8 +485,8 @@ Defines whether the query string should be excluded from the path logged by Gin.
 
 ### Behavior
 
-- `false`: the logger may record the route including the query string
-- `true`: the logger records only the base route without the query string
+- `false`: the logged path keeps the query string when present
+- `true`: the logged path omits the query string and keeps only the base route
 
 ### Example
 
@@ -509,7 +509,7 @@ Using `true` is recommended when:
 - you want to avoid high-cardinality logs
 - you want a cleaner and more stable path for searching and aggregation
 
-It can remain `false` when the query string is functionally important for analysis and does not represent a security risk or excessive noise.
+It can remain `false` when query parameters are useful for troubleshooting and do not introduce sensitive data or excessive log cardinality.
 
 ---
 
