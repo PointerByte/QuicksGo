@@ -46,6 +46,25 @@ const (
 	DefaultEdDSAPublicKeyKey  = "jwt.eddsa.public_key"
 )
 
+// SetJWTAsymmetricKeys stores the configured asymmetric key pair in viper using
+// the standard JWT config keys for the selected algorithm.
+// Existing values are overwritten with Set, while previously unset values are
+// registered with SetDefault so package defaults remain discoverable.
+// Supported algorithms are "rsa" and "eddsa", matched case-insensitively.
+func SetJWTAsymmetricKeys(priv, pub, alg string) error {
+	switch strings.ToLower(strings.TrimSpace(alg)) {
+	case "rsa":
+		setJWTConfigValue(DefaultRSAPrivateKeyKey, priv)
+		setJWTConfigValue(DefaultRSAPublicKeyKey, pub)
+	case "eddsa":
+		setJWTConfigValue(DefaultEdDSAPrivateKeyKey, priv)
+		setJWTConfigValue(DefaultEdDSAPublicKeyKey, pub)
+	default:
+		return fmt.Errorf("%w: %s", ErrUnsupportedAlg, alg)
+	}
+	return nil
+}
+
 // Strategy defines how a JWT is signed and how its signature is verified.
 // Different algorithms can be supported by providing alternative implementations.
 type Strategy interface {
@@ -674,6 +693,14 @@ func stringOrDefault(value string, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func setJWTConfigValue(key string, value string) {
+	if viper.IsSet(key) {
+		viper.Set(key, value)
+		return
+	}
+	viper.SetDefault(key, value)
 }
 
 func mustMarshalRSAPrivateKey(privateKey *rsa.PrivateKey) string {

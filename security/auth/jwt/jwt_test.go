@@ -25,6 +25,86 @@ type testClaims struct {
 	Active bool   `json:"active"`
 }
 
+func TestSetJWTAsymmetricKeys(t *testing.T) {
+	t.Run("rsa uses defaults when keys are unset", func(t *testing.T) {
+		viper.Reset()
+		t.Cleanup(viper.Reset)
+
+		if err := SetJWTAsymmetricKeys("rsa-private", "rsa-public", "rsa"); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if got := viper.GetString(DefaultRSAPrivateKeyKey); got != "rsa-private" {
+			t.Fatalf("expected private key %q, got %q", "rsa-private", got)
+		}
+		if got := viper.GetString(DefaultRSAPublicKeyKey); got != "rsa-public" {
+			t.Fatalf("expected public key %q, got %q", "rsa-public", got)
+		}
+	})
+
+	t.Run("rsa overwrites existing values", func(t *testing.T) {
+		viper.Reset()
+		t.Cleanup(viper.Reset)
+		viper.Set(DefaultRSAPrivateKeyKey, "old-private")
+		viper.Set(DefaultRSAPublicKeyKey, "old-public")
+
+		if err := SetJWTAsymmetricKeys("new-private", "new-public", "RSA"); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if got := viper.GetString(DefaultRSAPrivateKeyKey); got != "new-private" {
+			t.Fatalf("expected private key %q, got %q", "new-private", got)
+		}
+		if got := viper.GetString(DefaultRSAPublicKeyKey); got != "new-public" {
+			t.Fatalf("expected public key %q, got %q", "new-public", got)
+		}
+	})
+
+	t.Run("eddsa uses defaults when keys are unset", func(t *testing.T) {
+		viper.Reset()
+		t.Cleanup(viper.Reset)
+
+		if err := SetJWTAsymmetricKeys("eddsa-private", "eddsa-public", " eddsa "); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if got := viper.GetString(DefaultEdDSAPrivateKeyKey); got != "eddsa-private" {
+			t.Fatalf("expected private key %q, got %q", "eddsa-private", got)
+		}
+		if got := viper.GetString(DefaultEdDSAPublicKeyKey); got != "eddsa-public" {
+			t.Fatalf("expected public key %q, got %q", "eddsa-public", got)
+		}
+	})
+
+	t.Run("eddsa overwrites existing values", func(t *testing.T) {
+		viper.Reset()
+		t.Cleanup(viper.Reset)
+		viper.Set(DefaultEdDSAPrivateKeyKey, "old-private")
+		viper.Set(DefaultEdDSAPublicKeyKey, "old-public")
+
+		if err := SetJWTAsymmetricKeys("new-private", "new-public", "EdDSA"); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if got := viper.GetString(DefaultEdDSAPrivateKeyKey); got != "new-private" {
+			t.Fatalf("expected private key %q, got %q", "new-private", got)
+		}
+		if got := viper.GetString(DefaultEdDSAPublicKeyKey); got != "new-public" {
+			t.Fatalf("expected public key %q, got %q", "new-public", got)
+		}
+	})
+
+	t.Run("unsupported algorithm returns error", func(t *testing.T) {
+		viper.Reset()
+		t.Cleanup(viper.Reset)
+
+		err := SetJWTAsymmetricKeys("private", "public", "ecdsa")
+		if !errors.Is(err, ErrUnsupportedAlg) {
+			t.Fatalf("expected ErrUnsupportedAlg, got %v", err)
+		}
+	})
+}
+
 func TestCreateValidateAndReadJWT(t *testing.T) {
 	service, err := New(WithHMACSHA256("super-secret"))
 	if err != nil {
