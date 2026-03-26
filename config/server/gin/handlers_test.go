@@ -44,8 +44,8 @@ func resetHandlersTestState(t *testing.T) {
 func TestSetFunctionsRefresh(t *testing.T) {
 	resetHandlersTestState(t)
 
-	fn1 := func(context.Context) error { return nil }
-	fn2 := func(context.Context) error { return nil }
+	fn1 := func() error { return nil }
+	fn2 := func() error { return nil }
 
 	SetFunctionsRefresh(fn1)
 	SetFunctionsRefresh(fn2)
@@ -257,7 +257,52 @@ func TestRefreshGin(t *testing.T) {
 		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 			t.Fatalf("unmarshal response: %v", err)
 		}
-		if body["mensaje"] != "Error retrieving the IP addresses of the tasks" {
+		if body["mensaje"] != "Error retrieving the hosts from tasks" {
+			t.Fatalf("unexpected message: %q", body["mensaje"])
+		}
+	})
+
+	t.Run("refresh function error", func(t *testing.T) {
+		resetHandlersTestState(t)
+		hosts = []string{"host-a"}
+		viper.Set("server.gin.port", ":8080")
+
+		wantErr := errors.New("refresh function failed")
+		SetFunctionsRefresh(func() error {
+			return wantErr
+		})
+
+		var outboundCalls int32
+		var restartCalls int32
+		getGeneric = func(context.Context, clientHttp.RequestGeneric) error {
+			atomic.AddInt32(&outboundCalls, 1)
+			return nil
+		}
+		restartJobs = func() {
+			atomic.AddInt32(&restartCalls, 1)
+		}
+
+		router := gin.New()
+		router.GET("/api/v1/refresh", refresh())
+
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/refresh", nil))
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rec.Code)
+		}
+		if atomic.LoadInt32(&restartCalls) != 1 {
+			t.Fatalf("expected 1 restart call, got %d", restartCalls)
+		}
+		if atomic.LoadInt32(&outboundCalls) != 0 {
+			t.Fatalf("expected no outbound calls when refresh function fails, got %d", outboundCalls)
+		}
+
+		var body map[string]string
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatalf("unmarshal response: %v", err)
+		}
+		if body["mensaje"] != "Error to refresh start functions" {
 			t.Fatalf("unexpected message: %q", body["mensaje"])
 		}
 	})
