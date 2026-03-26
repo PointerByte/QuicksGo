@@ -14,6 +14,7 @@ import (
 	clientHttp "github.com/PointerByte/QuicksGo/config/client/http"
 	"github.com/PointerByte/QuicksGo/config/utilities/jobs"
 	"github.com/PointerByte/QuicksGo/logger/builder"
+	"github.com/PointerByte/QuicksGo/logger/middlewares"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 )
@@ -44,7 +45,7 @@ func noMethod() gin.HandlerFunc {
 	}
 }
 
-type HandlerFunctionsRefresh func(ctx context.Context) error
+type HandlerFunctionsRefresh func() error
 
 var functionsRefresh []HandlerFunctionsRefresh
 
@@ -81,7 +82,7 @@ func refresh() gin.HandlerFunc {
 		flag := c.Request.Header.Get("broadcast-refresh")
 
 		if flag == "true" {
-			ctxLogger.Info("Se valida que la tarea ya fue actualizada")
+			ctxLogger.Info("It is verified that the task has already been updated")
 			c.JSON(http.StatusOK, gin.H{
 				"action":  "Tasks have been updated",
 				"mensaje": "It is verified that the task has already been updated",
@@ -90,14 +91,26 @@ func refresh() gin.HandlerFunc {
 		}
 
 		restartJobs()
+		for _, fn := range functionsRefresh {
+			if err := fn(); err != nil {
+				middlewares.PrintError(c, err)
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"action":  "Internal server error; please check",
+					"mensaje": "Error to refresh start functions",
+				})
+				return
+			}
+		}
 		basePath := strings.TrimSuffix(c.FullPath(), "/refresh")
 		if err := sendRefreshToTask(c, ctxLogger, basePath); err != nil {
+			middlewares.PrintError(c, err)
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"action":  "Internal server error; please check",
-				"mensaje": "Error retrieving the IP addresses of the tasks",
+				"mensaje": "Error retrieving the hosts from tasks",
 			})
 			return
 		}
+		middlewares.PrintInfo(c, "Operation Success")
 		c.JSON(http.StatusOK, gin.H{
 			"action":  "The hosts have been updated",
 			"mensaje": "All tasks have been updated",
