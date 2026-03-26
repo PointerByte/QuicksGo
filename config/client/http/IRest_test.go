@@ -52,7 +52,7 @@ func TestNewIRest(t *testing.T) {
 		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
 		ForceAttemptHTTP2: true,
 	}
-	NewIRest(nil, time.Second, tr)
+	NewIRest(time.Second, tr)
 }
 
 func TestSubRest_SetRequest(t *testing.T) {
@@ -79,10 +79,6 @@ func TestSubRest_SetRequest(t *testing.T) {
 }
 
 func TestSubRest_Do(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	mockResp := &http.Response{StatusCode: http.StatusAccepted, Body: io.NopCloser(strings.NewReader("mock"))}
-	mockErr := errors.New("mock do error")
 	server := newHTTPTestServer(t, http.StatusOK, func(t *testing.T, r *http.Request) {
 		if r.Header.Get("X-Test") != "value" {
 			t.Fatalf("header X-Test = %q", r.Header.Get("X-Test"))
@@ -102,28 +98,6 @@ func TestSubRest_Do(t *testing.T) {
 		errText   string
 		assertion func(*testing.T, *Rest, *http.Response)
 	}{
-		{
-			name: "delegates to mock success",
-			setup: func() *Rest {
-				m := NewMockIRest(ctrl)
-				m.EXPECT().Do("payload").Return(mockResp, nil)
-				return &Rest{mocks: m}
-			},
-			object:  "payload",
-			want:    mockResp,
-			wantErr: false,
-		},
-		{
-			name: "delegates to mock error",
-			setup: func() *Rest {
-				m := NewMockIRest(ctrl)
-				m.EXPECT().Do("boom").Return(nil, mockErr)
-				return &Rest{mocks: m}
-			},
-			object:  "boom",
-			wantErr: true,
-			errText: "mock do error",
-		},
 		{
 			name: "executes request successfully",
 			setup: func() *Rest {
@@ -239,9 +213,6 @@ func TestSubRest_SetHeaders(t *testing.T) {
 }
 
 func TestSubRest_Get(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	mockResp := &http.Response{StatusCode: http.StatusCreated, Body: io.NopCloser(strings.NewReader("mock get"))}
 	ctxKey := struct{}{}
 	server := newHTTPTestServer(t, http.StatusOK, func(t *testing.T, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -266,18 +237,6 @@ func TestSubRest_Get(t *testing.T) {
 		errText   string
 		assertion func(*testing.T, *Rest, *http.Response)
 	}{
-		{
-			name: "delegates to mock",
-			setup: func() *Rest {
-				m := NewMockIRest(ctrl)
-				m.EXPECT().Get("http://mock", "json", "obj").Return(mockResp, nil)
-				return &Rest{mocks: m}
-			},
-			url:     "http://mock",
-			content: "json",
-			object:  "obj",
-			want:    mockResp,
-		},
 		{
 			name: "success with context and headers",
 			setup: func() *Rest {
@@ -345,9 +304,6 @@ func TestSubRest_Get(t *testing.T) {
 }
 
 func TestSubRest_Post(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	mockResp := &http.Response{StatusCode: http.StatusCreated, Body: io.NopCloser(strings.NewReader("mock post"))}
 	server := newHTTPTestServer(t, http.StatusCreated, func(t *testing.T, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("method = %s", r.Method)
@@ -373,19 +329,6 @@ func TestSubRest_Post(t *testing.T) {
 		errText   string
 		assertion func(*testing.T, *Rest, *http.Response)
 	}{
-		{
-			name: "delegates to mock",
-			setup: func() *Rest {
-				m := NewMockIRest(ctrl)
-				m.EXPECT().Post("http://mock", "json", gomock.Any(), "obj").Return(mockResp, nil)
-				return &Rest{mocks: m}
-			},
-			url:     "http://mock",
-			content: "json",
-			body:    strings.NewReader("x"),
-			object:  "obj",
-			want:    mockResp,
-		},
 		{
 			name: "success request",
 			setup: func() *Rest {
@@ -446,9 +389,6 @@ func TestSubRest_Post(t *testing.T) {
 }
 
 func TestSubRest_Put(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	mockResp := &http.Response{StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader("mock put"))}
 	server := newHTTPTestServer(t, http.StatusAccepted, func(t *testing.T, r *http.Request) {
 		if r.Method != http.MethodPut {
 			t.Fatalf("method = %s", r.Method)
@@ -474,19 +414,6 @@ func TestSubRest_Put(t *testing.T) {
 		errText   string
 		assertion func(*testing.T, *Rest, *http.Response)
 	}{
-		{
-			name: "delegates to mock post branch",
-			setup: func() *Rest {
-				m := NewMockIRest(ctrl)
-				m.EXPECT().Put("http://mock", "json", gomock.Any(), "obj").Return(mockResp, nil)
-				return &Rest{mocks: m}
-			},
-			url:     "http://mock",
-			content: "json",
-			body:    strings.NewReader("x"),
-			object:  "obj",
-			want:    mockResp,
-		},
 		{
 			name: "success request",
 			setup: func() *Rest {
@@ -547,9 +474,6 @@ func TestSubRest_Put(t *testing.T) {
 }
 
 func TestSubRest_Patch(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	mockResp := &http.Response{StatusCode: http.StatusPartialContent, Body: io.NopCloser(strings.NewReader("mock patch"))}
 	server := newHTTPTestServer(t, http.StatusOK, func(t *testing.T, r *http.Request) {
 		if r.Method != http.MethodPatch {
 			t.Fatalf("method = %s", r.Method)
@@ -575,19 +499,6 @@ func TestSubRest_Patch(t *testing.T) {
 		errText   string
 		assertion func(*testing.T, *Rest, *http.Response)
 	}{
-		{
-			name: "delegates to mock",
-			setup: func() *Rest {
-				m := NewMockIRest(ctrl)
-				m.EXPECT().Patch("http://mock", "json", gomock.Any(), "obj").Return(mockResp, nil)
-				return &Rest{mocks: m}
-			},
-			url:     "http://mock",
-			content: "json",
-			body:    strings.NewReader("x"),
-			object:  "obj",
-			want:    mockResp,
-		},
 		{
 			name: "success request",
 			setup: func() *Rest {
@@ -648,9 +559,6 @@ func TestSubRest_Patch(t *testing.T) {
 }
 
 func TestSubRest_Option(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	mockResp := &http.Response{StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader("mock option"))}
 	server := newHTTPTestServer(t, http.StatusNoContent, func(t *testing.T, r *http.Request) {
 		if r.Method != http.MethodOptions {
 			t.Fatalf("method = %s", r.Method)
@@ -676,19 +584,6 @@ func TestSubRest_Option(t *testing.T) {
 		errText   string
 		assertion func(*testing.T, *Rest, *http.Response)
 	}{
-		{
-			name: "delegates to mock",
-			setup: func() *Rest {
-				m := NewMockIRest(ctrl)
-				m.EXPECT().Option("http://mock", "json", gomock.Any(), "obj").Return(mockResp, nil)
-				return &Rest{mocks: m}
-			},
-			url:     "http://mock",
-			content: "json",
-			body:    strings.NewReader("x"),
-			object:  "obj",
-			want:    mockResp,
-		},
 		{
 			name: "success request",
 			setup: func() *Rest {
@@ -721,33 +616,6 @@ func TestSubRest_Option(t *testing.T) {
 			wantErr: true,
 			errText: "Problem creating the request Option",
 		},
-		{
-			name: "covers remaining mock methods",
-			setup: func() *Rest {
-				m := NewMockIRest(ctrl)
-				ctx := context.WithValue(context.Background(), "k", "v")
-				req, _ := http.NewRequest(http.MethodGet, "http://example.com", nil)
-				h := http.Header{"X-Test": {"value"}}
-				m.EXPECT().SetContext(ctx)
-				m.EXPECT().SetHeaders(h)
-				m.EXPECT().SetRequest(req)
-				m.EXPECT().Put("http://put", "application/json", gomock.Any(), gomock.Nil()).Return(mockResp, nil)
-				m.EXPECT().Option("http://mock", "json", gomock.Any(), "obj").Return(mockResp, nil)
-				m.SetContext(ctx)
-				m.SetHeaders(h)
-				m.SetRequest(req)
-				resp, err := m.Put("http://put", "application/json", strings.NewReader("{}"), nil)
-				if err != nil || resp != mockResp {
-					t.Fatalf("mock Put() = %v, %v", resp, err)
-				}
-				return &Rest{mocks: m}
-			},
-			url:     "http://mock",
-			content: "json",
-			body:    strings.NewReader("x"),
-			object:  "obj",
-			want:    mockResp,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -772,5 +640,49 @@ func TestSubRest_Option(t *testing.T) {
 				tt.assertion(t, sr, got)
 			}
 		})
+	}
+}
+
+func TestMockIRestMethods(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockResp := &http.Response{StatusCode: http.StatusAccepted, Body: io.NopCloser(strings.NewReader("mock"))}
+	mockErr := errors.New("mock do error")
+	ctx := context.WithValue(context.Background(), "k", "v")
+	req, _ := http.NewRequest(http.MethodGet, "http://example.com", nil)
+	h := http.Header{"X-Test": {"value"}}
+
+	mock := NewMockIRest(ctrl)
+	mock.EXPECT().SetContext(ctx)
+	mock.EXPECT().SetHeaders(h)
+	mock.EXPECT().SetRequest(req)
+	mock.EXPECT().Do("boom").Return(nil, mockErr)
+	mock.EXPECT().Get("http://get", "json", "obj").Return(mockResp, nil)
+	mock.EXPECT().Post("http://post", "json", gomock.Any(), "obj").Return(mockResp, nil)
+	mock.EXPECT().Put("http://put", "json", gomock.Any(), "obj").Return(mockResp, nil)
+	mock.EXPECT().Patch("http://patch", "json", gomock.Any(), "obj").Return(mockResp, nil)
+	mock.EXPECT().Option("http://option", "json", gomock.Any(), "obj").Return(mockResp, nil)
+
+	mock.SetContext(ctx)
+	mock.SetHeaders(h)
+	mock.SetRequest(req)
+	if _, err := mock.Do("boom"); !errors.Is(err, mockErr) {
+		t.Fatalf("Do() error = %v", err)
+	}
+	if resp, err := mock.Get("http://get", "json", "obj"); err != nil || resp != mockResp {
+		t.Fatalf("Get() = %v, %v", resp, err)
+	}
+	if resp, err := mock.Post("http://post", "json", strings.NewReader("{}"), "obj"); err != nil || resp != mockResp {
+		t.Fatalf("Post() = %v, %v", resp, err)
+	}
+	if resp, err := mock.Put("http://put", "json", strings.NewReader("{}"), "obj"); err != nil || resp != mockResp {
+		t.Fatalf("Put() = %v, %v", resp, err)
+	}
+	if resp, err := mock.Patch("http://patch", "json", strings.NewReader("{}"), "obj"); err != nil || resp != mockResp {
+		t.Fatalf("Patch() = %v, %v", resp, err)
+	}
+	if resp, err := mock.Option("http://option", "json", strings.NewReader("{}"), "obj"); err != nil || resp != mockResp {
+		t.Fatalf("Option() = %v, %v", resp, err)
 	}
 }

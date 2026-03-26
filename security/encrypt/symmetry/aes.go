@@ -22,22 +22,22 @@ import (
 func EncryptAES(symmetricalAccess, valorCampo, additionalData string) (string, error) {
 	aesKeyBytes, err := base64.StdEncoding.DecodeString(symmetricalAccess)
 	if err != nil {
-		return "", fmt.Errorf("error al decodificar clave AES: %w", err)
+		return "", fmt.Errorf("decode AES key: %w", err)
 	}
 
 	block, err := aes.NewCipher(aesKeyBytes)
 	if err != nil {
-		return "", fmt.Errorf("error al crear cipher AES: %w", err)
+		return "", fmt.Errorf("create AES cipher: %w", err)
 	}
 
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return "", fmt.Errorf("error al crear GCM: %w", err)
+		return "", fmt.Errorf("create GCM: %w", err)
 	}
 
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
-		return "", fmt.Errorf("error al generar nonce: %w", err)
+		return "", fmt.Errorf("generate nonce: %w", err)
 	}
 
 	cipherText := gcm.Seal(nil, nonce, []byte(valorCampo), []byte(additionalData))
@@ -49,33 +49,33 @@ func EncryptAES(symmetricalAccess, valorCampo, additionalData string) (string, e
 func DecryptAES(symmetricalAccess, valorCifrado, additionalData string) (string, error) {
 	aesKeyBytes, err := base64.StdEncoding.DecodeString(symmetricalAccess)
 	if err != nil {
-		return "", fmt.Errorf("error al decodificar clave AES: %w", err)
+		return "", fmt.Errorf("decode AES key: %w", err)
 	}
 
 	block, err := aes.NewCipher(aesKeyBytes)
 	if err != nil {
-		return "", fmt.Errorf("error al crear cipher AES: %w", err)
+		return "", fmt.Errorf("create AES cipher: %w", err)
 	}
 
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return "", fmt.Errorf("error al crear GCM: %w", err)
+		return "", fmt.Errorf("create GCM: %w", err)
 	}
 
 	allBytes, err := base64.StdEncoding.DecodeString(valorCifrado)
 	if err != nil {
-		return "", fmt.Errorf("error al decodificar Base64 del valor cifrado: %w", err)
+		return "", fmt.Errorf("decode Base64 ciphertext: %w", err)
 	}
 
 	if len(allBytes) < gcm.NonceSize() {
-		return "", errors.New("datos cifrados demasiado cortos")
+		return "", errors.New("ciphertext is too short")
 	}
 
 	nonce := allBytes[:gcm.NonceSize()]
 	cipherText := allBytes[gcm.NonceSize():]
 	plainText, err := gcm.Open(nil, nonce, cipherText, []byte(additionalData))
 	if err != nil {
-		return "", fmt.Errorf("error al desencriptar AES-GCM: %w", err)
+		return "", fmt.Errorf("decrypt AES-GCM: %w", err)
 	}
 	return string(plainText), nil
 }

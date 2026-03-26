@@ -58,7 +58,6 @@ type IClient interface {
 }
 
 type Client struct {
-	mocks       IClient
 	conn        *grpc.ClientConn
 	address     string
 	ctx         context.Context
@@ -93,10 +92,9 @@ func SetTLSConfig(config *tls.Config) {
 // If conn is nil, Connect will create one from the configured address.
 // If no dial options are set, the package resolves TLS/mTLS from configuration
 // and falls back to insecure transport credentials when TLS is disabled.
-func NewIClient(mocks IClient, conn *grpc.ClientConn) IClient {
+func NewIClient(conn *grpc.ClientConn) IClient {
 	return &Client{
-		mocks: mocks,
-		conn:  conn,
+		conn: conn,
 	}
 }
 
@@ -125,10 +123,6 @@ func (c *Client) SetDialOptions(opts ...grpc.DialOption) {
 }
 
 func (c *Client) Connect() error {
-	if c.mocks != nil {
-		return c.mocks.Connect()
-	}
-
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -156,10 +150,6 @@ func (c *Client) Connect() error {
 }
 
 func (c *Client) Close() error {
-	if c.mocks != nil {
-		return c.mocks.Close()
-	}
-
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -172,10 +162,6 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) GetConn() *grpc.ClientConn {
-	if c.mocks != nil {
-		return c.mocks.GetConn()
-	}
-
 	c.mux.RLock()
 	defer c.mux.RUnlock()
 	return c.conn

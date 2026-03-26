@@ -403,7 +403,7 @@ flow is intended for internal service-to-service coordination.
 Basic usage:
 
 ```go
-client := clientHttp.NewGenericRest(nil, 10*time.Second, nil)
+client := clientHttp.NewGenericRest(10*time.Second, nil)
 
 err := client.GetGeneric(ctx, clientHttp.RequestGeneric{
 	System:   "users-service",
@@ -425,7 +425,7 @@ err := client.GetGeneric(ctx, clientHttp.RequestGeneric{
 Basic usage:
 
 ```go
-cli := clientGRPC.NewIClient(nil, nil)
+cli := clientGRPC.NewIClient(nil)
 
 greeter, err := clientGRPC.BuildClient(cli, pb.NewGreeterClient)
 if err != nil {

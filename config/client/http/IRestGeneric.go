@@ -67,7 +67,6 @@ type IRestGeneric interface {
 // RestGeneric implements the IRestGeneric interface using an internal
 // IRest instance to execute HTTP requests and process responses.
 type RestGeneric struct {
-	mocks        IRestGeneric
 	newIRest     IRest
 	disableTrace bool
 }
@@ -76,10 +75,9 @@ type RestGeneric struct {
 //
 // The timeOut parameter defines the maximum duration for each request.
 // The tr parameter allows injecting a custom HTTP transport.
-func NewGenericRest(mocks IRestGeneric, timeout time.Duration, tr *http.Transport) IRestGeneric {
+func NewGenericRest(timeout time.Duration, tr *http.Transport) IRestGeneric {
 	return &RestGeneric{
-		mocks:    mocks,
-		newIRest: NewIRest(nil, timeout, tr),
+		newIRest: NewIRest(timeout, tr),
 	}
 }
 
@@ -155,10 +153,6 @@ func (gr *RestGeneric) DisableTrace() {
 // The input.Request is serialized into JSON and the response is
 // deserialized into input.Response.
 func (gr *RestGeneric) PostGeneric(ctx context.Context, input RequestGeneric) error {
-	if gr.mocks != nil {
-		return gr.mocks.PostGeneric(ctx, input)
-	}
-
 	var process *formatter.Service
 	var traceEnd handlerTrace
 	if !gr.disableTrace {
@@ -221,10 +215,6 @@ func buildURL(input RequestGeneric) (string, error) {
 // and appended to the final URL. The response is deserialized into
 // input.Response.
 func (gr *RestGeneric) GetGeneric(ctx context.Context, input RequestGeneric) error {
-	if gr.mocks != nil {
-		return gr.mocks.GetGeneric(ctx, input)
-	}
-
 	var process *formatter.Service
 	var traceEnd handlerTrace
 	if !gr.disableTrace {
@@ -252,10 +242,6 @@ func (gr *RestGeneric) GetGeneric(ctx context.Context, input RequestGeneric) err
 // The input.Request is serialized into JSON and the response is
 // deserialized into input.Response.
 func (gr *RestGeneric) PutGeneric(ctx context.Context, input RequestGeneric) error {
-	if gr.mocks != nil {
-		return gr.mocks.PutGeneric(ctx, input)
-	}
-
 	var process *formatter.Service
 	var traceEnd handlerTrace
 	if !gr.disableTrace {
@@ -293,10 +279,6 @@ func (gr *RestGeneric) PutGeneric(ctx context.Context, input RequestGeneric) err
 // The input.Request is serialized into JSON and the response is
 // deserialized into input.Response.
 func (gr *RestGeneric) PatchGeneric(ctx context.Context, input RequestGeneric) error {
-	if gr.mocks != nil {
-		return gr.mocks.PatchGeneric(ctx, input)
-	}
-
 	var process *formatter.Service
 	var traceEnd handlerTrace
 	if !gr.disableTrace {
@@ -335,10 +317,6 @@ func (gr *RestGeneric) PatchGeneric(ctx context.Context, input RequestGeneric) e
 // a remote resource. If the response contains a body, it will be
 // deserialized into input.Response.
 func (gr *RestGeneric) OptionGeneric(ctx context.Context, input RequestGeneric) error {
-	if gr.mocks != nil {
-		return gr.mocks.OptionGeneric(ctx, input)
-	}
-
 	var process *formatter.Service
 	var traceEnd handlerTrace
 	if !gr.disableTrace {

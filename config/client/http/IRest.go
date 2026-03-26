@@ -17,7 +17,7 @@ import (
 
 // IRest defines an interface for making HTTP requests in a generic manner.
 //
-// Implementations of this interface (such as `subRest` or `mocks`) allow
+// Implementations of this interface allow
 // you to execute HTTP methods (`GET`, `POST`, `PUT`, `PATCH`) and handle headers,
 // context, and response decoding in a target object.
 //
@@ -61,7 +61,6 @@ type IRest interface {
 }
 
 type Rest struct {
-	mocks       IRest
 	restClient  *http.Client
 	hdr         atomic.Value // stores http.Header (immutable after a Store operation)
 	ctx         atomic.Value // stores context.Context
@@ -74,9 +73,8 @@ type Rest struct {
 //
 // The timeOut parameter defines the maximum duration for each request.
 // The tr parameter allows injecting a custom HTTP transport.
-func NewIRest(mocks IRest, timeout time.Duration, tr *http.Transport) IRest {
+func NewIRest(timeout time.Duration, tr *http.Transport) IRest {
 	s := &Rest{
-		mocks:      mocks,
 		restClient: NewRestClient(timeout, tr),
 		req:        &http.Request{},
 	}
@@ -119,15 +117,12 @@ func (sr *Rest) doRequest(object any) (*http.Response, error) {
 
 	resp, err := sr.restClient.Do(sr.req)
 	if err != nil {
-		return nil, fmt.Errorf("problema al ejecutar la solicitud:: %w", err)
+		return nil, fmt.Errorf("problema al ejecutar la solicitud: %w", err)
 	}
 	return resp, nil
 }
 
 func (sr *Rest) Do(object any) (*http.Response, error) {
-	if sr.mocks != nil {
-		return sr.mocks.Do(object)
-	}
 	return sr.doRequest(object)
 }
 
@@ -144,10 +139,6 @@ func (sr *Rest) SetContext(ctx context.Context) {
 }
 
 func (sr *Rest) Get(url, contentType string, object any) (*http.Response, error) {
-	if sr.mocks != nil {
-		return sr.mocks.Get(url, contentType, object)
-	}
-
 	var req *http.Request
 	var err error
 	if sr.withContext.Load() {
@@ -169,10 +160,6 @@ func (sr *Rest) Get(url, contentType string, object any) (*http.Response, error)
 }
 
 func (sr *Rest) Post(url, contentType string, body io.Reader, object any) (*http.Response, error) {
-	if sr.mocks != nil {
-		return sr.mocks.Post(url, contentType, body, object)
-	}
-
 	var req *http.Request
 	var err error
 	if sr.withContext.Load() {
@@ -194,10 +181,6 @@ func (sr *Rest) Post(url, contentType string, body io.Reader, object any) (*http
 }
 
 func (sr *Rest) Put(url, contentType string, body io.Reader, object any) (*http.Response, error) {
-	if sr.mocks != nil {
-		return sr.mocks.Put(url, contentType, body, object)
-	}
-
 	var req *http.Request
 	var err error
 	if sr.withContext.Load() {
@@ -219,10 +202,6 @@ func (sr *Rest) Put(url, contentType string, body io.Reader, object any) (*http.
 }
 
 func (sr *Rest) Patch(url, contentType string, body io.Reader, object any) (*http.Response, error) {
-	if sr.mocks != nil {
-		return sr.mocks.Patch(url, contentType, body, object)
-	}
-
 	var req *http.Request
 	var err error
 	if sr.withContext.Load() {
@@ -244,10 +223,6 @@ func (sr *Rest) Patch(url, contentType string, body io.Reader, object any) (*htt
 }
 
 func (sr *Rest) Option(url, contentType string, body io.Reader, object any) (*http.Response, error) {
-	if sr.mocks != nil {
-		return sr.mocks.Option(url, contentType, body, object)
-	}
-
 	var req *http.Request
 	var err error
 	if sr.withContext.Load() {

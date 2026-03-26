@@ -288,7 +288,7 @@ func generateSignedCertificate(t *testing.T, caCert *x509.Certificate, caKeyPEM 
 
 func TestNewIClient(t *testing.T) {
 	resetClientGRPCTestState(t)
-	got := NewIClient(nil, nil)
+	got := NewIClient(nil)
 	if got == nil {
 		t.Fatal("NewIClient() returned nil")
 	}
@@ -296,7 +296,7 @@ func TestNewIClient(t *testing.T) {
 
 func TestClientConfiguration(t *testing.T) {
 	resetClientGRPCTestState(t)
-	cli := NewIClient(nil, nil).(*Client)
+	cli := NewIClient(nil).(*Client)
 	conn, err := grpc.NewClient("passthrough:///config-test", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("grpc.NewClient() failed: %v", err)
@@ -322,15 +322,9 @@ func TestClientConnect(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "delegates to mock",
-			setup: func() IClient {
-				return NewIClient(&mockClient{}, nil)
-			},
-		},
-		{
 			name: "requires address",
 			setup: func() IClient {
-				return NewIClient(nil, nil)
+				return NewIClient(nil)
 			},
 			wantErr: true,
 		},
@@ -342,13 +336,13 @@ func TestClientConnect(t *testing.T) {
 					t.Fatalf("grpc.NewClient() failed: %v", err)
 				}
 				t.Cleanup(func() { _ = conn.Close() })
-				return NewIClient(nil, conn)
+				return NewIClient(conn)
 			},
 		},
 		{
 			name: "creates connection",
 			setup: func() IClient {
-				cli := NewIClient(nil, nil)
+				cli := NewIClient(nil)
 				cli.SetAddress("passthrough:///connect")
 				cli.SetDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials()))
 				return cli
@@ -376,7 +370,7 @@ func TestClientConnectError(t *testing.T) {
 		return nil, errors.New("dial failed")
 	}
 
-	cli := NewIClient(nil, nil)
+	cli := NewIClient(nil)
 	cli.SetAddress("passthrough:///error")
 
 	err := cli.Connect()
@@ -390,7 +384,7 @@ func TestClientConnectError(t *testing.T) {
 
 func TestClientClose(t *testing.T) {
 	resetClientGRPCTestState(t)
-	cli := NewIClient(nil, nil)
+	cli := NewIClient(nil)
 	if err := cli.Close(); err != nil {
 		t.Fatalf("Close() with nil conn failed: %v", err)
 	}
@@ -406,17 +400,6 @@ func TestClientClose(t *testing.T) {
 	}
 	if cli.GetConn() != nil {
 		t.Fatal("GetConn() should be nil after Close()")
-	}
-}
-
-func TestClientCloseDelegatesToMock(t *testing.T) {
-	resetClientGRPCTestState(t)
-	expectedErr := errors.New("close failed")
-	cli := NewIClient(&mockClient{closeErr: expectedErr}, nil)
-
-	err := cli.Close()
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf("Close() error = %v", err)
 	}
 }
 
@@ -437,13 +420,13 @@ func TestBuildClient(t *testing.T) {
 		},
 		{
 			name:    "requires builder",
-			client:  func() IClient { return NewIClient(nil, nil) },
+			client:  func() IClient { return NewIClient(nil) },
 			wantErr: true,
 		},
 		{
 			name: "propagates connect error",
 			client: func() IClient {
-				return NewIClient(&mockClient{connectErr: errors.New("connect failed")}, nil)
+				return &mockClient{connectErr: errors.New("connect failed")}
 			},
 			builder: func(grpc.ClientConnInterface) *struct{} { return &struct{}{} },
 			wantErr: true,
@@ -451,7 +434,7 @@ func TestBuildClient(t *testing.T) {
 		{
 			name: "requires connection after connect",
 			client: func() IClient {
-				return NewIClient(&mockClient{}, nil)
+				return &mockClient{}
 			},
 			builder: func(grpc.ClientConnInterface) *struct{} { return &struct{}{} },
 			wantErr: true,
@@ -464,7 +447,7 @@ func TestBuildClient(t *testing.T) {
 					t.Fatalf("grpc.NewClient() failed: %v", err)
 				}
 				t.Cleanup(func() { _ = conn.Close() })
-				return NewIClient(nil, conn)
+				return NewIClient(conn)
 			},
 			builder: func(grpc.ClientConnInterface) *struct{} { return &struct{}{} },
 		},
@@ -512,7 +495,7 @@ func TestBuildClientWithProtoClientAndBufconn(t *testing.T) {
 	}
 	defer conn.Close()
 
-	cli := NewIClient(nil, conn)
+	cli := NewIClient(conn)
 	greeter, err := BuildClient(cli, pb.NewGreeterClient)
 	if err != nil {
 		t.Fatalf("BuildClient() failed: %v", err)
@@ -536,7 +519,7 @@ func TestBuildClientWithTracingAndMetadata(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer server.Stop()
 
-	cli := NewIClient(nil, nil)
+	cli := NewIClient(nil)
 	cli.SetAddress("passthrough:///bufnet")
 	cli.SetDialOptions(
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
@@ -570,7 +553,7 @@ func TestClientStreamTracingInterceptor(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer server.Stop()
 
-	cli := NewIClient(nil, nil)
+	cli := NewIClient(nil)
 	cli.SetAddress("passthrough:///bufnet")
 	cli.SetDialOptions(
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
@@ -778,7 +761,7 @@ func TestConnectWithTLSAndMTLS(t *testing.T) {
 		go func() { _ = server.Serve(listener) }()
 		defer server.Stop()
 
-		cli := NewIClient(nil, nil)
+		cli := NewIClient(nil)
 		cli.SetAddress("passthrough:///tls")
 		cli.SetDialOptions(grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return listener.Dial()
@@ -817,7 +800,7 @@ func TestConnectWithTLSAndMTLS(t *testing.T) {
 			}, opts...)...)
 		}
 
-		cli := NewIClient(nil, nil)
+		cli := NewIClient(nil)
 		cli.SetAddress("passthrough:///tls-default")
 		viper.Set("client.grpc.tls.enable", true)
 		viper.Set("client.grpc.tls.caFile", certs.caCertFile)

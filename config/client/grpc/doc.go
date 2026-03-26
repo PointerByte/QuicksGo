@@ -46,7 +46,7 @@
 //	)
 //
 //	func main() {
-//		cli := clientgrpc.NewIClient(nil, nil)
+//		cli := clientgrpc.NewIClient(nil)
 //		cli.SetAddress("localhost:50051")
 //
 //		greeter, err := clientgrpc.BuildClient(cli, pb.NewGreeterClient)

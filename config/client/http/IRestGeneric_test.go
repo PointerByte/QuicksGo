@@ -38,7 +38,7 @@ func getDefaultTransport() *http.Transport {
 }
 
 func TestNewGenericRest(t *testing.T) {
-	NewGenericRest(nil, time.Second, getDefaultTransport())
+	NewGenericRest(time.Second, getDefaultTransport())
 }
 
 func TestRestGeneric_PostGeneric(t *testing.T) {
@@ -54,7 +54,6 @@ func TestRestGeneric_PostGeneric(t *testing.T) {
 	}{
 		{name: "success"},
 		{name: "marshal_error", input: RequestGeneric{Request: func() {}}, wantErr: true},
-		{name: "delegates_to_mock", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -80,7 +79,7 @@ func TestRestGeneric_PostGeneric(t *testing.T) {
 					Request:  map[string]any{"name": "Manuel"},
 					Response: respObj,
 				}
-				gr := NewGenericRest(nil, time.Second, getDefaultTransport()).(*RestGeneric)
+				gr := NewGenericRest(time.Second, getDefaultTransport()).(*RestGeneric)
 				gr.DisableTrace()
 				gotErr := gr.PostGeneric(context.Background(), input)
 				if gotErr != nil {
@@ -99,23 +98,11 @@ func TestRestGeneric_PostGeneric(t *testing.T) {
 					t.Fatalf("response = %+v", respObj)
 				}
 			case "marshal_error":
-				gr := NewGenericRest(nil, time.Second, getDefaultTransport()).(*RestGeneric)
+				gr := NewGenericRest(time.Second, getDefaultTransport()).(*RestGeneric)
 				gr.DisableTrace()
 				gotErr := gr.PostGeneric(context.Background(), tt.input)
 				if gotErr == nil {
 					t.Fatal("PostGeneric() succeeded unexpectedly")
-				}
-			case "delegates_to_mock":
-				ctrl := gomock.NewController(t)
-				defer ctrl.Finish()
-				mock := NewMockIRestGeneric(ctrl)
-				gr := NewGenericRest(mock, time.Second, getDefaultTransport()).(*RestGeneric)
-				input := RequestGeneric{System: "sys", Process: "post"}
-				expectedErr := errors.New("mock post")
-				mock.EXPECT().PostGeneric(gomock.Any(), input).Return(expectedErr)
-				gotErr := gr.PostGeneric(context.Background(), input)
-				if !errors.Is(gotErr, expectedErr) {
-					t.Fatalf("error = %v", gotErr)
 				}
 			}
 		})
@@ -135,7 +122,6 @@ func TestGenericRest_GetGeneric(t *testing.T) {
 	}{
 		{name: "success_with_url"},
 		{name: "success_with_params"},
-		{name: "delegates_to_mock", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -168,7 +154,7 @@ func TestGenericRest_GetGeneric(t *testing.T) {
 					input.Params = url.Values{"page": []string{"1"}, "filter": []string{"hello world"}}
 				}
 
-				gr := NewGenericRest(nil, time.Second, getDefaultTransport()).(*RestGeneric)
+				gr := NewGenericRest(time.Second, getDefaultTransport()).(*RestGeneric)
 				gr.DisableTrace()
 				gotErr := gr.GetGeneric(context.Background(), input)
 				if gotErr != nil {
@@ -192,18 +178,6 @@ func TestGenericRest_GetGeneric(t *testing.T) {
 				if respObj.Message != "ok" {
 					t.Fatalf("response = %+v", respObj)
 				}
-			case "delegates_to_mock":
-				ctrl := gomock.NewController(t)
-				defer ctrl.Finish()
-				mock := NewMockIRestGeneric(ctrl)
-				gr := NewGenericRest(mock, time.Second, getDefaultTransport()).(*RestGeneric)
-				input := RequestGeneric{System: "sys", Process: "get"}
-				expectedErr := errors.New("mock get")
-				mock.EXPECT().GetGeneric(gomock.Any(), input).Return(expectedErr)
-				gotErr := gr.GetGeneric(context.Background(), input)
-				if !errors.Is(gotErr, expectedErr) {
-					t.Fatalf("error = %v", gotErr)
-				}
 			}
 		})
 	}
@@ -222,7 +196,6 @@ func TestGenericRest_PutGeneric(t *testing.T) {
 	}{
 		{name: "success"},
 		{name: "marshal_error", input: RequestGeneric{Request: func() {}}, wantErr: true},
-		{name: "delegates_to_mock", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -247,7 +220,7 @@ func TestGenericRest_PutGeneric(t *testing.T) {
 					Request:  map[string]any{"id": 10},
 					Response: respObj,
 				}
-				gr := NewGenericRest(nil, time.Second, getDefaultTransport()).(*RestGeneric)
+				gr := NewGenericRest(time.Second, getDefaultTransport()).(*RestGeneric)
 				gr.DisableTrace()
 				gotErr := gr.PutGeneric(context.Background(), input)
 				if gotErr != nil {
@@ -263,23 +236,11 @@ func TestGenericRest_PutGeneric(t *testing.T) {
 					t.Fatalf("response = %+v", respObj)
 				}
 			case "marshal_error":
-				gr := NewGenericRest(nil, time.Second, getDefaultTransport()).(*RestGeneric)
+				gr := NewGenericRest(time.Second, getDefaultTransport()).(*RestGeneric)
 				gr.DisableTrace()
 				gotErr := gr.PutGeneric(context.Background(), tt.input)
 				if gotErr == nil {
 					t.Fatal("PutGeneric() succeeded unexpectedly")
-				}
-			case "delegates_to_mock":
-				ctrl := gomock.NewController(t)
-				defer ctrl.Finish()
-				mock := NewMockIRestGeneric(ctrl)
-				gr := NewGenericRest(mock, time.Second, getDefaultTransport()).(*RestGeneric)
-				input := RequestGeneric{System: "sys", Process: "put"}
-				expectedErr := errors.New("mock put")
-				mock.EXPECT().PutGeneric(gomock.Any(), input).Return(expectedErr)
-				gotErr := gr.PutGeneric(context.Background(), input)
-				if !errors.Is(gotErr, expectedErr) {
-					t.Fatalf("error = %v", gotErr)
 				}
 			}
 		})
@@ -299,7 +260,6 @@ func TestGenericRest_PatchGeneric(t *testing.T) {
 	}{
 		{name: "success"},
 		{name: "marshal_error", input: RequestGeneric{Request: func() {}}, wantErr: true},
-		{name: "delegates_to_mock", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -322,7 +282,7 @@ func TestGenericRest_PatchGeneric(t *testing.T) {
 					Request:  map[string]any{"active": true},
 					Response: respObj,
 				}
-				gr := NewGenericRest(nil, time.Second, getDefaultTransport()).(*RestGeneric)
+				gr := NewGenericRest(time.Second, getDefaultTransport()).(*RestGeneric)
 				gr.DisableTrace()
 				gotErr := gr.PatchGeneric(context.Background(), input)
 				if gotErr != nil {
@@ -338,23 +298,11 @@ func TestGenericRest_PatchGeneric(t *testing.T) {
 					t.Fatalf("response = %+v", respObj)
 				}
 			case "marshal_error":
-				gr := NewGenericRest(nil, time.Second, getDefaultTransport()).(*RestGeneric)
+				gr := NewGenericRest(time.Second, getDefaultTransport()).(*RestGeneric)
 				gr.DisableTrace()
 				gotErr := gr.PatchGeneric(context.Background(), tt.input)
 				if gotErr == nil {
 					t.Fatal("PatchGeneric() succeeded unexpectedly")
-				}
-			case "delegates_to_mock":
-				ctrl := gomock.NewController(t)
-				defer ctrl.Finish()
-				mock := NewMockIRestGeneric(ctrl)
-				gr := NewGenericRest(mock, time.Second, getDefaultTransport()).(*RestGeneric)
-				input := RequestGeneric{System: "sys", Process: "patch"}
-				expectedErr := errors.New("mock patch")
-				mock.EXPECT().PatchGeneric(gomock.Any(), input).Return(expectedErr)
-				gotErr := gr.PatchGeneric(context.Background(), input)
-				if !errors.Is(gotErr, expectedErr) {
-					t.Fatalf("error = %v", gotErr)
 				}
 			}
 		})
@@ -374,7 +322,6 @@ func TestGenericRest_OptionGeneric(t *testing.T) {
 	}{
 		{name: "success"},
 		{name: "marshal_error", input: RequestGeneric{Request: func() {}}, wantErr: true},
-		{name: "delegates_to_mock", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -398,7 +345,7 @@ func TestGenericRest_OptionGeneric(t *testing.T) {
 					Request:  map[string]any{"check": "yes"},
 					Response: respObj,
 				}
-				gr := NewGenericRest(nil, time.Second, getDefaultTransport()).(*RestGeneric)
+				gr := NewGenericRest(time.Second, getDefaultTransport()).(*RestGeneric)
 				gr.DisableTrace()
 				gotErr := gr.OptionGeneric(context.Background(), input)
 				if gotErr != nil {
@@ -414,25 +361,47 @@ func TestGenericRest_OptionGeneric(t *testing.T) {
 					t.Fatalf("response = %+v", respObj)
 				}
 			case "marshal_error":
-				gr := NewGenericRest(nil, time.Second, getDefaultTransport()).(*RestGeneric)
+				gr := NewGenericRest(time.Second, getDefaultTransport()).(*RestGeneric)
 				gr.DisableTrace()
 				gotErr := gr.OptionGeneric(context.Background(), tt.input)
 				if gotErr == nil {
 					t.Fatal("OptionGeneric() succeeded unexpectedly")
 				}
-			case "delegates_to_mock":
-				ctrl := gomock.NewController(t)
-				defer ctrl.Finish()
-				mock := NewMockIRestGeneric(ctrl)
-				gr := NewGenericRest(mock, time.Second, getDefaultTransport()).(*RestGeneric)
-				input := RequestGeneric{System: "sys", Process: "option"}
-				expectedErr := errors.New("mock option")
-				mock.EXPECT().OptionGeneric(gomock.Any(), input).Return(expectedErr)
-				gotErr := gr.OptionGeneric(context.Background(), input)
-				if !errors.Is(gotErr, expectedErr) {
-					t.Fatalf("error = %v", gotErr)
-				}
 			}
 		})
+	}
+}
+
+func TestMockIRestGenericMethods(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+	input := RequestGeneric{System: "sys", Process: "proc"}
+	expectedErr := errors.New("mock generic")
+
+	mock := NewMockIRestGeneric(ctrl)
+	mock.EXPECT().DisableTrace()
+	mock.EXPECT().PostGeneric(ctx, input).Return(expectedErr)
+	mock.EXPECT().GetGeneric(ctx, input).Return(expectedErr)
+	mock.EXPECT().PutGeneric(ctx, input).Return(expectedErr)
+	mock.EXPECT().PatchGeneric(ctx, input).Return(expectedErr)
+	mock.EXPECT().OptionGeneric(ctx, input).Return(expectedErr)
+
+	mock.DisableTrace()
+	if err := mock.PostGeneric(ctx, input); !errors.Is(err, expectedErr) {
+		t.Fatalf("PostGeneric() error = %v", err)
+	}
+	if err := mock.GetGeneric(ctx, input); !errors.Is(err, expectedErr) {
+		t.Fatalf("GetGeneric() error = %v", err)
+	}
+	if err := mock.PutGeneric(ctx, input); !errors.Is(err, expectedErr) {
+		t.Fatalf("PutGeneric() error = %v", err)
+	}
+	if err := mock.PatchGeneric(ctx, input); !errors.Is(err, expectedErr) {
+		t.Fatalf("PatchGeneric() error = %v", err)
+	}
+	if err := mock.OptionGeneric(ctx, input); !errors.Is(err, expectedErr) {
+		t.Fatalf("OptionGeneric() error = %v", err)
 	}
 }
