@@ -19,7 +19,7 @@ import (
 //
 // symmetricalAccess must be a Base64-encoded AES key whose decoded size is 16,
 // 24, or 32 bytes.
-func EncryptAES(symmetricalAccess, valorCampo string) (string, error) {
+func EncryptAES(symmetricalAccess, valorCampo, additionalData string) (string, error) {
 	aesKeyBytes, err := base64.StdEncoding.DecodeString(symmetricalAccess)
 	if err != nil {
 		return "", fmt.Errorf("error al decodificar clave AES: %w", err)
@@ -40,13 +40,13 @@ func EncryptAES(symmetricalAccess, valorCampo string) (string, error) {
 		return "", fmt.Errorf("error al generar nonce: %w", err)
 	}
 
-	cipherText := gcm.Seal(nil, nonce, []byte(valorCampo), nil)
+	cipherText := gcm.Seal(nil, nonce, []byte(valorCampo), []byte(additionalData))
 	payload := append(nonce, cipherText...)
 	return base64.StdEncoding.EncodeToString(payload), nil
 }
 
 // DecryptAES decrypts payloads produced by EncryptAES using AES-GCM.
-func DecryptAES(symmetricalAccess, valorCifrado string) (string, error) {
+func DecryptAES(symmetricalAccess, valorCifrado, additionalData string) (string, error) {
 	aesKeyBytes, err := base64.StdEncoding.DecodeString(symmetricalAccess)
 	if err != nil {
 		return "", fmt.Errorf("error al decodificar clave AES: %w", err)
@@ -73,10 +73,9 @@ func DecryptAES(symmetricalAccess, valorCifrado string) (string, error) {
 
 	nonce := allBytes[:gcm.NonceSize()]
 	cipherText := allBytes[gcm.NonceSize():]
-	plainText, err := gcm.Open(nil, nonce, cipherText, nil)
+	plainText, err := gcm.Open(nil, nonce, cipherText, []byte(additionalData))
 	if err != nil {
 		return "", fmt.Errorf("error al desencriptar AES-GCM: %w", err)
 	}
-
 	return string(plainText), nil
 }
