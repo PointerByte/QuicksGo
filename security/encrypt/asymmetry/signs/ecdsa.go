@@ -135,7 +135,7 @@ func SignSHA256(key []byte, privateKey *rsa.PrivateKey) ([]byte, error) {
 }
 
 // VerifySHA256 validates an RSA PKCS#1 v1.5 signature with SHA-256.
-func VerifySHA256(key []byte, signature []byte, publicKey *rsa.PublicKey) error {
+func VerifySHA256(key, signature []byte, publicKey *rsa.PublicKey) error {
 	if publicKey == nil {
 		return errors.New("public key is required")
 	}
