@@ -215,13 +215,7 @@ def build_report(projects: list[Path], deps: list[dict]) -> str:
     lines = [
         "THIRD PARTY LICENSES",
         "=" * 80,
-        "",
-        "Scanned Go projects:",
-        "",
     ]
-
-    for project in projects:
-        lines.append(f"- {project}")
 
     lines.extend([
         "",
@@ -291,10 +285,6 @@ def main() -> None:
 
         deps = merge_dependencies(project_paths)
 
-        print("Scanned Go projects:")
-        for project_path in project_paths:
-            print(f"- {project_path}")
-
         print("\nDirect dependencies found:")
         if not deps:
             print("- None")
@@ -317,3 +307,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# python .\main.py --project "../../cmd/qgo" --project "../../security" --project "../../logger" --project "../../config" --project "../../"

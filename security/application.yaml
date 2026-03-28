@@ -8,3 +8,10 @@ jwt:
     algorithm: RS256
     private_key: "replace-with-base64-pkcs8-private-key"
     public_key: "replace-with-base64-x509-public-key"
+encrypt:
+  aws-kms:
+    arn: ""
+  azure-key-vault:
+    key-id: ""
+  gcp-kms:
+    key-id: ""

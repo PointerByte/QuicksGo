@@ -16,8 +16,7 @@ import (
 	"fmt"
 	"strings"
 
-	rsautil "github.com/PointerByte/QuicksGo/security/encrypt/asymmetry/rsa"
-	signutil "github.com/PointerByte/QuicksGo/security/encrypt/asymmetry/signs"
+	"github.com/PointerByte/QuicksGo/security/encrypt"
 	"github.com/spf13/viper"
 )
 
@@ -107,16 +106,19 @@ type hmacSHA256Strategy struct {
 }
 
 type rsaSHA256Strategy struct {
+	signutil   encrypt.SignatureRepository
 	privateKey *rsa.PrivateKey
 	publicKey  *rsa.PublicKey
 }
 
 type rsaPSSSHA256Strategy struct {
+	signutil   encrypt.SignatureRepository
 	privateKey *rsa.PrivateKey
 	publicKey  *rsa.PublicKey
 }
 
 type ed25519Strategy struct {
+	signutil   encrypt.SignatureRepository
 	privateKey ed25519.PrivateKey
 	publicKey  ed25519.PublicKey
 }
@@ -229,7 +231,7 @@ func NewRSAPSSService(input RSAServiceInput) (*Service, error) {
 	if privateKey == nil {
 		value := viper.GetString(privateKeyConfig)
 		if value != "" {
-			parsedKey, err := rsautil.ParseRSAPrivateKeyFromBase64(value)
+			parsedKey, err := encrypt.ParseRSAPrivateKeyFromBase64(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse rsa private key from key %s: %w", privateKeyConfig, err)
 			}
@@ -242,7 +244,7 @@ func NewRSAPSSService(input RSAServiceInput) (*Service, error) {
 	if publicKey == nil {
 		value := viper.GetString(publicKeyConfig)
 		if value != "" {
-			parsedKey, err := rsautil.ParseRSAPublicKeyFromBase64(value)
+			parsedKey, err := encrypt.ParseRSAPublicKeyFromBase64(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse rsa public key from key %s: %w", publicKeyConfig, err)
 			}
@@ -264,7 +266,7 @@ func NewEd25519Service(input Ed25519ServiceInput) (*Service, error) {
 	if privateKey == nil {
 		value := viper.GetString(privateKeyConfig)
 		if value != "" {
-			parsedKey, err := signutil.ParseEd25519PrivateKeyFromBase64(value)
+			parsedKey, err := encrypt.ParseEd25519PrivateKeyFromBase64(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse ed25519 private key from key %s: %w", privateKeyConfig, err)
 			}
@@ -277,7 +279,7 @@ func NewEd25519Service(input Ed25519ServiceInput) (*Service, error) {
 	if publicKey == nil {
 		value := viper.GetString(publicKeyConfig)
 		if value != "" {
-			parsedKey, err := signutil.ParseEd25519PublicKeyFromBase64(value)
+			parsedKey, err := encrypt.ParseEd25519PublicKeyFromBase64(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse ed25519 public key from key %s: %w", publicKeyConfig, err)
 			}
@@ -317,7 +319,7 @@ func NewRSAService(input RSAServiceInput) (*Service, error) {
 	if privateKey == nil {
 		value := viper.GetString(privateKeyConfig)
 		if value != "" {
-			parsedKey, err := rsautil.ParseRSAPrivateKeyFromBase64(value)
+			parsedKey, err := encrypt.ParseRSAPrivateKeyFromBase64(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse rsa private key from key %s: %w", privateKeyConfig, err)
 			}
@@ -330,7 +332,7 @@ func NewRSAService(input RSAServiceInput) (*Service, error) {
 	if publicKey == nil {
 		value := viper.GetString(publicKeyConfig)
 		if value != "" {
-			parsedKey, err := rsautil.ParseRSAPublicKeyFromBase64(value)
+			parsedKey, err := encrypt.ParseRSAPublicKeyFromBase64(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse rsa public key from key %s: %w", publicKeyConfig, err)
 			}
@@ -354,6 +356,7 @@ func NewHMACSHA256(secret string) Strategy {
 // The private key is used to sign tokens and the public key is used to verify them.
 func NewRSASHA256(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) Strategy {
 	return &rsaSHA256Strategy{
+		signutil:   encrypt.NewRepository(),
 		privateKey: privateKey,
 		publicKey:  publicKey,
 	}
@@ -362,6 +365,7 @@ func NewRSASHA256(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) Strategy
 // NewRSAPSSSHA256 returns an RSA-PSS SHA-256 signing strategy.
 func NewRSAPSSSHA256(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) Strategy {
 	return &rsaPSSSHA256Strategy{
+		signutil:   encrypt.NewRepository(),
 		privateKey: privateKey,
 		publicKey:  publicKey,
 	}
@@ -370,6 +374,7 @@ func NewRSAPSSSHA256(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) Strat
 // NewEd25519 returns an Ed25519 signing strategy.
 func NewEd25519(privateKey ed25519.PrivateKey, publicKey ed25519.PublicKey) Strategy {
 	return &ed25519Strategy{
+		signutil:   encrypt.NewRepository(),
 		privateKey: privateKey,
 		publicKey:  publicKey,
 	}
@@ -610,17 +615,20 @@ func (strategy *rsaSHA256Strategy) Sign(signingInput []byte) ([]byte, error) {
 	if strategy.privateKey == nil {
 		return nil, ErrMissingPrivateKey
 	}
-	return signutil.SignSHA256(signingInput, strategy.privateKey)
+	signatureB64, err := strategy.signutil.SignSHA256(string(signingInput), strategy.privateKey)
+	if err != nil {
+		return nil, err
+	}
+	return base64.StdEncoding.DecodeString(signatureB64)
 }
 
 func (strategy *rsaSHA256Strategy) Verify(signingInput []byte, signature []byte) error {
 	if strategy.publicKey == nil {
 		return ErrMissingPublicKey
 	}
-	if err := signutil.VerifySHA256(signingInput, signature, strategy.publicKey); err != nil {
+	if err := strategy.signutil.VerifySHA256(string(signingInput), base64.StdEncoding.EncodeToString(signature), strategy.publicKey); err != nil {
 		return ErrInvalidSignature
 	}
-
 	return nil
 }
 
@@ -633,7 +641,7 @@ func (strategy *rsaPSSSHA256Strategy) Sign(signingInput []byte) ([]byte, error) 
 		return nil, ErrMissingPrivateKey
 	}
 
-	signatureB64, err := signutil.SignRSAPSS(mustMarshalRSAPrivateKey(strategy.privateKey), string(signingInput))
+	signatureB64, err := strategy.signutil.SignRSAPSS(mustMarshalRSAPrivateKey(strategy.privateKey), string(signingInput))
 	if err != nil {
 		return nil, err
 	}
@@ -645,8 +653,7 @@ func (strategy *rsaPSSSHA256Strategy) Verify(signingInput []byte, signature []by
 		return ErrMissingPublicKey
 	}
 
-	signatureB64 := base64.StdEncoding.EncodeToString(signature)
-	if err := signutil.VerifyRSAPSS(mustMarshalRSAPublicKey(strategy.publicKey), string(signingInput), signatureB64); err != nil {
+	if err := strategy.signutil.VerifyRSAPSS(mustMarshalRSAPublicKey(strategy.publicKey), string(signingInput), base64.StdEncoding.EncodeToString(signature)); err != nil {
 		return ErrInvalidSignature
 	}
 	return nil
@@ -661,7 +668,7 @@ func (strategy *ed25519Strategy) Sign(signingInput []byte) ([]byte, error) {
 		return nil, ErrMissingEdDSAPrivateKey
 	}
 
-	signatureB64, err := signutil.SignEd25519(mustMarshalEd25519PrivateKey(strategy.privateKey), string(signingInput))
+	signatureB64, err := strategy.signutil.SignEd25519(mustMarshalEd25519PrivateKey(strategy.privateKey), string(signingInput))
 	if err != nil {
 		return nil, err
 	}
@@ -673,8 +680,7 @@ func (strategy *ed25519Strategy) Verify(signingInput []byte, signature []byte) e
 		return ErrMissingEdDSAPublicKey
 	}
 
-	signatureB64 := base64.StdEncoding.EncodeToString(signature)
-	if err := signutil.VerifyEd25519(mustMarshalEd25519PublicKey(strategy.publicKey), string(signingInput), signatureB64); err != nil {
+	if err := strategy.signutil.VerifyEd25519(mustMarshalEd25519PublicKey(strategy.publicKey), string(signingInput), base64.StdEncoding.EncodeToString(signature)); err != nil {
 		return ErrInvalidSignature
 	}
 	return nil
