@@ -11,16 +11,16 @@ import (
 
 type SymmetricRepository interface {
 	GeneratesSymetrycKey(size common.SizeSymetrycKey) (string, error)
-	EncryptAES(symmetricalAccess, valorCampo, additionalData string) (string, error)
-	DecryptAES(symmetricalAccess, valorCifrado, additionalData string) (string, error)
-	EncodeFernet(keyString, originalString string) (string, error)
-	DecodeFernet(keyString, encryptedString string) (string, error)
+	EncryptAES(symmetricalAccess, value, additionalData string) (string, error)
+	DecryptAES(symmetricalAccess, cipherValue, additionalData string) (string, error)
+	EncodeFernet(keyString, value string) (string, error)
+	DecodeFernet(keyString, cipherValue string) (string, error)
 }
 
 type AsymmetricRepository interface {
 	GeneratesRSAKey(size common.SizeAsymetrycKey) (priv string, pub string, _ error)
 	RSA_OAEP_Encode(key, text string) (string, error)
-	RSA_OAEP_Decode(key, text string) (string, error)
+	RSA_OAEP_Decode(key, cipherText string) (string, error)
 }
 
 type HashRepository interface {

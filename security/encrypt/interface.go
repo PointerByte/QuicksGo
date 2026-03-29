@@ -18,14 +18,14 @@ type SymmetricRepository interface {
 
 	// EncryptAES encrypts plaintext using a Base64-encoded AES key and optional
 	// additional authenticated data.
-	EncryptAES(symmetricalAccess, valorCampo, additionalData string) (string, error)
+	EncryptAES(symmetricalAccess, value, additionalData string) (string, error)
 	// DecryptAES decrypts Base64 ciphertext produced by EncryptAES.
-	DecryptAES(symmetricalAccess, valorCifrado, additionalData string) (string, error)
+	DecryptAES(symmetricalAccess, cipherValue, additionalData string) (string, error)
 
 	// EncodeFernet creates a Fernet-compatible token from plaintext.
-	EncodeFernet(keyString, originalString string) (string, error)
+	EncodeFernet(keyString, value string) (string, error)
 	// DecodeFernet validates and decrypts a Fernet-compatible token.
-	DecodeFernet(keyString, encryptedString string) (string, error)
+	DecodeFernet(keyString, cipherValue string) (string, error)
 }
 
 // AsymmetricRepository exposes RSA key generation and RSA-OAEP helpers.
@@ -36,7 +36,7 @@ type AsymmetricRepository interface {
 	RSA_OAEP_Encode(key, text string) (string, error)
 	// RSA_OAEP_Decode decrypts Base64 ciphertext with a Base64-encoded RSA
 	// private key.
-	RSA_OAEP_Decode(key, text string) (string, error)
+	RSA_OAEP_Decode(key, cipherText string) (string, error)
 }
 
 // HashRepository exposes hashing and message-authentication helpers.
@@ -75,5 +75,6 @@ type SignatureRepository interface {
 type Repository interface {
 	SymmetricRepository
 	AsymmetricRepository
+	HashRepository
 	SignatureRepository
 }

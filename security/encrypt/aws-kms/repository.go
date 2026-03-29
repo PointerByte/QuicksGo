@@ -94,20 +94,20 @@ func (repository *symmetricRepository) GeneratesSymetrycKey(size common.SizeSyme
 	return repository.local.GeneratesSymetrycKey(size)
 }
 
-func (repository *symmetricRepository) EncryptAES(symmetricalAccess, valorCampo, additionalData string) (string, error) {
-	return repository.local.EncryptAES(symmetricalAccess, valorCampo, additionalData)
+func (repository *symmetricRepository) EncryptAES(symmetricalAccess, value, additionalData string) (string, error) {
+	return repository.local.EncryptAES(symmetricalAccess, value, additionalData)
 }
 
-func (repository *symmetricRepository) DecryptAES(symmetricalAccess, valorCifrado, additionalData string) (string, error) {
-	return repository.local.DecryptAES(symmetricalAccess, valorCifrado, additionalData)
+func (repository *symmetricRepository) DecryptAES(symmetricalAccess, cipherValue, additionalData string) (string, error) {
+	return repository.local.DecryptAES(symmetricalAccess, cipherValue, additionalData)
 }
 
-func (repository *symmetricRepository) EncodeFernet(keyString, originalString string) (string, error) {
-	return repository.local.EncodeFernet(keyString, originalString)
+func (repository *symmetricRepository) EncodeFernet(keyString, value string) (string, error) {
+	return repository.local.EncodeFernet(keyString, value)
 }
 
-func (repository *symmetricRepository) DecodeFernet(keyString, encryptedString string) (string, error) {
-	return repository.local.DecodeFernet(keyString, encryptedString)
+func (repository *symmetricRepository) DecodeFernet(keyString, cipherValue string) (string, error) {
+	return repository.local.DecodeFernet(keyString, cipherValue)
 }
 
 func (repository *hashRepository) GenerateHMAC(message, secretKey string) string {
@@ -186,9 +186,9 @@ func (repository *asymmetricRepository) RSA_OAEP_Encode(key, text string) (strin
 	return base64.StdEncoding.EncodeToString(output.CiphertextBlob), nil
 }
 
-func (repository *asymmetricRepository) RSA_OAEP_Decode(key, text string) (string, error) {
+func (repository *asymmetricRepository) RSA_OAEP_Decode(key, cipherText string) (string, error) {
 	if _, err := ParseRSAPrivateKeyFromBase64(key); err == nil {
-		return repository.local.RSA_OAEP_Decode(key, text)
+		return repository.local.RSA_OAEP_Decode(key, cipherText)
 	}
 
 	client, err := newAWSKMSClient(context.Background())
@@ -201,7 +201,7 @@ func (repository *asymmetricRepository) RSA_OAEP_Decode(key, text string) (strin
 		return "", err
 	}
 
-	ciphertext, err := base64.StdEncoding.DecodeString(text)
+	ciphertext, err := base64.StdEncoding.DecodeString(cipherText)
 	if err != nil {
 		return "", fmt.Errorf("aws-kms: decode base64 ciphertext: %w", err)
 	}
