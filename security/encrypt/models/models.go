@@ -8,7 +8,6 @@ type SymmetricKeyData struct {
 }
 
 type AsymmetricKeyData struct {
-	Key        string
 	PrivateKey string
 	PublicKey  string
 	KeyID      string

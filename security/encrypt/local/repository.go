@@ -184,7 +184,6 @@ func (asymmetricRepository) GeneratesRSAKey(ctx context.Context, size common.Siz
 	publicDer := x509.MarshalPKCS1PublicKey(publicKey)
 	pub := base64.StdEncoding.EncodeToString(publicDer)
 	return &models.AsymmetricKeyData{
-		Key:        priv,
 		PrivateKey: priv,
 		PublicKey:  pub,
 		Provider:   "local",
@@ -258,7 +257,6 @@ func (signatureRepository) GeneratesEd255Key(ctx context.Context, size common.Si
 	}
 	pub := base64.StdEncoding.EncodeToString(publicDer)
 	return &models.AsymmetricKeyData{
-		Key:        priv,
 		PrivateKey: priv,
 		PublicKey:  pub,
 		Provider:   "local",
