@@ -615,7 +615,7 @@ func (strategy *rsaSHA256Strategy) Sign(signingInput []byte) ([]byte, error) {
 	if strategy.privateKey == nil {
 		return nil, ErrMissingPrivateKey
 	}
-	signatureB64, err := strategy.signutil.SignSHA256(string(signingInput), strategy.privateKey)
+	signatureB64, err := strategy.signutil.SignSHA256(context.Background(), string(signingInput), strategy.privateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -626,7 +626,7 @@ func (strategy *rsaSHA256Strategy) Verify(signingInput []byte, signature []byte)
 	if strategy.publicKey == nil {
 		return ErrMissingPublicKey
 	}
-	if err := strategy.signutil.VerifySHA256(string(signingInput), base64.StdEncoding.EncodeToString(signature), strategy.publicKey); err != nil {
+	if err := strategy.signutil.VerifySHA256(context.Background(), string(signingInput), base64.StdEncoding.EncodeToString(signature), strategy.publicKey); err != nil {
 		return ErrInvalidSignature
 	}
 	return nil
@@ -641,7 +641,7 @@ func (strategy *rsaPSSSHA256Strategy) Sign(signingInput []byte) ([]byte, error) 
 		return nil, ErrMissingPrivateKey
 	}
 
-	signatureB64, err := strategy.signutil.SignRSAPSS(mustMarshalRSAPrivateKey(strategy.privateKey), string(signingInput))
+	signatureB64, err := strategy.signutil.SignRSAPSS(context.Background(), mustMarshalRSAPrivateKey(strategy.privateKey), string(signingInput))
 	if err != nil {
 		return nil, err
 	}
@@ -653,7 +653,7 @@ func (strategy *rsaPSSSHA256Strategy) Verify(signingInput []byte, signature []by
 		return ErrMissingPublicKey
 	}
 
-	if err := strategy.signutil.VerifyRSAPSS(mustMarshalRSAPublicKey(strategy.publicKey), string(signingInput), base64.StdEncoding.EncodeToString(signature)); err != nil {
+	if err := strategy.signutil.VerifyRSAPSS(context.Background(), mustMarshalRSAPublicKey(strategy.publicKey), string(signingInput), base64.StdEncoding.EncodeToString(signature)); err != nil {
 		return ErrInvalidSignature
 	}
 	return nil
@@ -668,7 +668,7 @@ func (strategy *ed25519Strategy) Sign(signingInput []byte) ([]byte, error) {
 		return nil, ErrMissingEdDSAPrivateKey
 	}
 
-	signatureB64, err := strategy.signutil.SignEd25519(mustMarshalEd25519PrivateKey(strategy.privateKey), string(signingInput))
+	signatureB64, err := strategy.signutil.SignEd25519(context.Background(), mustMarshalEd25519PrivateKey(strategy.privateKey), string(signingInput))
 	if err != nil {
 		return nil, err
 	}
@@ -680,7 +680,7 @@ func (strategy *ed25519Strategy) Verify(signingInput []byte, signature []byte) e
 		return ErrMissingEdDSAPublicKey
 	}
 
-	if err := strategy.signutil.VerifyEd25519(mustMarshalEd25519PublicKey(strategy.publicKey), string(signingInput), base64.StdEncoding.EncodeToString(signature)); err != nil {
+	if err := strategy.signutil.VerifyEd25519(context.Background(), mustMarshalEd25519PublicKey(strategy.publicKey), string(signingInput), base64.StdEncoding.EncodeToString(signature)); err != nil {
 		return ErrInvalidSignature
 	}
 	return nil

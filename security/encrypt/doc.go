@@ -6,14 +6,15 @@
 //
 // The package groups helpers for:
 //   - symmetric encryption with AES-GCM
-//   - Fernet-compatible token encoding and decoding
 //   - hashing and HMAC generation
 //   - RSA key generation and RSA-OAEP encryption
 //   - Ed25519 and RSA-based digital signatures
 //
 // Applications can depend on the focused repository interfaces when they need
 // only one capability, or use NewRepository to obtain a combined entry point
-// for the main encryption services.
+// for the main encryption services. Every operation receives a context.Context
+// so callers can control request scope, deadlines, and cancellation across
+// local and provider-backed implementations.
 //
 // NewRepository selects its backend from viper key "encrypt.vault.mode".
 // Supported values are:

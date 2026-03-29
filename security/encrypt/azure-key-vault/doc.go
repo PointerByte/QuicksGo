@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package azurekeyvault provides the same repository-style cryptographic API as
-// the local package, specialized for Azure Key Vault integration points.
+// the local package, backed by Azure Key Vault when a Key Vault key reference
+// is supplied.
 //
-// Until Azure SDK integration is added to this repository, the package keeps
-// local-only primitives delegated to the local implementation and returns
-// explicit errors for provider-managed asymmetric operations that require a Key
-// Vault-backed private key.
+// The package supports provider-backed symmetric encryption, RSA-OAEP,
+// RSA-PSS, RSA SHA-256, and HMAC through the Azure SDK, while still routing
+// explicit local keys to the local implementation. Ed25519 remains local-only
+// because Azure Key Vault doesn't expose provider-backed Ed25519 operations in
+// this package.
 //
 // When a provider key identifier is needed, the package reads it from viper
-// using "encrypt.vault.azure-key-vault.key-id".
+// using "encrypt.vault.azure-key-vault.key-id", with compatibility fallback to
+// "encrypt.azure-key-vault.key-id".
 package azurekeyvault

@@ -5,6 +5,7 @@ package awskms
 
 import (
 	"context"
+	"crypto/aes"
 	"crypto/rsa"
 	"encoding/base64"
 	"errors"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/PointerByte/QuicksGo/security/encrypt/common"
 	"github.com/PointerByte/QuicksGo/security/encrypt/local"
+	"github.com/PointerByte/QuicksGo/security/encrypt/models"
 	sdkaws "github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	kms "github.com/aws/aws-sdk-go-v2/service/kms"
@@ -24,12 +26,11 @@ import (
 const defaultKMSARNKey = "encrypt.vault.aws-kms.arn"
 
 var (
-	errAWSKMSKeyARNRequired     = errors.New("aws-kms: key arn or id is required")
-	errAWSKMSEd25519Unsupported = errors.New("aws-kms: Ed25519 is not supported by this package")
-	loadDefaultAWSConfigFn      = awsconfig.LoadDefaultConfig
-	appendOTelMiddlewaresFn     = otelaws.AppendMiddlewares
-	loadAWSConfigFn             = loadAWSConfig
-	newKMSClientFn              = func(cfg sdkaws.Config) kmsClient {
+	errAWSKMSKeyARNRequired = errors.New("aws-kms: key arn or id is required")
+	loadDefaultAWSConfigFn  = awsconfig.LoadDefaultConfig
+	appendOTelMiddlewaresFn = otelaws.AppendMiddlewares
+	loadAWSConfigFn         = loadAWSConfig
+	newKMSClientFn          = func(cfg sdkaws.Config) kmsClient {
 		return kms.NewFromConfig(cfg)
 	}
 )
@@ -39,6 +40,8 @@ type kmsClient interface {
 	GetPublicKey(ctx context.Context, params *kms.GetPublicKeyInput, optFns ...func(*kms.Options)) (*kms.GetPublicKeyOutput, error)
 	Encrypt(ctx context.Context, params *kms.EncryptInput, optFns ...func(*kms.Options)) (*kms.EncryptOutput, error)
 	Decrypt(ctx context.Context, params *kms.DecryptInput, optFns ...func(*kms.Options)) (*kms.DecryptOutput, error)
+	GenerateMac(ctx context.Context, params *kms.GenerateMacInput, optFns ...func(*kms.Options)) (*kms.GenerateMacOutput, error)
+	VerifyMac(ctx context.Context, params *kms.VerifyMacInput, optFns ...func(*kms.Options)) (*kms.VerifyMacOutput, error)
 	Sign(ctx context.Context, params *kms.SignInput, optFns ...func(*kms.Options)) (*kms.SignOutput, error)
 	Verify(ctx context.Context, params *kms.VerifyInput, optFns ...func(*kms.Options)) (*kms.VerifyOutput, error)
 }
@@ -90,92 +93,226 @@ func NewRepository() *repository {
 	}
 }
 
-func (repository *symmetricRepository) GeneratesSymetrycKey(size common.SizeSymetrycKey) (string, error) {
-	return repository.local.GeneratesSymetrycKey(size)
-}
-
-func (repository *symmetricRepository) EncryptAES(symmetricalAccess, value, additionalData string) (string, error) {
-	return repository.local.EncryptAES(symmetricalAccess, value, additionalData)
-}
-
-func (repository *symmetricRepository) DecryptAES(symmetricalAccess, cipherValue, additionalData string) (string, error) {
-	return repository.local.DecryptAES(symmetricalAccess, cipherValue, additionalData)
-}
-
-func (repository *symmetricRepository) EncodeFernet(keyString, value string) (string, error) {
-	return repository.local.EncodeFernet(keyString, value)
-}
-
-func (repository *symmetricRepository) DecodeFernet(keyString, cipherValue string) (string, error) {
-	return repository.local.DecodeFernet(keyString, cipherValue)
-}
-
-func (repository *hashRepository) GenerateHMAC(message, secretKey string) string {
-	return repository.local.GenerateHMAC(message, secretKey)
-}
-
-func (repository *hashRepository) ValidateHMAC(message, secretKey, providedHash string) bool {
-	return repository.local.ValidateHMAC(message, secretKey, providedHash)
-}
-
-func (repository *hashRepository) Sha256Hex(message string) string {
-	return repository.local.Sha256Hex(message)
-}
-
-func (repository *hashRepository) Blake3(message string) string {
-	return repository.local.Blake3(message)
-}
-
-func (repository *asymmetricRepository) GeneratesRSAKey(size common.SizeAsymetrycKey) (priv string, pub string, _ error) {
-	client, err := newAWSKMSClient(context.Background())
+func (repository *symmetricRepository) GeneratesSymetrycKey(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error) {
+	keySpec, err := toAWSSymmetricKeySpec(size)
 	if err != nil {
-		return "", "", err
+		return nil, err
+	}
+
+	client, err := newAWSKMSClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	output, err := client.CreateKey(ctx, &kms.CreateKeyInput{
+		KeyUsage: types.KeyUsageTypeEncryptDecrypt,
+		KeySpec:  keySpec,
+		Origin:   types.OriginTypeAwsKms,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("aws-kms: create symmetric key: %w", err)
+	}
+	if output.KeyMetadata == nil || output.KeyMetadata.KeyId == nil || output.KeyMetadata.Arn == nil {
+		return nil, errors.New("aws-kms: missing key metadata from create symmetric key response")
+	}
+
+	keyID := sdkaws.ToString(output.KeyMetadata.KeyId)
+	keyRef := sdkaws.ToString(output.KeyMetadata.Arn)
+
+	return &models.SymmetricKeyData{
+		KeyID:    keyID,
+		KeyRef:   keyRef,
+		Provider: "aws-kms",
+	}, nil
+}
+
+func (repository *symmetricRepository) EncryptAES(ctx context.Context, secretKey, value string, additional *string) (string, error) {
+	if isLocalAESKey(secretKey) {
+		return repository.local.EncryptAES(ctx, secretKey, value, additional)
+	}
+
+	client, err := newAWSKMSClient(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	keyID, err := resolveAWSKMSKeyID(secretKey)
+	if err != nil {
+		return "", err
+	}
+
+	input := &kms.EncryptInput{
+		KeyId:     sdkaws.String(keyID),
+		Plaintext: []byte(value),
+	}
+	if additional != nil {
+		input.EncryptionContext = map[string]string{"additional": *additional}
+	}
+
+	output, err := client.Encrypt(ctx, input)
+	if err != nil {
+		return "", fmt.Errorf("aws-kms: encrypt with symmetric key: %w", err)
+	}
+	return base64.StdEncoding.EncodeToString(output.CiphertextBlob), nil
+}
+
+func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey, cipherValue, additionalData string) (string, error) {
+	if isLocalAESKey(secretKey) {
+		return repository.local.DecryptAES(ctx, secretKey, cipherValue, additionalData)
+	}
+
+	client, err := newAWSKMSClient(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	keyID, err := resolveAWSKMSKeyID(secretKey)
+	if err != nil {
+		return "", err
+	}
+
+	ciphertext, err := base64.StdEncoding.DecodeString(cipherValue)
+	if err != nil {
+		return "", fmt.Errorf("aws-kms: decode base64 ciphertext: %w", err)
+	}
+
+	input := &kms.DecryptInput{
+		KeyId:          sdkaws.String(keyID),
+		CiphertextBlob: ciphertext,
+	}
+	if additionalData != "" {
+		input.EncryptionContext = map[string]string{"additional": additionalData}
+	}
+
+	output, err := client.Decrypt(ctx, input)
+	if err != nil {
+		return "", fmt.Errorf("aws-kms: decrypt with symmetric key: %w", err)
+	}
+	return string(output.Plaintext), nil
+}
+
+func (repository *hashRepository) GenerateHMAC(ctx context.Context, message, secretKey string) string {
+	if !looksLikeAWSKMSKeyReference(secretKey) {
+		return repository.local.GenerateHMAC(ctx, message, secretKey)
+	}
+
+	client, err := newAWSKMSClient(ctx)
+	if err != nil {
+		return ""
+	}
+
+	keyID, err := resolveAWSKMSKeyID(secretKey)
+	if err != nil {
+		return ""
+	}
+
+	output, err := client.GenerateMac(ctx, &kms.GenerateMacInput{
+		KeyId:        sdkaws.String(keyID),
+		Message:      []byte(message),
+		MacAlgorithm: types.MacAlgorithmSpecHmacSha256,
+	})
+	if err != nil {
+		return ""
+	}
+	return base64.StdEncoding.EncodeToString(output.Mac)
+}
+
+func (repository *hashRepository) ValidateHMAC(ctx context.Context, message, secretKey, providedHash string) bool {
+	if !looksLikeAWSKMSKeyReference(secretKey) {
+		return repository.local.ValidateHMAC(ctx, message, secretKey, providedHash)
+	}
+
+	client, err := newAWSKMSClient(ctx)
+	if err != nil {
+		return false
+	}
+
+	keyID, err := resolveAWSKMSKeyID(secretKey)
+	if err != nil {
+		return false
+	}
+
+	mac, err := base64.StdEncoding.DecodeString(providedHash)
+	if err != nil {
+		return false
+	}
+
+	output, err := client.VerifyMac(ctx, &kms.VerifyMacInput{
+		KeyId:        sdkaws.String(keyID),
+		Mac:          mac,
+		Message:      []byte(message),
+		MacAlgorithm: types.MacAlgorithmSpecHmacSha256,
+	})
+	if err != nil {
+		return false
+	}
+	return output.MacValid
+}
+
+func (repository *hashRepository) Sha256Hex(ctx context.Context, message string) string {
+	return repository.local.Sha256Hex(ctx, message)
+}
+
+func (repository *hashRepository) Blake3(ctx context.Context, message string) string {
+	return repository.local.Blake3(ctx, message)
+}
+
+func (repository *asymmetricRepository) GeneratesRSAKey(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
+	client, err := newAWSKMSClient(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	keySpec, err := toAWSRSAKeySpec(size)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
-	output, err := client.CreateKey(context.Background(), &kms.CreateKeyInput{
+	output, err := client.CreateKey(ctx, &kms.CreateKeyInput{
 		KeyUsage: types.KeyUsageTypeEncryptDecrypt,
 		KeySpec:  keySpec,
 	})
 	if err != nil {
-		return "", "", fmt.Errorf("aws-kms: create rsa key: %w", err)
+		return nil, fmt.Errorf("aws-kms: create rsa key: %w", err)
 	}
 	if output.KeyMetadata == nil || output.KeyMetadata.KeyId == nil || output.KeyMetadata.Arn == nil {
-		return "", "", errors.New("aws-kms: missing key metadata from create key response")
+		return nil, errors.New("aws-kms: missing key metadata from create key response")
 	}
 
-	viper.Set(defaultKMSARNKey, sdkaws.ToString(output.KeyMetadata.Arn))
-
-	publicKeyOutput, err := client.GetPublicKey(context.Background(), &kms.GetPublicKeyInput{
+	publicKeyOutput, err := client.GetPublicKey(ctx, &kms.GetPublicKeyInput{
 		KeyId: output.KeyMetadata.KeyId,
 	})
 	if err != nil {
-		return "", "", fmt.Errorf("aws-kms: get public key: %w", err)
+		return nil, fmt.Errorf("aws-kms: get public key: %w", err)
 	}
 
-	return "", base64.StdEncoding.EncodeToString(publicKeyOutput.PublicKey), nil
+	keyID := sdkaws.ToString(output.KeyMetadata.KeyId)
+	keyRef := sdkaws.ToString(output.KeyMetadata.Arn)
+	publicKey := base64.StdEncoding.EncodeToString(publicKeyOutput.PublicKey)
+	return &models.AsymmetricKeyData{
+		PublicKey: publicKey,
+		KeyID:     keyID,
+		KeyRef:    keyRef,
+		Provider:  "aws-kms",
+	}, nil
 }
 
-func (repository *asymmetricRepository) RSA_OAEP_Encode(key, text string) (string, error) {
-	if _, err := ParseRSAPublicKeyFromBase64(key); err == nil {
-		return repository.local.RSA_OAEP_Encode(key, text)
+func (repository *asymmetricRepository) RSA_OAEP_Encode(ctx context.Context, publicKey, text string) (string, error) {
+	if _, err := ParseRSAPublicKeyFromBase64(publicKey); err == nil {
+		return repository.local.RSA_OAEP_Encode(ctx, publicKey, text)
 	}
 
-	client, err := newAWSKMSClient(context.Background())
+	client, err := newAWSKMSClient(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	keyID, err := resolveAWSKMSKeyID(key)
+	keyID, err := resolveAWSKMSKeyID(publicKey)
 	if err != nil {
 		return "", err
 	}
 
-	output, err := client.Encrypt(context.Background(), &kms.EncryptInput{
+	output, err := client.Encrypt(ctx, &kms.EncryptInput{
 		KeyId:               sdkaws.String(keyID),
 		Plaintext:           []byte(text),
 		EncryptionAlgorithm: types.EncryptionAlgorithmSpecRsaesOaepSha256,
@@ -186,17 +323,17 @@ func (repository *asymmetricRepository) RSA_OAEP_Encode(key, text string) (strin
 	return base64.StdEncoding.EncodeToString(output.CiphertextBlob), nil
 }
 
-func (repository *asymmetricRepository) RSA_OAEP_Decode(key, cipherText string) (string, error) {
-	if _, err := ParseRSAPrivateKeyFromBase64(key); err == nil {
-		return repository.local.RSA_OAEP_Decode(key, cipherText)
+func (repository *asymmetricRepository) RSA_OAEP_Decode(ctx context.Context, privateKey, cipherText string) (string, error) {
+	if _, err := ParseRSAPrivateKeyFromBase64(privateKey); err == nil {
+		return repository.local.RSA_OAEP_Decode(ctx, privateKey, cipherText)
 	}
 
-	client, err := newAWSKMSClient(context.Background())
+	client, err := newAWSKMSClient(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	keyID, err := resolveAWSKMSKeyID(key)
+	keyID, err := resolveAWSKMSKeyID(privateKey)
 	if err != nil {
 		return "", err
 	}
@@ -206,7 +343,7 @@ func (repository *asymmetricRepository) RSA_OAEP_Decode(key, cipherText string) 
 		return "", fmt.Errorf("aws-kms: decode base64 ciphertext: %w", err)
 	}
 
-	output, err := client.Decrypt(context.Background(), &kms.DecryptInput{
+	output, err := client.Decrypt(ctx, &kms.DecryptInput{
 		KeyId:               sdkaws.String(keyID),
 		CiphertextBlob:      ciphertext,
 		EncryptionAlgorithm: types.EncryptionAlgorithmSpecRsaesOaepSha256,
@@ -217,37 +354,122 @@ func (repository *asymmetricRepository) RSA_OAEP_Decode(key, cipherText string) 
 	return string(output.Plaintext), nil
 }
 
-func (repository *signatureRepository) GeneratesEd255Key(size common.SizeAsymetrycKey) (priv string, pub string, _ error) {
+func (repository *signatureRepository) GeneratesEd255Key(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
 	_ = size
-	return "", "", errAWSKMSEd25519Unsupported
-}
-
-func (repository *signatureRepository) SignEd25519(key, text string) (string, error) {
-	_, _ = key, text
-	return "", errAWSKMSEd25519Unsupported
-}
-
-func (repository *signatureRepository) VerifyEd25519(key, text, signature string) error {
-	_, _, _ = key, text, signature
-	return errAWSKMSEd25519Unsupported
-}
-
-func (repository *signatureRepository) SignRSAPSS(key, text string) (string, error) {
-	if _, err := ParseRSAPrivateKeyFromBase64(key); err == nil {
-		return repository.local.SignRSAPSS(key, text)
+	client, err := newAWSKMSClient(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	client, err := newAWSKMSClient(context.Background())
+	output, err := client.CreateKey(ctx, &kms.CreateKeyInput{
+		KeyUsage: types.KeyUsageTypeSignVerify,
+		KeySpec:  types.KeySpecEccNistEdwards25519,
+		Origin:   types.OriginTypeAwsKms,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("aws-kms: create ed25519 key: %w", err)
+	}
+	if output.KeyMetadata == nil || output.KeyMetadata.KeyId == nil || output.KeyMetadata.Arn == nil {
+		return nil, errors.New("aws-kms: missing key metadata from create ed25519 key response")
+	}
+
+	publicKeyOutput, err := client.GetPublicKey(ctx, &kms.GetPublicKeyInput{
+		KeyId: output.KeyMetadata.KeyId,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("aws-kms: get ed25519 public key: %w", err)
+	}
+
+	keyID := sdkaws.ToString(output.KeyMetadata.KeyId)
+	keyRef := sdkaws.ToString(output.KeyMetadata.Arn)
+	publicKey := base64.StdEncoding.EncodeToString(publicKeyOutput.PublicKey)
+	return &models.AsymmetricKeyData{
+		PublicKey: publicKey,
+		KeyID:     keyID,
+		KeyRef:    keyRef,
+		Provider:  "aws-kms",
+	}, nil
+}
+
+func (repository *signatureRepository) SignEd25519(ctx context.Context, privateKey, text string) (string, error) {
+	if _, err := ParseEd25519PrivateKeyFromBase64(privateKey); err == nil {
+		return repository.local.SignEd25519(ctx, privateKey, text)
+	}
+
+	client, err := newAWSKMSClient(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	keyID, err := resolveAWSKMSKeyID(key)
+	keyID, err := resolveAWSKMSKeyID(privateKey)
 	if err != nil {
 		return "", err
 	}
 
-	output, err := client.Sign(context.Background(), &kms.SignInput{
+	output, err := client.Sign(ctx, &kms.SignInput{
+		KeyId:            sdkaws.String(keyID),
+		Message:          []byte(text),
+		MessageType:      types.MessageTypeRaw,
+		SigningAlgorithm: types.SigningAlgorithmSpecEd25519Sha512,
+	})
+	if err != nil {
+		return "", fmt.Errorf("aws-kms: sign ed25519: %w", err)
+	}
+	return base64.StdEncoding.EncodeToString(output.Signature), nil
+}
+
+func (repository *signatureRepository) VerifyEd25519(ctx context.Context, publicKey, text, signature string) error {
+	if _, err := ParseEd25519PublicKeyFromBase64(publicKey); err == nil {
+		return repository.local.VerifyEd25519(ctx, publicKey, text, signature)
+	}
+
+	client, err := newAWSKMSClient(ctx)
+	if err != nil {
+		return err
+	}
+
+	keyID, err := resolveAWSKMSKeyID(publicKey)
+	if err != nil {
+		return err
+	}
+
+	signatureBytes, err := base64.StdEncoding.DecodeString(signature)
+	if err != nil {
+		return fmt.Errorf("aws-kms: decode signature from base64: %w", err)
+	}
+
+	output, err := client.Verify(ctx, &kms.VerifyInput{
+		KeyId:            sdkaws.String(keyID),
+		Message:          []byte(text),
+		MessageType:      types.MessageTypeRaw,
+		Signature:        signatureBytes,
+		SigningAlgorithm: types.SigningAlgorithmSpecEd25519Sha512,
+	})
+	if err != nil {
+		return fmt.Errorf("aws-kms: verify ed25519: %w", err)
+	}
+	if !output.SignatureValid {
+		return errors.New("aws-kms: invalid Ed25519 signature")
+	}
+	return nil
+}
+
+func (repository *signatureRepository) SignRSAPSS(ctx context.Context, privateKey, text string) (string, error) {
+	if _, err := ParseRSAPrivateKeyFromBase64(privateKey); err == nil {
+		return repository.local.SignRSAPSS(ctx, privateKey, text)
+	}
+
+	client, err := newAWSKMSClient(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	keyID, err := resolveAWSKMSKeyID(privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	output, err := client.Sign(ctx, &kms.SignInput{
 		KeyId:            sdkaws.String(keyID),
 		Message:          []byte(text),
 		MessageType:      types.MessageTypeRaw,
@@ -259,17 +481,17 @@ func (repository *signatureRepository) SignRSAPSS(key, text string) (string, err
 	return base64.StdEncoding.EncodeToString(output.Signature), nil
 }
 
-func (repository *signatureRepository) VerifyRSAPSS(key, text, signature string) error {
-	if _, err := ParseRSAPublicKeyFromBase64(key); err == nil {
-		return repository.local.VerifyRSAPSS(key, text, signature)
+func (repository *signatureRepository) VerifyRSAPSS(ctx context.Context, publicKey, text, signature string) error {
+	if _, err := ParseRSAPublicKeyFromBase64(publicKey); err == nil {
+		return repository.local.VerifyRSAPSS(ctx, publicKey, text, signature)
 	}
 
-	client, err := newAWSKMSClient(context.Background())
+	client, err := newAWSKMSClient(ctx)
 	if err != nil {
 		return err
 	}
 
-	keyID, err := resolveAWSKMSKeyID(key)
+	keyID, err := resolveAWSKMSKeyID(publicKey)
 	if err != nil {
 		return err
 	}
@@ -279,7 +501,7 @@ func (repository *signatureRepository) VerifyRSAPSS(key, text, signature string)
 		return fmt.Errorf("aws-kms: decode signature from base64: %w", err)
 	}
 
-	output, err := client.Verify(context.Background(), &kms.VerifyInput{
+	output, err := client.Verify(ctx, &kms.VerifyInput{
 		KeyId:            sdkaws.String(keyID),
 		Message:          []byte(text),
 		MessageType:      types.MessageTypeRaw,
@@ -295,12 +517,12 @@ func (repository *signatureRepository) VerifyRSAPSS(key, text, signature string)
 	return nil
 }
 
-func (repository *signatureRepository) SignSHA256(data string, privateKey *rsa.PrivateKey) (string, error) {
+func (repository *signatureRepository) SignSHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error) {
 	if privateKey != nil {
-		return repository.local.SignSHA256(data, privateKey)
+		return repository.local.SignSHA256(ctx, data, privateKey)
 	}
 
-	client, err := newAWSKMSClient(context.Background())
+	client, err := newAWSKMSClient(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -310,7 +532,7 @@ func (repository *signatureRepository) SignSHA256(data string, privateKey *rsa.P
 		return "", err
 	}
 
-	output, err := client.Sign(context.Background(), &kms.SignInput{
+	output, err := client.Sign(ctx, &kms.SignInput{
 		KeyId:            sdkaws.String(keyID),
 		Message:          []byte(data),
 		MessageType:      types.MessageTypeRaw,
@@ -322,12 +544,12 @@ func (repository *signatureRepository) SignSHA256(data string, privateKey *rsa.P
 	return base64.StdEncoding.EncodeToString(output.Signature), nil
 }
 
-func (repository *signatureRepository) VerifySHA256(data, signature string, publicKey *rsa.PublicKey) error {
+func (repository *signatureRepository) VerifySHA256(ctx context.Context, data, signature string, publicKey *rsa.PublicKey) error {
 	if publicKey != nil {
-		return repository.local.VerifySHA256(data, signature, publicKey)
+		return repository.local.VerifySHA256(ctx, data, signature, publicKey)
 	}
 
-	client, err := newAWSKMSClient(context.Background())
+	client, err := newAWSKMSClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -342,7 +564,7 @@ func (repository *signatureRepository) VerifySHA256(data, signature string, publ
 		return fmt.Errorf("aws-kms: decode signature from base64: %w", err)
 	}
 
-	output, err := client.Verify(context.Background(), &kms.VerifyInput{
+	output, err := client.Verify(ctx, &kms.VerifyInput{
 		KeyId:            sdkaws.String(keyID),
 		Message:          []byte(data),
 		MessageType:      types.MessageTypeRaw,
@@ -396,4 +618,33 @@ func toAWSRSAKeySpec(size common.SizeAsymetrycKey) (types.KeySpec, error) {
 	default:
 		return "", fmt.Errorf("aws-kms: unsupported rsa key size: %d", size)
 	}
+}
+
+func toAWSSymmetricKeySpec(size common.SizeSymetrycKey) (types.KeySpec, error) {
+	switch size {
+	case common.Key256Bits:
+		return types.KeySpecSymmetricDefault, nil
+	default:
+		return "", fmt.Errorf("aws-kms: unsupported symmetric key size: %d", size)
+	}
+}
+
+func isLocalAESKey(key string) bool {
+	decoded, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return false
+	}
+	_, err = aes.NewCipher(decoded)
+	return err == nil
+}
+
+func looksLikeAWSKMSKeyReference(key string) bool {
+	trimmed := strings.TrimSpace(key)
+	if trimmed == "" {
+		return strings.TrimSpace(viper.GetString(defaultKMSARNKey)) != ""
+	}
+	return strings.HasPrefix(trimmed, "arn:aws:kms:") ||
+		strings.HasPrefix(trimmed, "alias/") ||
+		strings.HasPrefix(trimmed, "mrk-") ||
+		strings.Count(trimmed, "-") >= 4
 }

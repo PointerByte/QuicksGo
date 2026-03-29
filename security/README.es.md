@@ -19,9 +19,11 @@ go get github.com/PointerByte/QuicksGo/security
 - `auth/jwt`: creacion, validacion y lectura de JWT
 - `auth/cookies`: validacion y lectura de JWT desde cookies HTTP
 - `middlewares`: middlewares para Gin (`RequireJWT`, `RequireJWTCookie`, headers de seguridad)
-- `encrypt/symmetry`: AES-GCM, Fernet y hashes/HMAC
-- `encrypt/rsa`: parseo de llaves, cifrado RSA-OAEP, firma RSA SHA-256 y RSA-PSS
-- `encrypt/signs`: helpers para Ed25519 y RSA-PSS
+- `encrypt`: API por repositorios con `context.Context` para AES-GCM, HMAC, hashes, RSA y firmas digitales
+- `encrypt/local`: implementacion local con material criptografico exportable
+- `encrypt/aws-kms`: implementacion orientada a AWS KMS
+- `encrypt/azure-key-vault`: implementacion orientada a Azure Key Vault con fallbacks locales
+- `encrypt/gcp-kms`: implementacion orientada a Google Cloud KMS con fallbacks locales
 
 ## Configuracion con Viper
 
@@ -198,58 +200,77 @@ router.Use(middlewares.RequireJWTCookie(
 
 Por defecto lee la cookie configurada en `jwt.cookie.name`, o `access_token` cuando esa clave no esta definida.
 
-## Cifrado simetrico
+## Uso de Encrypt
+
+El modulo de cifrado expone ahora una API por repositorios desde `encrypt`.
+
+### Crear un repositorio
+
+```go
+import (
+	"context"
+
+	"github.com/PointerByte/QuicksGo/security/encrypt"
+)
+
+ctx := context.Background()
+repository := encrypt.NewRepository()
+```
 
 ### AES-GCM
 
 ```go
-import symmetry "github.com/PointerByte/QuicksGo/security/encrypt/symmetry"
+keyData, err := repository.GeneratesSymetrycKey(ctx, 32)
+if err != nil {
+	panic(err)
+}
 
-encrypted, err := symmetry.EncryptAES(aesKeyBase64, "hello")
-plainText, err := symmetry.DecryptAES(aesKeyBase64, encrypted)
+additional := "aad"
+encrypted, err := repository.EncryptAES(ctx, keyData.Key, "hello", &additional)
+if err != nil {
+	panic(err)
+}
+
+plainText, err := repository.DecryptAES(ctx, keyData.Key, encrypted, additional)
 ```
 
 ### HMAC
 
 ```go
-hash := symmetry.GenerateHMAC("message", "secret")
-ok := symmetry.ValidateHMAC("message", "secret", hash)
+hash := repository.GenerateHMAC(ctx, "message", "secret")
+ok := repository.ValidateHMAC(ctx, "message", "secret", hash)
 ```
 
-## RSA
-
-### Cifrado RSA-OAEP con SHA-256
+### RSA-OAEP con SHA-256
 
 ```go
-import rsautil "github.com/PointerByte/QuicksGo/security/encrypt/rsa"
+keyData, err := repository.GeneratesRSAKey(ctx, 2048)
+if err != nil {
+	panic(err)
+}
 
-cipherText, err := rsautil.Encode(publicKeyBase64, "hello")
-plainText, err := rsautil.Decode(privateKeyBase64, cipherText)
+cipherText, err := repository.RSA_OAEP_Encode(ctx, keyData.PublicKey, "hello")
+if err != nil {
+	panic(err)
+}
+
+plainText, err := repository.RSA_OAEP_Decode(ctx, keyData.PrivateKey, cipherText)
 ```
-
-### Firma RSA-PSS
-
-```go
-signature, err := rsautil.SignPSS(privateKeyBase64, "hello")
-err = rsautil.VerifyPSS(publicKeyBase64, "hello", signature)
-```
-
-## Firmas digitales
 
 ### Ed25519
 
 ```go
-import signutil "github.com/PointerByte/QuicksGo/security/encrypt/signs"
+keyData, err := repository.GeneratesEd255Key(ctx, 2048)
+if err != nil {
+	panic(err)
+}
 
-signature, err := signutil.SignEd25519(privateKeyBase64, "hello")
-err = signutil.VerifyEd25519(publicKeyBase64, "hello", signature)
-```
+signature, err := repository.SignEd25519(ctx, keyData.PrivateKey, "hello")
+if err != nil {
+	panic(err)
+}
 
-### RSA-PSS desde `encrypt/signs`
-
-```go
-signature, err := signutil.SignPSS(privateKeyBase64, "hello")
-err = signutil.VerifyPSS(publicKeyBase64, "hello", signature)
+err = repository.VerifyEd25519(ctx, keyData.PublicKey, "hello", signature)
 ```
 
 ## Ejemplo ejecutable

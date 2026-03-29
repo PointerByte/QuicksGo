@@ -4,8 +4,8 @@
 package local
 
 import (
+	"context"
 	"crypto/ed25519"
-	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -18,6 +18,8 @@ import (
 	"github.com/zeebo/blake3"
 )
 
+var testContext = context.Background()
+
 func TestNewRepositoryBuildsAllRepositories(t *testing.T) {
 	repository := NewRepository()
 	if repository.SymmetricRepository == nil || repository.AsymmetricRepository == nil || repository.SignatureRepository == nil || repository.HashRepository == nil {
@@ -25,14 +27,17 @@ func TestNewRepositoryBuildsAllRepositories(t *testing.T) {
 	}
 }
 
-func TestSymmetricRepositoryAESAndFernet(t *testing.T) {
+func TestSymmetricRepositoryAES(t *testing.T) {
 	repository := NewSymmetricRepository()
 
-	key, err := repository.GeneratesSymetrycKey(common.Key256Bits)
+	key, err := repository.GeneratesSymetrycKey(testContext, common.Key256Bits)
 	if err != nil {
 		t.Fatalf("GeneratesSymetrycKey() error = %v", err)
 	}
-	keyBytes, err := base64.StdEncoding.DecodeString(key)
+	if key == nil || key.Key == "" || key.Provider != "local" {
+		t.Fatalf("GeneratesSymetrycKey() = %#v, want populated local key data", key)
+	}
+	keyBytes, err := base64.StdEncoding.DecodeString(key.Key)
 	if err != nil {
 		t.Fatalf("DecodeString() error = %v", err)
 	}
@@ -40,143 +45,74 @@ func TestSymmetricRepositoryAESAndFernet(t *testing.T) {
 		t.Fatalf("key length = %d, want %d", len(keyBytes), common.Key256Bits)
 	}
 
-	ciphertext, err := repository.EncryptAES(key, "hello", "aad")
+	additional := "aad"
+	ciphertext, err := repository.EncryptAES(testContext, key.Key, "hello", &additional)
 	if err != nil {
 		t.Fatalf("EncryptAES() error = %v", err)
 	}
-	plaintext, err := repository.DecryptAES(key, ciphertext, "aad")
+	plaintext, err := repository.DecryptAES(testContext, key.Key, ciphertext, "aad")
 	if err != nil {
 		t.Fatalf("DecryptAES() error = %v", err)
 	}
 	if plaintext != "hello" {
 		t.Fatalf("DecryptAES() = %q, want %q", plaintext, "hello")
 	}
-
-	fernetKeyBytes := make([]byte, 32)
-	if _, err := rand.Read(fernetKeyBytes); err != nil {
-		t.Fatalf("rand.Read() error = %v", err)
-	}
-	fernetKey := base64.StdEncoding.EncodeToString(fernetKeyBytes)
-	token, err := repository.EncodeFernet(fernetKey, "payload")
-	if err != nil {
-		t.Fatalf("EncodeFernet() error = %v", err)
-	}
-	decoded, err := repository.DecodeFernet(fernetKey, token)
-	if err != nil {
-		t.Fatalf("DecodeFernet() error = %v", err)
-	}
-	if decoded != "payload" {
-		t.Fatalf("DecodeFernet() = %q, want %q", decoded, "payload")
-	}
 }
 
 func TestSymmetricRepositoryErrors(t *testing.T) {
 	repository := NewSymmetricRepository()
 
-	if _, err := repository.EncryptAES("%%%", "value", "aad"); err == nil {
+	additional := "aad"
+	if _, err := repository.EncryptAES(testContext, "%%%", "value", &additional); err == nil {
 		t.Fatal("expected EncryptAES() base64 error")
 	}
-	if _, err := repository.EncryptAES(base64.StdEncoding.EncodeToString([]byte("short")), "value", "aad"); err == nil {
+	if _, err := repository.EncryptAES(testContext, base64.StdEncoding.EncodeToString([]byte("short")), "value", &additional); err == nil {
 		t.Fatal("expected EncryptAES() invalid key error")
 	}
-	if _, err := repository.DecryptAES("%%%", "cipher", "aad"); err == nil {
+	if _, err := repository.DecryptAES(testContext, "%%%", "cipher", "aad"); err == nil {
 		t.Fatal("expected DecryptAES() key error")
 	}
 
 	key := base64.StdEncoding.EncodeToString(make([]byte, 32))
-	if _, err := repository.DecryptAES(key, "%%%", "aad"); err == nil {
+	if _, err := repository.DecryptAES(testContext, key, "%%%", "aad"); err == nil {
 		t.Fatal("expected DecryptAES() ciphertext error")
 	}
-	if _, err := repository.DecryptAES(key, base64.StdEncoding.EncodeToString([]byte("short")), "aad"); err == nil {
+	if _, err := repository.DecryptAES(testContext, key, base64.StdEncoding.EncodeToString([]byte("short")), "aad"); err == nil {
 		t.Fatal("expected DecryptAES() short ciphertext error")
 	}
 
-	ciphertext, err := repository.EncryptAES(key, "hello", "aad")
+	ciphertext, err := repository.EncryptAES(testContext, key, "hello", &additional)
 	if err != nil {
 		t.Fatalf("EncryptAES() error = %v", err)
 	}
-	if _, err := repository.DecryptAES(key, ciphertext, "wrong"); err == nil {
+	if _, err := repository.DecryptAES(testContext, key, ciphertext, "wrong"); err == nil {
 		t.Fatal("expected DecryptAES() authentication error")
 	}
 
-	if _, err := decodeFernetKey("%%%"); err == nil {
-		t.Fatal("expected decodeFernetKey() base64 error")
-	}
-	if _, err := decodeFernetKey(base64.StdEncoding.EncodeToString([]byte("short"))); err == nil {
-		t.Fatal("expected decodeFernetKey() length error")
-	}
-	if _, err := repository.EncodeFernet("%%%", "payload"); err == nil {
-		t.Fatal("expected EncodeFernet() key error")
-	}
-	if _, err := repository.DecodeFernet("%%%", "payload"); err == nil {
-		t.Fatal("expected DecodeFernet() key error")
-	}
-	if _, err := repository.DecodeFernet(base64.StdEncoding.EncodeToString(make([]byte, 32)), "%%%"); err == nil {
-		t.Fatal("expected DecodeFernet() token decode error")
-	}
-	if _, err := repository.DecodeFernet(base64.StdEncoding.EncodeToString(make([]byte, 32)), base64.URLEncoding.EncodeToString([]byte("short"))); err == nil {
-		t.Fatal("expected DecodeFernet() short token error")
-	}
-
-	fernetKeyBytes := make([]byte, 32)
-	if _, err := rand.Read(fernetKeyBytes); err != nil {
-		t.Fatalf("rand.Read() error = %v", err)
-	}
-	fernetKey := base64.StdEncoding.EncodeToString(fernetKeyBytes)
-	token, err := repository.EncodeFernet(fernetKey, "payload")
-	if err != nil {
-		t.Fatalf("EncodeFernet() error = %v", err)
-	}
-
-	rawToken, err := base64.URLEncoding.DecodeString(token)
-	if err != nil {
-		t.Fatalf("DecodeString() error = %v", err)
-	}
-	rawToken[len(rawToken)-1] ^= 0xff
-	if _, err := repository.DecodeFernet(fernetKey, base64.URLEncoding.EncodeToString(rawToken)); err == nil {
-		t.Fatal("expected DecodeFernet() invalid HMAC error")
-	}
-
-	keyInfo, err := decodeFernetKey(fernetKey)
-	if err != nil {
-		t.Fatalf("decodeFernetKey() error = %v", err)
-	}
-	rawToken, err = base64.URLEncoding.DecodeString(token)
-	if err != nil {
-		t.Fatalf("DecodeString() error = %v", err)
-	}
-	message := rawToken[:len(rawToken)-32]
-	message = append(message[:len(message)-1], message[len(message):]...)
-	mac := hmac.New(sha256.New, keyInfo.signingKey)
-	mac.Write(message)
-	invalidLengthToken := append(message, mac.Sum(nil)...)
-	if _, err := repository.DecodeFernet(fernetKey, base64.URLEncoding.EncodeToString(invalidLengthToken)); err == nil {
-		t.Fatal("expected DecodeFernet() block-size error")
-	}
 }
 
 func TestHashRepository(t *testing.T) {
 	repository := NewHashRepository()
 
-	got := repository.GenerateHMAC("message", "secret")
+	got := repository.GenerateHMAC(testContext, "message", "secret")
 	if got == "" {
 		t.Fatal("GenerateHMAC() returned empty value")
 	}
-	if !repository.ValidateHMAC("message", "secret", got) {
+	if !repository.ValidateHMAC(testContext, "message", "secret", got) {
 		t.Fatal("ValidateHMAC() = false, want true")
 	}
-	if repository.ValidateHMAC("message", "secret", "bad") {
+	if repository.ValidateHMAC(testContext, "message", "secret", "bad") {
 		t.Fatal("ValidateHMAC() = true, want false")
 	}
 
 	wantSHA := hex.EncodeToString(mustSHA256Bytes([]byte("message")))
-	if got := repository.Sha256Hex("message"); got != wantSHA {
+	if got := repository.Sha256Hex(testContext, "message"); got != wantSHA {
 		t.Fatalf("Sha256Hex() = %q, want %q", got, wantSHA)
 	}
 
 	blakeSum := blake3.Sum256([]byte("message"))
 	wantBlake := base64.StdEncoding.EncodeToString(blakeSum[:])
-	if got := repository.Blake3("message"); got != wantBlake {
+	if got := repository.Blake3(testContext, "message"); got != wantBlake {
 		t.Fatalf("Blake3() = %q, want %q", got, wantBlake)
 	}
 }
@@ -185,25 +121,28 @@ func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 	asymmetricRepository := NewAsymmetricRepository()
 	signatureRepository := NewSignatureRepository()
 
-	priv, pub, err := asymmetricRepository.GeneratesRSAKey(common.Key2048Bits)
+	keyData, err := asymmetricRepository.GeneratesRSAKey(testContext, common.Key2048Bits)
 	if err != nil {
 		t.Fatalf("GeneratesRSAKey() error = %v", err)
 	}
+	if keyData == nil || keyData.PrivateKey == "" || keyData.PublicKey == "" || keyData.Provider != "local" {
+		t.Fatalf("GeneratesRSAKey() = %#v, want populated local key data", keyData)
+	}
 
-	privateKey, err := x509.ParsePKCS1PrivateKey(mustBase64Decode(t, priv))
+	privateKey, err := x509.ParsePKCS1PrivateKey(mustBase64Decode(t, keyData.PrivateKey))
 	if err != nil {
 		t.Fatalf("ParsePKCS1PrivateKey() error = %v", err)
 	}
-	publicKey, err := x509.ParsePKCS1PublicKey(mustBase64Decode(t, pub))
+	publicKey, err := x509.ParsePKCS1PublicKey(mustBase64Decode(t, keyData.PublicKey))
 	if err != nil {
 		t.Fatalf("ParsePKCS1PublicKey() error = %v", err)
 	}
 
-	ciphertext, err := asymmetricRepository.RSA_OAEP_Encode(mustMarshalPKIXRSAPublicKey(t, publicKey), "hello")
+	ciphertext, err := asymmetricRepository.RSA_OAEP_Encode(testContext, mustMarshalPKIXRSAPublicKey(t, publicKey), "hello")
 	if err != nil {
 		t.Fatalf("RSA_OAEP_Encode() error = %v", err)
 	}
-	plaintext, err := asymmetricRepository.RSA_OAEP_Decode(mustMarshalPKCS8RSAPrivateKey(t, privateKey), ciphertext)
+	plaintext, err := asymmetricRepository.RSA_OAEP_Decode(testContext, mustMarshalPKCS8RSAPrivateKey(t, privateKey), ciphertext)
 	if err != nil {
 		t.Fatalf("RSA_OAEP_Decode() error = %v", err)
 	}
@@ -211,43 +150,46 @@ func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 		t.Fatalf("RSA_OAEP_Decode() = %q, want %q", plaintext, "hello")
 	}
 
-	signature, err := signatureRepository.SignRSAPSS(mustMarshalPKCS8RSAPrivateKey(t, privateKey), "payload")
+	signature, err := signatureRepository.SignRSAPSS(testContext, mustMarshalPKCS8RSAPrivateKey(t, privateKey), "payload")
 	if err != nil {
 		t.Fatalf("SignRSAPSS() error = %v", err)
 	}
-	if err := signatureRepository.VerifyRSAPSS(mustMarshalPKIXRSAPublicKey(t, publicKey), "payload", signature); err != nil {
+	if err := signatureRepository.VerifyRSAPSS(testContext, mustMarshalPKIXRSAPublicKey(t, publicKey), "payload", signature); err != nil {
 		t.Fatalf("VerifyRSAPSS() error = %v", err)
 	}
 
-	pkcs1v15Signature, err := signatureRepository.SignSHA256("payload", privateKey)
+	pkcs1v15Signature, err := signatureRepository.SignSHA256(testContext, "payload", privateKey)
 	if err != nil {
 		t.Fatalf("SignSHA256() error = %v", err)
 	}
-	if err := signatureRepository.VerifySHA256("payload", pkcs1v15Signature, publicKey); err != nil {
+	if err := signatureRepository.VerifySHA256(testContext, "payload", pkcs1v15Signature, publicKey); err != nil {
 		t.Fatalf("VerifySHA256() error = %v", err)
 	}
 
-	edPrivate, edPublic, err := signatureRepository.GeneratesEd255Key(common.Key2048Bits)
+	edKeyData, err := signatureRepository.GeneratesEd255Key(testContext, common.Key2048Bits)
 	if err != nil {
 		t.Fatalf("GeneratesEd255Key() error = %v", err)
 	}
-	edSignature, err := signatureRepository.SignEd25519(edPrivate, "payload")
+	if edKeyData == nil || edKeyData.PrivateKey == "" || edKeyData.PublicKey == "" || edKeyData.Provider != "local" {
+		t.Fatalf("GeneratesEd255Key() = %#v, want populated local key data", edKeyData)
+	}
+	edSignature, err := signatureRepository.SignEd25519(testContext, edKeyData.PrivateKey, "payload")
 	if err != nil {
 		t.Fatalf("SignEd25519() error = %v", err)
 	}
-	if err := signatureRepository.VerifyEd25519(edPublic, "payload", edSignature); err != nil {
+	if err := signatureRepository.VerifyEd25519(testContext, edKeyData.PublicKey, "payload", edSignature); err != nil {
 		t.Fatalf("VerifyEd25519() error = %v", err)
 	}
 
-	if err := signatureRepository.VerifyEd25519(edPublic, "payload", edSignature[:len(edSignature)-2]+"ab"); err == nil {
+	if err := signatureRepository.VerifyEd25519(testContext, edKeyData.PublicKey, "payload", edSignature[:len(edSignature)-2]+"ab"); err == nil {
 		t.Fatal("expected VerifyEd25519() invalid signature error")
 	}
 
-	if err := signatureRepository.VerifyRSAPSS(mustMarshalPKIXRSAPublicKey(t, publicKey), "payload", signature[:len(signature)-2]+"ab"); err == nil {
+	if err := signatureRepository.VerifyRSAPSS(testContext, mustMarshalPKIXRSAPublicKey(t, publicKey), "payload", signature[:len(signature)-2]+"ab"); err == nil {
 		t.Fatal("expected VerifyRSAPSS() invalid signature error")
 	}
 
-	if err := signatureRepository.VerifySHA256("payload", pkcs1v15Signature[:len(pkcs1v15Signature)-2]+"ab", publicKey); err == nil {
+	if err := signatureRepository.VerifySHA256(testContext, "payload", pkcs1v15Signature[:len(pkcs1v15Signature)-2]+"ab", publicKey); err == nil {
 		t.Fatal("expected VerifySHA256() invalid signature error")
 	}
 }
@@ -256,23 +198,23 @@ func TestAsymmetricAndSignatureRepositoryErrors(t *testing.T) {
 	asymmetricRepository := NewAsymmetricRepository()
 	signatureRepository := NewSignatureRepository()
 
-	if _, err := asymmetricRepository.RSA_OAEP_Encode("%%%", "payload"); err == nil {
+	if _, err := asymmetricRepository.RSA_OAEP_Encode(testContext, "%%%", "payload"); err == nil {
 		t.Fatal("expected RSA_OAEP_Encode() key error")
 	}
-	if _, err := asymmetricRepository.RSA_OAEP_Decode("%%%", "payload"); err == nil {
+	if _, err := asymmetricRepository.RSA_OAEP_Decode(testContext, "%%%", "payload"); err == nil {
 		t.Fatal("expected RSA_OAEP_Decode() key error")
 	}
-	if _, err := asymmetricRepository.RSA_OAEP_Decode(mustMarshalPKCS8RSAPrivateKey(t, mustRSAKey(t)), "%%%"); err == nil {
+	if _, err := asymmetricRepository.RSA_OAEP_Decode(testContext, mustMarshalPKCS8RSAPrivateKey(t, mustRSAKey(t)), "%%%"); err == nil {
 		t.Fatal("expected RSA_OAEP_Decode() ciphertext error")
 	}
-	if _, _, err := asymmetricRepository.GeneratesRSAKey(0); err == nil {
+	if _, err := asymmetricRepository.GeneratesRSAKey(testContext, 0); err == nil {
 		t.Fatal("expected GeneratesRSAKey() error")
 	}
 
-	if _, err := signatureRepository.SignEd25519("%%%", "payload"); err == nil {
+	if _, err := signatureRepository.SignEd25519(testContext, "%%%", "payload"); err == nil {
 		t.Fatal("expected SignEd25519() key error")
 	}
-	if err := signatureRepository.VerifyEd25519("%%%", "payload", "sig"); err == nil {
+	if err := signatureRepository.VerifyEd25519(testContext, "%%%", "payload", "sig"); err == nil {
 		t.Fatal("expected VerifyEd25519() key error")
 	}
 
@@ -280,27 +222,27 @@ func TestAsymmetricAndSignatureRepositoryErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ed25519.GenerateKey() error = %v", err)
 	}
-	if err := signatureRepository.VerifyEd25519(mustMarshalEd25519PublicKey(t, edPublic), "payload", "%%%"); err == nil {
+	if err := signatureRepository.VerifyEd25519(testContext, mustMarshalEd25519PublicKey(t, edPublic), "payload", "%%%"); err == nil {
 		t.Fatal("expected VerifyEd25519() signature decode error")
 	}
 
-	if _, err := signatureRepository.SignRSAPSS("%%%", "payload"); err == nil {
+	if _, err := signatureRepository.SignRSAPSS(testContext, "%%%", "payload"); err == nil {
 		t.Fatal("expected SignRSAPSS() key error")
 	}
-	if err := signatureRepository.VerifyRSAPSS("%%%", "payload", "sig"); err == nil {
+	if err := signatureRepository.VerifyRSAPSS(testContext, "%%%", "payload", "sig"); err == nil {
 		t.Fatal("expected VerifyRSAPSS() key error")
 	}
-	if err := signatureRepository.VerifyRSAPSS(mustMarshalPKIXRSAPublicKey(t, &mustRSAKey(t).PublicKey), "payload", "%%%"); err == nil {
+	if err := signatureRepository.VerifyRSAPSS(testContext, mustMarshalPKIXRSAPublicKey(t, &mustRSAKey(t).PublicKey), "payload", "%%%"); err == nil {
 		t.Fatal("expected VerifyRSAPSS() signature decode error")
 	}
 
-	if _, err := signatureRepository.SignSHA256("payload", nil); err == nil {
+	if _, err := signatureRepository.SignSHA256(testContext, "payload", nil); err == nil {
 		t.Fatal("expected SignSHA256() nil private key error")
 	}
-	if err := signatureRepository.VerifySHA256("payload", "sig", nil); err == nil {
+	if err := signatureRepository.VerifySHA256(testContext, "payload", "sig", nil); err == nil {
 		t.Fatal("expected VerifySHA256() nil public key error")
 	}
-	if err := signatureRepository.VerifySHA256("payload", "%%%", &mustRSAKey(t).PublicKey); err == nil {
+	if err := signatureRepository.VerifySHA256(testContext, "payload", "%%%", &mustRSAKey(t).PublicKey); err == nil {
 		t.Fatal("expected VerifySHA256() signature decode error")
 	}
 }

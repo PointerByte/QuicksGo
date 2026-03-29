@@ -4,40 +4,40 @@
 package azurekeyvault
 
 import (
+	"context"
 	"crypto/rsa"
 
 	"github.com/PointerByte/QuicksGo/security/encrypt/common"
+	"github.com/PointerByte/QuicksGo/security/encrypt/models"
 )
 
 type SymmetricRepository interface {
-	GeneratesSymetrycKey(size common.SizeSymetrycKey) (string, error)
-	EncryptAES(symmetricalAccess, value, additionalData string) (string, error)
-	DecryptAES(symmetricalAccess, cipherValue, additionalData string) (string, error)
-	EncodeFernet(keyString, value string) (string, error)
-	DecodeFernet(keyString, cipherValue string) (string, error)
+	GeneratesSymetrycKey(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error)
+	EncryptAES(ctx context.Context, secretKey, value string, additional *string) (string, error)
+	DecryptAES(ctx context.Context, secretKey, cipherValue, additionalData string) (string, error)
 }
 
 type AsymmetricRepository interface {
-	GeneratesRSAKey(size common.SizeAsymetrycKey) (priv string, pub string, _ error)
-	RSA_OAEP_Encode(key, text string) (string, error)
-	RSA_OAEP_Decode(key, cipherText string) (string, error)
+	GeneratesRSAKey(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error)
+	RSA_OAEP_Encode(ctx context.Context, publicKey, text string) (string, error)
+	RSA_OAEP_Decode(ctx context.Context, privateKey, cipherText string) (string, error)
 }
 
 type HashRepository interface {
-	GenerateHMAC(message, secretKey string) string
-	ValidateHMAC(message, secretKey, providedHash string) bool
-	Sha256Hex(message string) string
-	Blake3(message string) string
+	GenerateHMAC(ctx context.Context, message, secretKey string) string
+	ValidateHMAC(ctx context.Context, message, secretKey, providedHash string) bool
+	Sha256Hex(ctx context.Context, message string) string
+	Blake3(ctx context.Context, message string) string
 }
 
 type SignatureRepository interface {
-	GeneratesEd255Key(size common.SizeAsymetrycKey) (priv string, pub string, _ error)
-	SignEd25519(key, text string) (string, error)
-	VerifyEd25519(key, text, signature string) error
-	SignRSAPSS(key, text string) (string, error)
-	VerifyRSAPSS(key, text, signature string) error
-	SignSHA256(data string, privateKey *rsa.PrivateKey) (string, error)
-	VerifySHA256(data, signature string, publicKey *rsa.PublicKey) error
+	GeneratesEd255Key(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error)
+	SignEd25519(ctx context.Context, privateKey, text string) (string, error)
+	VerifyEd25519(ctx context.Context, publicKey, text, signature string) error
+	SignRSAPSS(ctx context.Context, privateKey, text string) (string, error)
+	VerifyRSAPSS(ctx context.Context, publicKey, text, signature string) error
+	SignSHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error)
+	VerifySHA256(ctx context.Context, data, signature string, publicKey *rsa.PublicKey) error
 }
 
 type Repository interface {

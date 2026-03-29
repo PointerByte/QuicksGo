@@ -6,5 +6,7 @@
 //
 // Unlike the cloud-backed packages under security/encrypt, this package
 // performs all operations locally and can generate exportable key material when
-// the underlying algorithm supports it.
+// the underlying algorithm supports it. The local repositories also implement
+// the same context-aware method signatures exposed by the shared encrypt
+// package.
 package local
