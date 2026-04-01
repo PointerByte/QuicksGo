@@ -14,7 +14,7 @@ import (
 type SymmetricRepository interface {
 	GeneratesSymetrycKey(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error)
 	EncryptAES(ctx context.Context, secretKey, value string, additional *string) (string, error)
-	DecryptAES(ctx context.Context, secretKey, cipherValue, additionalData string) (string, error)
+	DecryptAES(ctx context.Context, secretKey, cipherValue string, additional *string) (string, error)
 }
 
 type AsymmetricRepository interface {
@@ -31,8 +31,8 @@ type AsymmetricRepository interface {
 }
 
 type HashRepository interface {
-	GenerateHMAC(ctx context.Context, message, secretKey string) string
-	ValidateHMAC(ctx context.Context, message, secretKey, providedHash string) bool
+	GenerateHMAC(ctx context.Context, secretKey, message string) string
+	ValidateHMAC(ctx context.Context, secretKey, message, providedHash string) bool
 	Sha256Hex(ctx context.Context, message string) string
 	Blake3(ctx context.Context, message string) string
 }
@@ -44,9 +44,9 @@ type SignatureRepository interface {
 	VerifyEd25519(ctx context.Context, publicKey, text, signature string) error
 	SignRSAPSS(ctx context.Context, privateKey, text string) (string, error)
 	VerifyRSAPSS(ctx context.Context, publicKey, text, signature string) error
-	// SignSHA256 signs data with RSA PKCS#1 v1.5. When privateKey is nil, the
+	// SignPKCS1v15_SHA256 signs data with RSA PKCS#1 v1.5. When privateKey is nil, the
 	// repository uses the configured AWS KMS ARN from viper.
-	SignSHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error)
+	SignPKCS1v15_SHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error)
 	// VerifySHA256 verifies an RSA PKCS#1 v1.5 SHA-256 signature. When publicKey
 	// is nil, the repository uses the configured AWS KMS ARN from viper.
 	VerifySHA256(ctx context.Context, data, signature string, publicKey *rsa.PublicKey) error

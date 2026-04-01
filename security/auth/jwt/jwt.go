@@ -356,7 +356,7 @@ func NewHMACSHA256(secret string) Strategy {
 // The private key is used to sign tokens and the public key is used to verify them.
 func NewRSASHA256(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) Strategy {
 	return &rsaSHA256Strategy{
-		signutil:   encrypt.NewRepository(),
+		signutil:   encrypt.NewRepository(encrypt.Local),
 		privateKey: privateKey,
 		publicKey:  publicKey,
 	}
@@ -365,7 +365,7 @@ func NewRSASHA256(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) Strategy
 // NewRSAPSSSHA256 returns an RSA-PSS SHA-256 signing strategy.
 func NewRSAPSSSHA256(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) Strategy {
 	return &rsaPSSSHA256Strategy{
-		signutil:   encrypt.NewRepository(),
+		signutil:   encrypt.NewRepository(encrypt.Local),
 		privateKey: privateKey,
 		publicKey:  publicKey,
 	}
@@ -374,7 +374,7 @@ func NewRSAPSSSHA256(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) Strat
 // NewEd25519 returns an Ed25519 signing strategy.
 func NewEd25519(privateKey ed25519.PrivateKey, publicKey ed25519.PublicKey) Strategy {
 	return &ed25519Strategy{
-		signutil:   encrypt.NewRepository(),
+		signutil:   encrypt.NewRepository(encrypt.Local),
 		privateKey: privateKey,
 		publicKey:  publicKey,
 	}
@@ -615,7 +615,7 @@ func (strategy *rsaSHA256Strategy) Sign(signingInput []byte) ([]byte, error) {
 	if strategy.privateKey == nil {
 		return nil, ErrMissingPrivateKey
 	}
-	signatureB64, err := strategy.signutil.SignSHA256(context.Background(), string(signingInput), strategy.privateKey)
+	signatureB64, err := strategy.signutil.SignPKCS1v15_SHA256(context.Background(), string(signingInput), strategy.privateKey)
 	if err != nil {
 		return nil, err
 	}

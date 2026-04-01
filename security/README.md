@@ -204,6 +204,8 @@ By default it reads the cookie configured in `jwt.cookie.name`, or `access_token
 
 The encryption module now exposes repository interfaces through `encrypt`.
 
+`encrypt.NewRepository` now receives the backend mode explicitly.
+
 ### Create a repository
 
 ```go
@@ -214,7 +216,7 @@ import (
 )
 
 ctx := context.Background()
-repository := encrypt.NewRepository()
+repository := encrypt.NewRepository(encrypt.Local)
 ```
 
 ### AES-GCM
@@ -231,14 +233,14 @@ if err != nil {
 	panic(err)
 }
 
-plainText, err := repository.DecryptAES(ctx, keyData.Key, encrypted, additional)
+plainText, err := repository.DecryptAES(ctx, keyData.Key, encrypted, &additional)
 ```
 
 ### HMAC
 
 ```go
-hash := repository.GenerateHMAC(ctx, "message", "secret")
-ok := repository.ValidateHMAC(ctx, "message", "secret", hash)
+hash := repository.GenerateHMAC(ctx, "secret", "message")
+ok := repository.ValidateHMAC(ctx, "secret", "message", hash)
 ```
 
 ### RSA-OAEP with SHA-256

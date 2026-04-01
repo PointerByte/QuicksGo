@@ -50,7 +50,7 @@ func TestSymmetricRepositoryAES(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EncryptAES() error = %v", err)
 	}
-	plaintext, err := repository.DecryptAES(testContext, key.KeyID, ciphertext, "aad")
+	plaintext, err := repository.DecryptAES(testContext, key.KeyID, ciphertext, &additional)
 	if err != nil {
 		t.Fatalf("DecryptAES() error = %v", err)
 	}
@@ -69,15 +69,15 @@ func TestSymmetricRepositoryErrors(t *testing.T) {
 	if _, err := repository.EncryptAES(testContext, base64.StdEncoding.EncodeToString([]byte("short")), "value", &additional); err == nil {
 		t.Fatal("expected EncryptAES() invalid key error")
 	}
-	if _, err := repository.DecryptAES(testContext, "%%%", "cipher", "aad"); err == nil {
+	if _, err := repository.DecryptAES(testContext, "%%%", "cipher", &additional); err == nil {
 		t.Fatal("expected DecryptAES() key error")
 	}
 
 	key := base64.StdEncoding.EncodeToString(make([]byte, 32))
-	if _, err := repository.DecryptAES(testContext, key, "%%%", "aad"); err == nil {
+	if _, err := repository.DecryptAES(testContext, key, "%%%", &additional); err == nil {
 		t.Fatal("expected DecryptAES() ciphertext error")
 	}
-	if _, err := repository.DecryptAES(testContext, key, base64.StdEncoding.EncodeToString([]byte("short")), "aad"); err == nil {
+	if _, err := repository.DecryptAES(testContext, key, base64.StdEncoding.EncodeToString([]byte("short")), &additional); err == nil {
 		t.Fatal("expected DecryptAES() short ciphertext error")
 	}
 
@@ -85,7 +85,8 @@ func TestSymmetricRepositoryErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EncryptAES() error = %v", err)
 	}
-	if _, err := repository.DecryptAES(testContext, key, ciphertext, "wrong"); err == nil {
+	wrongAdditional := "wrong"
+	if _, err := repository.DecryptAES(testContext, key, ciphertext, &wrongAdditional); err == nil {
 		t.Fatal("expected DecryptAES() authentication error")
 	}
 
@@ -94,14 +95,14 @@ func TestSymmetricRepositoryErrors(t *testing.T) {
 func TestHashRepository(t *testing.T) {
 	repository := NewHashRepository()
 
-	got := repository.GenerateHMAC(testContext, "message", "secret")
+	got := repository.GenerateHMAC(testContext, "secret", "message")
 	if got == "" {
 		t.Fatal("GenerateHMAC() returned empty value")
 	}
-	if !repository.ValidateHMAC(testContext, "message", "secret", got) {
+	if !repository.ValidateHMAC(testContext, "secret", "message", got) {
 		t.Fatal("ValidateHMAC() = false, want true")
 	}
-	if repository.ValidateHMAC(testContext, "message", "secret", "bad") {
+	if repository.ValidateHMAC(testContext, "secret", "message", "bad") {
 		t.Fatal("ValidateHMAC() = true, want false")
 	}
 
@@ -158,9 +159,9 @@ func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 		t.Fatalf("VerifyRSAPSS() error = %v", err)
 	}
 
-	pkcs1v15Signature, err := signatureRepository.SignSHA256(testContext, "payload", privateKey)
+	pkcs1v15Signature, err := signatureRepository.SignPKCS1v15_SHA256(testContext, "payload", privateKey)
 	if err != nil {
-		t.Fatalf("SignSHA256() error = %v", err)
+		t.Fatalf("SignPKCS1v15_SHA256() error = %v", err)
 	}
 	if err := signatureRepository.VerifySHA256(testContext, "payload", pkcs1v15Signature, publicKey); err != nil {
 		t.Fatalf("VerifySHA256() error = %v", err)
@@ -236,8 +237,8 @@ func TestAsymmetricAndSignatureRepositoryErrors(t *testing.T) {
 		t.Fatal("expected VerifyRSAPSS() signature decode error")
 	}
 
-	if _, err := signatureRepository.SignSHA256(testContext, "payload", nil); err == nil {
-		t.Fatal("expected SignSHA256() nil private key error")
+	if _, err := signatureRepository.SignPKCS1v15_SHA256(testContext, "payload", nil); err == nil {
+		t.Fatal("expected SignPKCS1v15_SHA256() nil private key error")
 	}
 	if err := signatureRepository.VerifySHA256(testContext, "payload", "sig", nil); err == nil {
 		t.Fatal("expected VerifySHA256() nil public key error")

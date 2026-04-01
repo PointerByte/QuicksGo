@@ -156,9 +156,9 @@ func (repository *symmetricRepository) EncryptAES(ctx context.Context, secretKey
 	return base64.StdEncoding.EncodeToString(output.CiphertextBlob), nil
 }
 
-func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey, cipherValue, additionalData string) (string, error) {
+func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey, cipherValue string, additional *string) (string, error) {
 	if isLocalAESKey(secretKey) {
-		return repository.local.DecryptAES(ctx, secretKey, cipherValue, additionalData)
+		return repository.local.DecryptAES(ctx, secretKey, cipherValue, additional)
 	}
 
 	client, err := newAWSKMSClient(ctx)
@@ -180,8 +180,8 @@ func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey
 		KeyId:          sdkaws.String(keyID),
 		CiphertextBlob: ciphertext,
 	}
-	if additionalData != "" {
-		input.EncryptionContext = map[string]string{"additional": additionalData}
+	if additional != nil {
+		input.EncryptionContext = map[string]string{"additional": *additional}
 	}
 
 	output, err := client.Decrypt(ctx, input)
@@ -191,9 +191,9 @@ func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey
 	return string(output.Plaintext), nil
 }
 
-func (repository *hashRepository) GenerateHMAC(ctx context.Context, message, secretKey string) string {
+func (repository *hashRepository) GenerateHMAC(ctx context.Context, secretKey, message string) string {
 	if !looksLikeAWSKMSKeyReference(secretKey) {
-		return repository.local.GenerateHMAC(ctx, message, secretKey)
+		return repository.local.GenerateHMAC(ctx, secretKey, message)
 	}
 
 	client, err := newAWSKMSClient(ctx)
@@ -217,9 +217,9 @@ func (repository *hashRepository) GenerateHMAC(ctx context.Context, message, sec
 	return base64.StdEncoding.EncodeToString(output.Mac)
 }
 
-func (repository *hashRepository) ValidateHMAC(ctx context.Context, message, secretKey, providedHash string) bool {
+func (repository *hashRepository) ValidateHMAC(ctx context.Context, secretKey, message, providedHash string) bool {
 	if !looksLikeAWSKMSKeyReference(secretKey) {
-		return repository.local.ValidateHMAC(ctx, message, secretKey, providedHash)
+		return repository.local.ValidateHMAC(ctx, secretKey, message, providedHash)
 	}
 
 	client, err := newAWSKMSClient(ctx)
@@ -517,9 +517,9 @@ func (repository *signatureRepository) VerifyRSAPSS(ctx context.Context, publicK
 	return nil
 }
 
-func (repository *signatureRepository) SignSHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error) {
+func (repository *signatureRepository) SignPKCS1v15_SHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error) {
 	if privateKey != nil {
-		return repository.local.SignSHA256(ctx, data, privateKey)
+		return repository.local.SignPKCS1v15_SHA256(ctx, data, privateKey)
 	}
 
 	client, err := newAWSKMSClient(ctx)

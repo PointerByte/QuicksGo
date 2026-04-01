@@ -121,7 +121,7 @@ func TestDelegatedLocalHelpers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GeneratesSymetrycKey() error = %v", err)
 	}
-	if key == nil || key.KeyID != "" || key.KeyID != "kms-symmetric-id" || key.KeyRef != "arn:aws:kms:test-symmetric" || key.Provider != "aws-kms" {
+	if key == nil || key.KeyID != "kms-symmetric-id" || key.KeyRef != "arn:aws:kms:test-symmetric" || key.Provider != "aws-kms" {
 		t.Fatalf("GeneratesSymetrycKey() = %#v, want KMS symmetric key metadata", key)
 	}
 
@@ -130,17 +130,17 @@ func TestDelegatedLocalHelpers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EncryptAES() error = %v", err)
 	}
-	plaintext, err := repository.DecryptAES(testContext, key.KeyRef, ciphertext, "aad")
+	plaintext, err := repository.DecryptAES(testContext, key.KeyRef, ciphertext, &additional)
 	if err != nil {
 		t.Fatalf("DecryptAES() error = %v", err)
 	}
 	if plaintext != "hello" {
 		t.Fatalf("DecryptAES() = %q, want %q", plaintext, "hello")
 	}
-	if got := repository.GenerateHMAC(testContext, "message", key.KeyRef); got == "" {
+	if got := repository.GenerateHMAC(testContext, key.KeyRef, "message"); got == "" {
 		t.Fatal("expected GenerateHMAC() to return a KMS MAC")
 	}
-	if !repository.ValidateHMAC(testContext, "message", key.KeyRef, base64.StdEncoding.EncodeToString([]byte("mac"))) {
+	if !repository.ValidateHMAC(testContext, key.KeyRef, "message", base64.StdEncoding.EncodeToString([]byte("mac"))) {
 		t.Fatal("expected ValidateHMAC() to succeed with KMS MAC")
 	}
 	if repository.Sha256Hex(testContext, "message") == "" || repository.Blake3(testContext, "message") == "" {
@@ -340,9 +340,9 @@ func TestAsymmetricAndSignatureProviderFlows(t *testing.T) {
 	}
 
 	viper.Set(defaultKMSARNKey, keyData.KeyRef)
-	signature, err = signatureRepository.SignSHA256(testContext, "payload", nil)
+	signature, err = signatureRepository.SignPKCS1v15_SHA256(testContext, "payload", nil)
 	if err != nil {
-		t.Fatalf("SignSHA256() error = %v", err)
+		t.Fatalf("SignPKCS1v15_SHA256() error = %v", err)
 	}
 	if err := signatureRepository.VerifySHA256(testContext, "payload", signature, nil); err != nil {
 		t.Fatalf("VerifySHA256() error = %v", err)
@@ -526,16 +526,17 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 	if _, err := symmetricRepository.EncryptAES(testContext, "", "payload", nil); err == nil {
 		t.Fatal("expected EncryptAES() provider error")
 	}
-	if _, err := symmetricRepository.DecryptAES(testContext, "", "%%%", "aad"); err == nil {
+	additional := "aad"
+	if _, err := symmetricRepository.DecryptAES(testContext, "", "%%%", &additional); err == nil {
 		t.Fatal("expected DecryptAES() decode error")
 	}
-	if _, err := symmetricRepository.DecryptAES(testContext, "", base64.StdEncoding.EncodeToString([]byte("cipher")), "aad"); err == nil {
+	if _, err := symmetricRepository.DecryptAES(testContext, "", base64.StdEncoding.EncodeToString([]byte("cipher")), &additional); err == nil {
 		t.Fatal("expected DecryptAES() provider error")
 	}
-	if got := NewHashRepository().GenerateHMAC(testContext, "message", "arn:aws:kms:test"); got != "" {
+	if got := NewHashRepository().GenerateHMAC(testContext, "arn:aws:kms:test", "message"); got != "" {
 		t.Fatalf("GenerateHMAC() = %q, want empty string on provider error", got)
 	}
-	if NewHashRepository().ValidateHMAC(testContext, "message", "arn:aws:kms:test", base64.StdEncoding.EncodeToString([]byte("mac"))) {
+	if NewHashRepository().ValidateHMAC(testContext, "arn:aws:kms:test", "message", base64.StdEncoding.EncodeToString([]byte("mac"))) {
 		t.Fatal("expected ValidateHMAC() to fail on provider error")
 	}
 	if _, err := asymmetricRepository.RSA_OAEP_Encode(testContext, "", "payload"); err == nil {
@@ -575,8 +576,8 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 	if err := signatureRepository.VerifyRSAPSS(testContext, "", "payload", base64.StdEncoding.EncodeToString([]byte("sig"))); err == nil {
 		t.Fatal("expected VerifyRSAPSS() invalid signature error")
 	}
-	if _, err := signatureRepository.SignSHA256(testContext, "payload", nil); err == nil {
-		t.Fatal("expected SignSHA256() provider error")
+	if _, err := signatureRepository.SignPKCS1v15_SHA256(testContext, "payload", nil); err == nil {
+		t.Fatal("expected SignPKCS1v15_SHA256() provider error")
 	}
 	if err := signatureRepository.VerifySHA256(testContext, "payload", "%%%", nil); err == nil {
 		t.Fatal("expected VerifySHA256() decode error")
@@ -607,9 +608,9 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 	if err := signatureRepository.VerifyRSAPSS(testContext, publicB64, "payload", signature); err != nil {
 		t.Fatalf("VerifyRSAPSS() local fallback error = %v", err)
 	}
-	signature, err = signatureRepository.SignSHA256(testContext, "payload", privateKey)
+	signature, err = signatureRepository.SignPKCS1v15_SHA256(testContext, "payload", privateKey)
 	if err != nil {
-		t.Fatalf("SignSHA256() local fallback error = %v", err)
+		t.Fatalf("SignPKCS1v15_SHA256() local fallback error = %v", err)
 	}
 	if err := signatureRepository.VerifySHA256(testContext, "payload", signature, publicKey); err != nil {
 		t.Fatalf("VerifySHA256() local fallback error = %v", err)
@@ -653,8 +654,8 @@ func TestAWSKMSOperationsReturnLoadConfigErrors(t *testing.T) {
 	if err := signatureRepository.VerifyRSAPSS(testContext, "arn", "payload", base64.StdEncoding.EncodeToString([]byte("sig"))); err == nil {
 		t.Fatal("expected VerifyRSAPSS() config error")
 	}
-	if _, err := signatureRepository.SignSHA256(testContext, "payload", nil); err == nil {
-		t.Fatal("expected SignSHA256() config error")
+	if _, err := signatureRepository.SignPKCS1v15_SHA256(testContext, "payload", nil); err == nil {
+		t.Fatal("expected SignPKCS1v15_SHA256() config error")
 	}
 	if err := signatureRepository.VerifySHA256(testContext, "payload", base64.StdEncoding.EncodeToString([]byte("sig")), nil); err == nil {
 		t.Fatal("expected VerifySHA256() config error")

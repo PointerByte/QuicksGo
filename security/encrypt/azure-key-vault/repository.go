@@ -170,9 +170,9 @@ func (repository *symmetricRepository) EncryptAES(ctx context.Context, secretKey
 	return base64.StdEncoding.EncodeToString(payloadBytes), nil
 }
 
-func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey, cipherValue, additionalData string) (string, error) {
+func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey, cipherValue string, additional *string) (string, error) {
 	if isLocalAESKey(secretKey) {
-		return repository.local.DecryptAES(ctx, secretKey, cipherValue, additionalData)
+		return repository.local.DecryptAES(ctx, secretKey, cipherValue, additional)
 	}
 
 	reference, err := resolveAzureKeyReference(secretKey)
@@ -211,7 +211,7 @@ func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey
 		Value:                       resultBytes,
 		IV:                          ivBytes,
 		AuthenticationTag:           tagBytes,
-		AdditionalAuthenticatedData: []byte(additionalData),
+		AdditionalAuthenticatedData: bytesFromOptionalString(additional),
 	}, nil)
 	if err != nil {
 		return "", fmt.Errorf("azure-key-vault: decrypt with symmetric key: %w", err)
@@ -219,9 +219,9 @@ func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey
 	return string(response.Result), nil
 }
 
-func (repository *hashRepository) GenerateHMAC(ctx context.Context, message, secretKey string) string {
+func (repository *hashRepository) GenerateHMAC(ctx context.Context, secretKey, message string) string {
 	if !looksLikeAzureKeyReference(secretKey) {
-		return repository.local.GenerateHMAC(ctx, message, secretKey)
+		return repository.local.GenerateHMAC(ctx, secretKey, message)
 	}
 
 	reference, err := resolveAzureKeyReference(secretKey)
@@ -243,9 +243,9 @@ func (repository *hashRepository) GenerateHMAC(ctx context.Context, message, sec
 	return base64.StdEncoding.EncodeToString(response.Result)
 }
 
-func (repository *hashRepository) ValidateHMAC(ctx context.Context, message, secretKey, providedHash string) bool {
+func (repository *hashRepository) ValidateHMAC(ctx context.Context, secretKey, message, providedHash string) bool {
 	if !looksLikeAzureKeyReference(secretKey) {
-		return repository.local.ValidateHMAC(ctx, message, secretKey, providedHash)
+		return repository.local.ValidateHMAC(ctx, secretKey, message, providedHash)
 	}
 
 	reference, err := resolveAzureKeyReference(secretKey)
@@ -457,9 +457,9 @@ func (repository *signatureRepository) VerifyRSAPSS(ctx context.Context, publicK
 	return nil
 }
 
-func (repository *signatureRepository) SignSHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error) {
+func (repository *signatureRepository) SignPKCS1v15_SHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error) {
 	if privateKey != nil {
-		return repository.local.SignSHA256(ctx, data, privateKey)
+		return repository.local.SignPKCS1v15_SHA256(ctx, data, privateKey)
 	}
 
 	reference, err := resolveAzureKeyReference("")

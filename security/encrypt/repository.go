@@ -8,7 +8,6 @@ import (
 	azurekeyvault "github.com/PointerByte/QuicksGo/security/encrypt/azure-key-vault"
 	gcpkms "github.com/PointerByte/QuicksGo/security/encrypt/gcp-kms"
 	"github.com/PointerByte/QuicksGo/security/encrypt/local"
-	"github.com/spf13/viper"
 )
 
 type Mode string
@@ -23,13 +22,11 @@ const (
 // NewRepository returns a combined repository with the main cryptographic
 // capabilities exposed by this package.
 //
-// The selected backend is controlled by viper key "encrypt.vault.mode".
 // Supported values are "local", "aws-kms", "azure-key-vault", and "gcp-kms".
-// When the value is empty or does not match a known mode, the function falls
-// back to the local implementation.
-func NewRepository() Repository {
-	strMode := viper.GetString("encrypt.vault.mode")
-	switch Mode(strMode) {
+// When mode is empty or does not match a known value, the function falls back
+// to the local implementation.
+func NewRepository(mode Mode) Repository {
+	switch mode {
 	case AwsKMS:
 		return awskms.NewRepository()
 	case AzureKeyVault:

@@ -22,7 +22,7 @@ type SymmetricRepository interface {
 	// additional authenticated data.
 	EncryptAES(ctx context.Context, secretKey, value string, additional *string) (string, error)
 	// DecryptAES decrypts Base64 ciphertext produced by EncryptAES.
-	DecryptAES(ctx context.Context, secretKey, cipherValue, additionalData string) (string, error)
+	DecryptAES(ctx context.Context, secretKey, cipherValue string, additional *string) (string, error)
 }
 
 // AsymmetricRepository exposes RSA key generation and RSA-OAEP helpers.
@@ -39,9 +39,9 @@ type AsymmetricRepository interface {
 // HashRepository exposes hashing and message-authentication helpers.
 type HashRepository interface {
 	// GenerateHMAC returns a Base64-encoded HMAC-SHA256 signature.
-	GenerateHMAC(ctx context.Context, message, secretKey string) string
+	GenerateHMAC(ctx context.Context, secretKey, message string) string
 	// ValidateHMAC checks whether providedHash matches the message HMAC.
-	ValidateHMAC(ctx context.Context, message, secretKey, providedHash string) bool
+	ValidateHMAC(ctx context.Context, secretKey, message, providedHash string) bool
 	// Sha256Hex returns the SHA-256 digest as a hexadecimal string.
 	Sha256Hex(ctx context.Context, message string) string
 	// Blake3 returns the BLAKE3 digest encoded as Base64.
@@ -61,8 +61,8 @@ type SignatureRepository interface {
 	SignRSAPSS(ctx context.Context, privateKey, text string) (string, error)
 	// VerifyRSAPSS validates an RSA-PSS Base64 signature.
 	VerifyRSAPSS(ctx context.Context, publicKey, text, signature string) error
-	// SignSHA256 signs data with RSA PKCS#1 v1.5 using SHA-256.
-	SignSHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error)
+	// SignPKCS1v15_SHA256 signs data with RSA PKCS#1 v1.5 using SHA-256.
+	SignPKCS1v15_SHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error)
 	// VerifySHA256 validates an RSA PKCS#1 v1.5 SHA-256 signature.
 	VerifySHA256(ctx context.Context, data, signature string, publicKey *rsa.PublicKey) error
 }

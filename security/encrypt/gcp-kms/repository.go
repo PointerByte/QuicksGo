@@ -40,6 +40,13 @@ var (
 	errGCPKMSKeyRingRequired = errors.New("gcp-kms: key ring path is required")
 	errGCPKMSVersionRequired = errors.New("gcp-kms: crypto key version is required")
 	newGCPKMSClientFn        = kms.NewKeyManagementClient
+	newGCPClientFn           = func(ctx context.Context) (gcpKMSClient, error) {
+		client, err := newGCPKMSClientFn(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("gcp-kms: create client: %w", err)
+		}
+		return &gcpClientAdapter{KeyManagementClient: client}, nil
+	}
 )
 
 type gcpKMSClient interface {
@@ -181,9 +188,9 @@ func (repository *symmetricRepository) EncryptAES(ctx context.Context, secretKey
 	return base64.StdEncoding.EncodeToString(response.Ciphertext), nil
 }
 
-func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey, cipherValue, additionalData string) (string, error) {
+func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey, cipherValue string, additional *string) (string, error) {
 	if isLocalAESKey(secretKey) {
-		return repository.local.DecryptAES(ctx, secretKey, cipherValue, additionalData)
+		return repository.local.DecryptAES(ctx, secretKey, cipherValue, additional)
 	}
 
 	client, err := newGCPClient(ctx)
@@ -203,7 +210,7 @@ func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey
 	response, err := client.Decrypt(ctx, &kmspb.DecryptRequest{
 		Name:                        keyName,
 		Ciphertext:                  ciphertext,
-		AdditionalAuthenticatedData: []byte(additionalData),
+		AdditionalAuthenticatedData: bytesFromOptionalString(additional),
 	})
 	if err != nil {
 		return "", fmt.Errorf("gcp-kms: decrypt with symmetric key: %w", err)
@@ -211,9 +218,9 @@ func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey
 	return string(response.Plaintext), nil
 }
 
-func (repository *hashRepository) GenerateHMAC(ctx context.Context, message, secretKey string) string {
+func (repository *hashRepository) GenerateHMAC(ctx context.Context, secretKey, message string) string {
 	if !looksLikeGCPKMSKeyReference(secretKey) {
-		return repository.local.GenerateHMAC(ctx, message, secretKey)
+		return repository.local.GenerateHMAC(ctx, secretKey, message)
 	}
 
 	client, err := newGCPClient(ctx)
@@ -233,9 +240,9 @@ func (repository *hashRepository) GenerateHMAC(ctx context.Context, message, sec
 	return base64.StdEncoding.EncodeToString(response.Mac)
 }
 
-func (repository *hashRepository) ValidateHMAC(ctx context.Context, message, secretKey, providedHash string) bool {
+func (repository *hashRepository) ValidateHMAC(ctx context.Context, secretKey, message, providedHash string) bool {
 	if !looksLikeGCPKMSKeyReference(secretKey) {
-		return repository.local.ValidateHMAC(ctx, message, secretKey, providedHash)
+		return repository.local.ValidateHMAC(ctx, secretKey, message, providedHash)
 	}
 
 	client, err := newGCPClient(ctx)
@@ -531,9 +538,9 @@ func (repository *signatureRepository) VerifyRSAPSS(ctx context.Context, publicK
 	return nil
 }
 
-func (repository *signatureRepository) SignSHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error) {
+func (repository *signatureRepository) SignPKCS1v15_SHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error) {
 	if privateKey != nil {
-		return repository.local.SignSHA256(ctx, data, privateKey)
+		return repository.local.SignPKCS1v15_SHA256(ctx, data, privateKey)
 	}
 
 	client, err := newGCPClient(ctx)
@@ -596,11 +603,7 @@ func (repository *signatureRepository) VerifySHA256(ctx context.Context, data, s
 }
 
 func newGCPClient(ctx context.Context) (gcpKMSClient, error) {
-	client, err := newGCPKMSClientFn(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("gcp-kms: create client: %w", err)
-	}
-	return &gcpClientAdapter{KeyManagementClient: client}, nil
+	return newGCPClientFn(ctx)
 }
 
 func configuredGCPKeyID() string {
