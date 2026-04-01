@@ -34,10 +34,10 @@ func TestSymmetricRepositoryAES(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GeneratesSymetrycKey() error = %v", err)
 	}
-	if key == nil || key.Key == "" || key.Provider != "local" {
+	if key == nil || key.KeyID == "" || key.Provider != "local" {
 		t.Fatalf("GeneratesSymetrycKey() = %#v, want populated local key data", key)
 	}
-	keyBytes, err := base64.StdEncoding.DecodeString(key.Key)
+	keyBytes, err := base64.StdEncoding.DecodeString(key.KeyID)
 	if err != nil {
 		t.Fatalf("DecodeString() error = %v", err)
 	}
@@ -46,11 +46,11 @@ func TestSymmetricRepositoryAES(t *testing.T) {
 	}
 
 	additional := "aad"
-	ciphertext, err := repository.EncryptAES(testContext, key.Key, "hello", &additional)
+	ciphertext, err := repository.EncryptAES(testContext, key.KeyID, "hello", &additional)
 	if err != nil {
 		t.Fatalf("EncryptAES() error = %v", err)
 	}
-	plaintext, err := repository.DecryptAES(testContext, key.Key, ciphertext, "aad")
+	plaintext, err := repository.DecryptAES(testContext, key.KeyID, ciphertext, "aad")
 	if err != nil {
 		t.Fatalf("DecryptAES() error = %v", err)
 	}

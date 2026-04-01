@@ -1,7 +1,6 @@
 package models
 
 type SymmetricKeyData struct {
-	Key      string
 	KeyID    string
 	KeyRef   string
 	Provider string

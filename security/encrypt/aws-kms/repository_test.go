@@ -121,7 +121,7 @@ func TestDelegatedLocalHelpers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GeneratesSymetrycKey() error = %v", err)
 	}
-	if key == nil || key.Key != "" || key.KeyID != "kms-symmetric-id" || key.KeyRef != "arn:aws:kms:test-symmetric" || key.Provider != "aws-kms" {
+	if key == nil || key.KeyID != "" || key.KeyID != "kms-symmetric-id" || key.KeyRef != "arn:aws:kms:test-symmetric" || key.Provider != "aws-kms" {
 		t.Fatalf("GeneratesSymetrycKey() = %#v, want KMS symmetric key metadata", key)
 	}
 
@@ -151,7 +151,7 @@ func TestDelegatedLocalHelpers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("local GeneratesSymetrycKey() error = %v", err)
 	}
-	if _, err := repository.EncryptAES(testContext, localKey.Key, "hello", &additional); err != nil {
+	if _, err := repository.EncryptAES(testContext, localKey.KeyID, "hello", &additional); err != nil {
 		t.Fatalf("EncryptAES() local fallback error = %v", err)
 	}
 }

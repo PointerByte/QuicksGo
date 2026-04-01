@@ -47,7 +47,7 @@ func (symmetricRepository) GeneratesSymetrycKey(ctx context.Context, size common
 		return nil, err
 	}
 	return &models.SymmetricKeyData{
-		Key:      base64.StdEncoding.EncodeToString(b),
+		KeyID:    base64.StdEncoding.EncodeToString(b),
 		Provider: "local",
 	}, nil
 }
