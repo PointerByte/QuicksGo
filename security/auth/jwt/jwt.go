@@ -16,7 +16,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/PointerByte/QuicksGo/security/encrypt"
+	"github.com/PointerByte/QuicksGo/encrypt"
+	"github.com/PointerByte/QuicksGo/encrypt/local"
 	"github.com/spf13/viper"
 )
 
@@ -356,7 +357,7 @@ func NewHMACSHA256(secret string) Strategy {
 // The private key is used to sign tokens and the public key is used to verify them.
 func NewRSASHA256(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) Strategy {
 	return &rsaSHA256Strategy{
-		signutil:   encrypt.NewRepository(encrypt.Local),
+		signutil:   encrypt.NewRepository(local.NewRepository()),
 		privateKey: privateKey,
 		publicKey:  publicKey,
 	}
@@ -365,7 +366,7 @@ func NewRSASHA256(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) Strategy
 // NewRSAPSSSHA256 returns an RSA-PSS SHA-256 signing strategy.
 func NewRSAPSSSHA256(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) Strategy {
 	return &rsaPSSSHA256Strategy{
-		signutil:   encrypt.NewRepository(encrypt.Local),
+		signutil:   encrypt.NewRepository(local.NewRepository()),
 		privateKey: privateKey,
 		publicKey:  publicKey,
 	}
@@ -374,7 +375,7 @@ func NewRSAPSSSHA256(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) Strat
 // NewEd25519 returns an Ed25519 signing strategy.
 func NewEd25519(privateKey ed25519.PrivateKey, publicKey ed25519.PublicKey) Strategy {
 	return &ed25519Strategy{
-		signutil:   encrypt.NewRepository(encrypt.Local),
+		signutil:   encrypt.NewRepository(local.NewRepository()),
 		privateKey: privateKey,
 		publicKey:  publicKey,
 	}

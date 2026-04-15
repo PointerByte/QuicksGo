@@ -2,3 +2,6 @@
 **/logs
 **/coverage.html
 **/.gocache
+.codex
+coverage_report.txt
+coverage.out.total

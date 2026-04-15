@@ -1,12 +1,6 @@
 # QuicksGo Security
 
-Security library for Go with utilities for:
-
-- JWT with `viper`
-- Gin middlewares
-- Symmetric encryption
-- RSA
-- Digital signatures
+`security` provides JWT services and Gin middlewares for token-based authentication. It is designed to work with `viper` configuration and uses `github.com/PointerByte/QuicksGo/encrypt` as its standalone cryptographic dependency.
 
 ## Installation
 
@@ -14,31 +8,42 @@ Security library for Go with utilities for:
 go get github.com/PointerByte/QuicksGo/security
 ```
 
-## Packages
+If you also need direct access to cryptographic primitives, add:
 
-- `auth/jwt`: JWT creation, validation, and claim decoding
-- `auth/cookies`: JWT validation and claim decoding from HTTP cookies
-- `middlewares`: Gin middlewares (`RequireJWT`, `RequireJWTCookie`, security headers)
-- `encrypt`: context-aware repository API for AES-GCM, HMAC, hashes, RSA, and digital signatures
-- `encrypt/local`: in-process implementation with exportable key material
-- `encrypt/aws-kms`: AWS KMS-backed implementation where the provider supports the operation
-- `encrypt/azure-key-vault`: Azure Key Vault-oriented implementation with local fallbacks for local-only primitives
-- `encrypt/gcp-kms`: Google Cloud KMS-oriented implementation with local fallbacks for local-only primitives
+```bash
+go get github.com/PointerByte/QuicksGo/encrypt
+```
 
-## Viper Configuration
+## What this module includes
 
-The JWT and cookie-auth packages resolve configuration through `viper`.
+- JWT creation, validation, and claim decoding
+- Cookie-based JWT auth
+- Gin middlewares for JWT and cookie auth
+- Security headers middleware
+- Example app showing HMAC and RSA flows
 
-`security` does not load `application.yaml`, `application.yml`, or `application.json` by itself. The host application must load one of those files into `viper` before creating the JWT service or using `RequireJWT` / `RequireJWTCookie`.
+## Package layout
 
-In this repository, for example, the server package loads configuration from the application root with this priority:
+- `auth/jwt`: JWT services and signing strategy configuration
+- `auth/cookies`: JWT-from-cookie service
+- `middlewares`: Gin middleware helpers
 
-- `application.yml`
-- `application.json`
+## Relationship with `encrypt`
 
-That means `viper` values such as `jwt.enable` or `jwt.algorithm` come from the file your application loaded first, and can then be overridden by environment variables if your bootstrap does that.
+`encrypt` is now a separate module. `security` depends on it internally for cryptographic operations, but the public import path is no longer `github.com/PointerByte/QuicksGo/security/encrypt`.
 
-Example loading `application.yaml` or `application.yml`:
+Use these module paths instead:
+
+- `github.com/PointerByte/QuicksGo/security`
+- `github.com/PointerByte/QuicksGo/encrypt`
+
+## Configuration with Viper
+
+JWT and cookie-auth services resolve configuration through `viper`.
+
+This module does not automatically load `application.yaml`, `application.yml`, or `application.json`. Your application must load configuration into `viper` before creating a configured service or using `RequireJWT` / `RequireJWTCookie`.
+
+Example loading YAML:
 
 ```go
 import "github.com/spf13/viper"
@@ -51,7 +56,7 @@ func loadConfig() error {
 }
 ```
 
-Example loading `application.json`:
+Example loading JSON:
 
 ```go
 import "github.com/spf13/viper"
@@ -75,14 +80,14 @@ Main keys:
 - `jwt.eddsa.private_key`
 - `jwt.eddsa.public_key`
 
-Included examples:
+Example config files in this module:
 
-- [config.example.yaml](/e:/Proyects/Practices/QuicksGoV2t/security/config.example.yaml)
-- [config.example.json](/e:/Proyects/Practices/QuicksGoV2t/security/config.example.json)
+- [application.yaml](./application.yaml)
+- [application.json](./application.json)
 
-## JWT Usage
+## JWT usage
 
-### Create a service from configuration
+### Build a configured service
 
 ```go
 import (
@@ -106,9 +111,12 @@ token, err := service.Create(map[string]any{
 	"user_id": "42",
 	"role":    "admin",
 })
+if err != nil {
+	panic(err)
+}
 ```
 
-### Validate and decode claims
+### Read typed claims
 
 ```go
 var claims struct {
@@ -116,21 +124,30 @@ var claims struct {
 	Role   string `json:"role"`
 }
 
-err := service.Read(token, &claims)
+if err := service.Read(token, &claims); err != nil {
+	panic(err)
+}
 ```
 
-### Supported JWT algorithms
+### Supported algorithms
 
 - `HS256`
 - `RS256`
 - `PS256`
 - `EdDSA`
 
-## JWT Middleware for Gin
+## JWT middleware for Gin
 
 `RequireJWT` builds the JWT service internally using `viper`.
 
 ```go
+import (
+	"context"
+
+	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
+	"github.com/PointerByte/QuicksGo/security/middlewares"
+)
+
 router.Use(middlewares.RequireJWT(
 	middlewares.WithJWTClaimsFactory(func() any { return &MyClaims{} }),
 	middlewares.WithJWTValidator(func(ctx context.Context, token jwtservice.Token) error {
@@ -139,27 +156,23 @@ router.Use(middlewares.RequireJWT(
 ))
 ```
 
-### Typed claims
+### Read claims from Gin context
 
 ```go
 type MyClaims struct {
 	UserID string `json:"user_id"`
 	Role   string `json:"role"`
 }
-```
 
-Then in a handler:
-
-```go
 claimsValue, _ := c.Get(middlewares.JWTClaimsContextKey.String())
 claims := claimsValue.(*MyClaims)
 ```
 
-## Cookie Auth
+## Cookie auth
 
 The `auth/cookies` package reuses the JWT service and reads the token from an HTTP cookie.
 
-### Create a cookie auth service from configuration
+### Build a configured cookie service
 
 ```go
 import (
@@ -177,7 +190,7 @@ if err != nil {
 }
 ```
 
-### Validate claims from a request cookie
+### Read claims from a request cookie
 
 ```go
 var claims struct {
@@ -185,12 +198,12 @@ var claims struct {
 	Role   string `json:"role"`
 }
 
-err := service.Read(r, &claims)
+if err := service.Read(r, &claims); err != nil {
+	panic(err)
+}
 ```
 
-## Cookie Middleware for Gin
-
-`RequireJWTCookie` validates the JWT from a request cookie and stores the parsed token and claims in the Gin context.
+## Cookie middleware for Gin
 
 ```go
 router.Use(middlewares.RequireJWTCookie(
@@ -198,88 +211,33 @@ router.Use(middlewares.RequireJWTCookie(
 ))
 ```
 
-By default it reads the cookie configured in `jwt.cookie.name`, or `access_token` when that key is not set.
+By default it reads the cookie configured in `jwt.cookie.name`, or `access_token` when that key is missing.
 
-## Encrypt Usage
+## Direct `encrypt` usage alongside `security`
 
-The encryption module now exposes repository interfaces through `encrypt`.
-
-`encrypt.NewRepository` now receives the backend mode explicitly.
-
-### Create a repository
+If your application uses `security` and also needs explicit crypto operations, import `encrypt` directly:
 
 ```go
 import (
 	"context"
 
-	"github.com/PointerByte/QuicksGo/security/encrypt"
+	"github.com/PointerByte/QuicksGo/encrypt"
+	"github.com/PointerByte/QuicksGo/encrypt/local"
 )
 
 ctx := context.Background()
-repository := encrypt.NewRepository(encrypt.Local)
+repository := encrypt.NewRepository(local.NewRepository())
+
+_, _ = ctx, repository
 ```
 
-### AES-GCM
+See the `encrypt` module README for backend-specific details.
 
-```go
-keyData, err := repository.GeneratesSymetrycKey(ctx, 32)
-if err != nil {
-	panic(err)
-}
+## Runnable example
 
-additional := "aad"
-encrypted, err := repository.EncryptAES(ctx, keyData.Key, "hello", &additional)
-if err != nil {
-	panic(err)
-}
+This module includes a runnable example in [main.go](./main.go).
 
-plainText, err := repository.DecryptAES(ctx, keyData.Key, encrypted, &additional)
-```
-
-### HMAC
-
-```go
-hash := repository.GenerateHMAC(ctx, "secret", "message")
-ok := repository.ValidateHMAC(ctx, "secret", "message", hash)
-```
-
-### RSA-OAEP with SHA-256
-
-```go
-keyData, err := repository.GeneratesRSAKey(ctx, 2048)
-if err != nil {
-	panic(err)
-}
-
-cipherText, err := repository.RSA_OAEP_Encode(ctx, keyData.PublicKey, "hello")
-if err != nil {
-	panic(err)
-}
-
-plainText, err := repository.RSA_OAEP_Decode(ctx, keyData.PrivateKey, cipherText)
-```
-
-### Ed25519
-
-```go
-keyData, err := repository.GeneratesEd255Key(ctx, 2048)
-if err != nil {
-	panic(err)
-}
-
-signature, err := repository.SignEd25519(ctx, keyData.PrivateKey, "hello")
-if err != nil {
-	panic(err)
-}
-
-err = repository.VerifyEd25519(ctx, keyData.PublicKey, "hello", signature)
-```
-
-## Runnable Example
-
-The project includes a Gin example in [main.go](/e:/Proyects/Practices/QuicksGoV2t/security/main.go).
-
-Run it with:
+Run it from the `security` directory:
 
 ```bash
 go run .
@@ -297,48 +255,28 @@ Example routes:
 
 ## Tests
 
+From the `security` module directory:
+
 ```bash
 go test ./...
 ```
 
-## Useful Commands
-
-### Update dependencies
-
-Updates module dependencies to newer allowed versions.
-
-```bash
-go get -u ./...
-```
-
-### Clear build, test, and module cache
-
-Removes the build cache, test cache, and downloaded module cache.
-
-```bash
-go clean -cache -testcache -modcache
-```
-
-### Run unit tests with coverage
-
-Runs all tests in the project and generates the `coverage.out` file.
+With coverage:
 
 ```bash
 go test -cover -covermode=atomic -coverprofile="coverage.out" ./...
 ```
 
-### Generate HTML coverage report
+## Useful commands
 
-Converts `coverage.out` into an HTML coverage report.
+Update dependencies:
 
 ```bash
-go tool cover -html="coverage.out" -o "coverage.html"
+go get -u ./...
 ```
 
-### Show coverage from `coverage.out`
-
-Prints per-function coverage information in the terminal.
+Clear build, test, and module cache:
 
 ```bash
-go tool cover -func="coverage.out"
+go clean -cache -testcache -modcache
 ```

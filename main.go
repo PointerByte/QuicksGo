@@ -127,7 +127,6 @@ func runGRPCExample() error {
 	}); err != nil {
 		return fmt.Errorf("problem registering grpc example service: %w", err)
 	}
-
 	return srv.Serve()
 }
 
