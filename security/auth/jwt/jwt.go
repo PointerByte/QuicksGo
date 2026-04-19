@@ -18,6 +18,7 @@ import (
 
 	"github.com/PointerByte/QuicksGo/encrypt"
 	"github.com/PointerByte/QuicksGo/encrypt/local"
+	"github.com/PointerByte/QuicksGo/encrypt/utilities"
 	"github.com/spf13/viper"
 )
 
@@ -232,7 +233,7 @@ func NewRSAPSSService(input RSAServiceInput) (*Service, error) {
 	if privateKey == nil {
 		value := viper.GetString(privateKeyConfig)
 		if value != "" {
-			parsedKey, err := encrypt.ParseRSAPrivateKeyFromBase64(value)
+			parsedKey, err := utilities.ParseRSAPrivateKeyFromBase64(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse rsa private key from key %s: %w", privateKeyConfig, err)
 			}
@@ -245,7 +246,7 @@ func NewRSAPSSService(input RSAServiceInput) (*Service, error) {
 	if publicKey == nil {
 		value := viper.GetString(publicKeyConfig)
 		if value != "" {
-			parsedKey, err := encrypt.ParseRSAPublicKeyFromBase64(value)
+			parsedKey, err := utilities.ParseRSAPublicKeyFromBase64(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse rsa public key from key %s: %w", publicKeyConfig, err)
 			}
@@ -267,7 +268,7 @@ func NewEd25519Service(input Ed25519ServiceInput) (*Service, error) {
 	if privateKey == nil {
 		value := viper.GetString(privateKeyConfig)
 		if value != "" {
-			parsedKey, err := encrypt.ParseEd25519PrivateKeyFromBase64(value)
+			parsedKey, err := utilities.ParseEd25519PrivateKeyFromBase64(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse ed25519 private key from key %s: %w", privateKeyConfig, err)
 			}
@@ -280,7 +281,7 @@ func NewEd25519Service(input Ed25519ServiceInput) (*Service, error) {
 	if publicKey == nil {
 		value := viper.GetString(publicKeyConfig)
 		if value != "" {
-			parsedKey, err := encrypt.ParseEd25519PublicKeyFromBase64(value)
+			parsedKey, err := utilities.ParseEd25519PublicKeyFromBase64(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse ed25519 public key from key %s: %w", publicKeyConfig, err)
 			}
@@ -320,7 +321,7 @@ func NewRSAService(input RSAServiceInput) (*Service, error) {
 	if privateKey == nil {
 		value := viper.GetString(privateKeyConfig)
 		if value != "" {
-			parsedKey, err := encrypt.ParseRSAPrivateKeyFromBase64(value)
+			parsedKey, err := utilities.ParseRSAPrivateKeyFromBase64(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse rsa private key from key %s: %w", privateKeyConfig, err)
 			}
@@ -333,7 +334,7 @@ func NewRSAService(input RSAServiceInput) (*Service, error) {
 	if publicKey == nil {
 		value := viper.GetString(publicKeyConfig)
 		if value != "" {
-			parsedKey, err := encrypt.ParseRSAPublicKeyFromBase64(value)
+			parsedKey, err := utilities.ParseRSAPublicKeyFromBase64(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse rsa public key from key %s: %w", publicKeyConfig, err)
 			}

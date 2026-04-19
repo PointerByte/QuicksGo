@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/PointerByte/QuicksGo/cmd/qgo/codigo"
+	"github.com/PointerByte/QuicksGo/cmd/qgo/code"
 )
 
 func TestMainSuccess(t *testing.T) {
@@ -25,8 +25,8 @@ func TestMainSuccess(t *testing.T) {
 	})
 
 	executed := false
-	newAppFn = func() *codigo.App { return &codigo.App{} }
-	executeAppFn = func(app *codigo.App) error {
+	newAppFn = func() *code.App { return &code.App{} }
+	executeAppFn = func(app *code.App) error {
 		executed = true
 		return nil
 	}
@@ -56,8 +56,8 @@ func TestMainError(t *testing.T) {
 	var gotMessage string
 	var gotExitCode int
 
-	newAppFn = func() *codigo.App { return &codigo.App{} }
-	executeAppFn = func(app *codigo.App) error { return wantErr }
+	newAppFn = func() *code.App { return &code.App{} }
+	executeAppFn = func(app *code.App) error { return wantErr }
 	writeErrorFn = func(message string) { gotMessage = message }
 	exitProcessFn = func(code int) { gotExitCode = code }
 
@@ -78,7 +78,7 @@ func TestExecuteApp(t *testing.T) {
 	})
 
 	os.Args = []string{"qgo", "help"}
-	app := &codigo.App{}
+	app := &code.App{}
 	if err := executeApp(app); err != nil {
 		t.Fatalf("expected executeApp without error, got %v", err)
 	}

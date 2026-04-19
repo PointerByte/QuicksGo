@@ -5,7 +5,6 @@ package awskms
 
 import (
 	"context"
-	"crypto/aes"
 	"crypto/rsa"
 	"encoding/base64"
 	"errors"
@@ -15,6 +14,7 @@ import (
 	"github.com/PointerByte/QuicksGo/encrypt/common"
 	"github.com/PointerByte/QuicksGo/encrypt/local"
 	"github.com/PointerByte/QuicksGo/encrypt/models"
+	"github.com/PointerByte/QuicksGo/encrypt/utilities"
 	sdkaws "github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	kms "github.com/aws/aws-sdk-go-v2/service/kms"
@@ -37,6 +37,7 @@ var (
 
 type kmsClient interface {
 	CreateKey(ctx context.Context, params *kms.CreateKeyInput, optFns ...func(*kms.Options)) (*kms.CreateKeyOutput, error)
+	DeriveSharedSecret(ctx context.Context, params *kms.DeriveSharedSecretInput, optFns ...func(*kms.Options)) (*kms.DeriveSharedSecretOutput, error)
 	GetPublicKey(ctx context.Context, params *kms.GetPublicKeyInput, optFns ...func(*kms.Options)) (*kms.GetPublicKeyOutput, error)
 	Encrypt(ctx context.Context, params *kms.EncryptInput, optFns ...func(*kms.Options)) (*kms.EncryptOutput, error)
 	Decrypt(ctx context.Context, params *kms.DecryptInput, optFns ...func(*kms.Options)) (*kms.DecryptOutput, error)
@@ -127,7 +128,7 @@ func (repository *symmetricRepository) GeneratesSymetrycKey(ctx context.Context,
 }
 
 func (repository *symmetricRepository) EncryptAES(ctx context.Context, secretKey, value string, additional *string) (string, error) {
-	if isLocalAESKey(secretKey) {
+	if utilities.IsLocalAESKey(secretKey) {
 		return repository.local.EncryptAES(ctx, secretKey, value, additional)
 	}
 
@@ -157,7 +158,7 @@ func (repository *symmetricRepository) EncryptAES(ctx context.Context, secretKey
 }
 
 func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey, cipherValue string, additional *string) (string, error) {
-	if isLocalAESKey(secretKey) {
+	if utilities.IsLocalAESKey(secretKey) {
 		return repository.local.DecryptAES(ctx, secretKey, cipherValue, additional)
 	}
 
@@ -297,8 +298,44 @@ func (repository *asymmetricRepository) GeneratesRSAKey(ctx context.Context, siz
 	}, nil
 }
 
+func (repository *asymmetricRepository) GeneratesECCKey(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error) {
+	client, err := newAWSKMSClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	keySpec, err := toAWSECCKeySpec(curve)
+	if err != nil {
+		return nil, err
+	}
+
+	output, err := client.CreateKey(ctx, &kms.CreateKeyInput{
+		KeyUsage: types.KeyUsageTypeKeyAgreement,
+		KeySpec:  keySpec,
+		Origin:   types.OriginTypeAwsKms,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("aws-kms: create ecc key: %w", err)
+	}
+	if output.KeyMetadata == nil || output.KeyMetadata.KeyId == nil || output.KeyMetadata.Arn == nil {
+		return nil, errors.New("aws-kms: missing key metadata from create ecc key response")
+	}
+
+	publicKeyOutput, err := client.GetPublicKey(ctx, &kms.GetPublicKeyInput{KeyId: output.KeyMetadata.KeyId})
+	if err != nil {
+		return nil, fmt.Errorf("aws-kms: get ecc public key: %w", err)
+	}
+
+	return &models.AsymmetricKeyData{
+		PublicKey: base64.StdEncoding.EncodeToString(publicKeyOutput.PublicKey),
+		KeyID:     sdkaws.ToString(output.KeyMetadata.KeyId),
+		KeyRef:    sdkaws.ToString(output.KeyMetadata.Arn),
+		Provider:  "aws-kms",
+	}, nil
+}
+
 func (repository *asymmetricRepository) RSA_OAEP_Encode(ctx context.Context, publicKey, text string) (string, error) {
-	if _, err := ParseRSAPublicKeyFromBase64(publicKey); err == nil {
+	if _, err := utilities.ParseRSAPublicKeyFromBase64(publicKey); err == nil {
 		return repository.local.RSA_OAEP_Encode(ctx, publicKey, text)
 	}
 
@@ -324,7 +361,7 @@ func (repository *asymmetricRepository) RSA_OAEP_Encode(ctx context.Context, pub
 }
 
 func (repository *asymmetricRepository) RSA_OAEP_Decode(ctx context.Context, privateKey, cipherText string) (string, error) {
-	if _, err := ParseRSAPrivateKeyFromBase64(privateKey); err == nil {
+	if _, err := utilities.ParseRSAPrivateKeyFromBase64(privateKey); err == nil {
 		return repository.local.RSA_OAEP_Decode(ctx, privateKey, cipherText)
 	}
 
@@ -352,6 +389,71 @@ func (repository *asymmetricRepository) RSA_OAEP_Decode(ctx context.Context, pri
 		return "", fmt.Errorf("aws-kms: decrypt with rsa-oaep-sha256: %w", err)
 	}
 	return string(output.Plaintext), nil
+}
+
+func (repository *asymmetricRepository) ECC_Encode(ctx context.Context, publicKey, text string) (string, error) {
+	if _, err := utilities.ParseECDHPublicKeyFromBase64(publicKey); err == nil {
+		return repository.local.ECC_Encode(ctx, publicKey, text)
+	}
+
+	client, err := newAWSKMSClient(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	keyID, err := resolveAWSKMSKeyID(publicKey)
+	if err != nil {
+		return "", err
+	}
+
+	publicKeyOutput, err := client.GetPublicKey(ctx, &kms.GetPublicKeyInput{KeyId: sdkaws.String(keyID)})
+	if err != nil {
+		return "", fmt.Errorf("aws-kms: get ecc public key: %w", err)
+	}
+
+	return repository.local.ECC_Encode(ctx, base64.StdEncoding.EncodeToString(publicKeyOutput.PublicKey), text)
+}
+
+func (repository *asymmetricRepository) ECC_Decode(ctx context.Context, privateKey, cipherText string) (string, error) {
+	if _, err := utilities.ParseECDHPrivateKeyFromBase64(privateKey); err == nil {
+		return repository.local.ECC_Decode(ctx, privateKey, cipherText)
+	}
+
+	client, err := newAWSKMSClient(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	keyID, err := resolveAWSKMSKeyID(privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	payload, err := utilities.DecodeECCCipherPayload(cipherText)
+	if err != nil {
+		return "", err
+	}
+
+	ephemeralPublicKeyDER, err := base64.StdEncoding.DecodeString(payload.EphemeralPublicKey)
+	if err != nil {
+		return "", fmt.Errorf("aws-kms: decode ephemeral public key: %w", err)
+	}
+
+	sharedSecretOutput, err := client.DeriveSharedSecret(ctx, &kms.DeriveSharedSecretInput{
+		KeyAgreementAlgorithm: types.KeyAgreementAlgorithmSpecEcdh,
+		KeyId:                 sdkaws.String(keyID),
+		PublicKey:             ephemeralPublicKeyDER,
+	})
+	if err != nil {
+		return "", fmt.Errorf("aws-kms: derive shared secret: %w", err)
+	}
+
+	derivedKey, err := utilities.DeriveECCAESKey(sharedSecretOutput.SharedSecret, payload.Curve)
+	if err != nil {
+		return "", err
+	}
+
+	return local.NewSymmetricRepository().DecryptAES(ctx, base64.StdEncoding.EncodeToString(derivedKey), payload.Ciphertext, &payload.Curve)
 }
 
 func (repository *signatureRepository) GeneratesEd255Key(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
@@ -392,7 +494,7 @@ func (repository *signatureRepository) GeneratesEd255Key(ctx context.Context, si
 }
 
 func (repository *signatureRepository) SignEd25519(ctx context.Context, privateKey, text string) (string, error) {
-	if _, err := ParseEd25519PrivateKeyFromBase64(privateKey); err == nil {
+	if _, err := utilities.ParseEd25519PrivateKeyFromBase64(privateKey); err == nil {
 		return repository.local.SignEd25519(ctx, privateKey, text)
 	}
 
@@ -419,7 +521,7 @@ func (repository *signatureRepository) SignEd25519(ctx context.Context, privateK
 }
 
 func (repository *signatureRepository) VerifyEd25519(ctx context.Context, publicKey, text, signature string) error {
-	if _, err := ParseEd25519PublicKeyFromBase64(publicKey); err == nil {
+	if _, err := utilities.ParseEd25519PublicKeyFromBase64(publicKey); err == nil {
 		return repository.local.VerifyEd25519(ctx, publicKey, text, signature)
 	}
 
@@ -455,7 +557,7 @@ func (repository *signatureRepository) VerifyEd25519(ctx context.Context, public
 }
 
 func (repository *signatureRepository) SignRSAPSS(ctx context.Context, privateKey, text string) (string, error) {
-	if _, err := ParseRSAPrivateKeyFromBase64(privateKey); err == nil {
+	if _, err := utilities.ParseRSAPrivateKeyFromBase64(privateKey); err == nil {
 		return repository.local.SignRSAPSS(ctx, privateKey, text)
 	}
 
@@ -482,7 +584,7 @@ func (repository *signatureRepository) SignRSAPSS(ctx context.Context, privateKe
 }
 
 func (repository *signatureRepository) VerifyRSAPSS(ctx context.Context, publicKey, text, signature string) error {
-	if _, err := ParseRSAPublicKeyFromBase64(publicKey); err == nil {
+	if _, err := utilities.ParseRSAPublicKeyFromBase64(publicKey); err == nil {
 		return repository.local.VerifyRSAPSS(ctx, publicKey, text, signature)
 	}
 
@@ -620,6 +722,19 @@ func toAWSRSAKeySpec(size common.SizeAsymetrycKey) (types.KeySpec, error) {
 	}
 }
 
+func toAWSECCKeySpec(curve common.CurveAsymmetricKey) (types.KeySpec, error) {
+	switch curve {
+	case common.CurveP256:
+		return types.KeySpecEccNistP256, nil
+	case common.CurveP384:
+		return types.KeySpecEccNistP384, nil
+	case common.CurveP521:
+		return types.KeySpecEccNistP521, nil
+	default:
+		return "", fmt.Errorf("aws-kms: unsupported ecc curve: %q", curve)
+	}
+}
+
 func toAWSSymmetricKeySpec(size common.SizeSymetrycKey) (types.KeySpec, error) {
 	switch size {
 	case common.Key256Bits:
@@ -627,15 +742,6 @@ func toAWSSymmetricKeySpec(size common.SizeSymetrycKey) (types.KeySpec, error) {
 	default:
 		return "", fmt.Errorf("aws-kms: unsupported symmetric key size: %d", size)
 	}
-}
-
-func isLocalAESKey(key string) bool {
-	decoded, err := base64.StdEncoding.DecodeString(key)
-	if err != nil {
-		return false
-	}
-	_, err = aes.NewCipher(decoded)
-	return err == nil
 }
 
 func looksLikeAWSKMSKeyReference(key string) bool {

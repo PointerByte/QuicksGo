@@ -51,6 +51,12 @@ MANAGED_MODULES = (
         module_path="github.com/PointerByte/QuicksGo/cmd/qgo",
         tag_prefix="cmd/qgo/",
     ),
+    ManagedModule(
+        name="cmd/go-openssl",
+        directory="cmd/go-openssl",
+        module_path="github.com/PointerByte/QuicksGo/cmd/go-openssl",
+        tag_prefix="cmd/go-openssl/",
+    ),
 )
 
 SEMVER_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")

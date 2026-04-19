@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/PointerByte/QuicksGo/cmd/qgo/codigo"
+	"github.com/PointerByte/QuicksGo/cmd/qgo/code"
 )
 
 var (
-	newAppFn      = codigo.NewApp
+	newAppFn      = code.NewApp
 	executeAppFn  = executeApp
 	writeErrorFn  = writeError
 	exitProcessFn = os.Exit
@@ -26,7 +26,7 @@ func main() {
 }
 
 // executeApp runs the initialized CLI application.
-func executeApp(app *codigo.App) error {
+func executeApp(app *code.App) error {
 	return app.Execute()
 }
 

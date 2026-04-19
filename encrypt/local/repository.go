@@ -22,6 +22,7 @@ import (
 
 	"github.com/PointerByte/QuicksGo/encrypt/common"
 	"github.com/PointerByte/QuicksGo/encrypt/models"
+	"github.com/PointerByte/QuicksGo/encrypt/utilities"
 	"github.com/zeebo/blake3"
 )
 
@@ -76,7 +77,7 @@ func (symmetricRepository) EncryptAES(ctx context.Context, secretKey, value stri
 		return "", fmt.Errorf("generate nonce: %w", err)
 	}
 
-	cipherText := gcm.Seal(nil, nonce, []byte(value), bytesFromOptionalString(additional))
+	cipherText := gcm.Seal(nil, nonce, []byte(value), utilities.BytesFromOptionalString(additional))
 	payload := append(nonce, cipherText...)
 	return base64.StdEncoding.EncodeToString(payload), nil
 }
@@ -110,18 +111,11 @@ func (symmetricRepository) DecryptAES(ctx context.Context, secretKey, cipherValu
 
 	nonce := allBytes[:gcm.NonceSize()]
 	cipherText := allBytes[gcm.NonceSize():]
-	plainText, err := gcm.Open(nil, nonce, cipherText, bytesFromOptionalString(additional))
+	plainText, err := gcm.Open(nil, nonce, cipherText, utilities.BytesFromOptionalString(additional))
 	if err != nil {
 		return "", fmt.Errorf("decrypt AES-GCM: %w", err)
 	}
 	return string(plainText), nil
-}
-
-func bytesFromOptionalString(value *string) []byte {
-	if value == nil {
-		return nil
-	}
-	return []byte(*value)
 }
 
 type hashRepository struct{}
@@ -190,11 +184,43 @@ func (asymmetricRepository) GeneratesRSAKey(ctx context.Context, size common.Siz
 	}, nil
 }
 
+// GeneratesECCKey creates an ECC key pair and returns both keys encoded in
+// Base64.
+func (asymmetricRepository) GeneratesECCKey(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error) {
+	_ = ctx
+
+	curveImpl, err := utilities.ResolveECDHCurve(curve)
+	if err != nil {
+		return nil, err
+	}
+
+	privateKey, err := curveImpl.GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	privateDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("marshal ECC private key: %w", err)
+	}
+
+	publicDER, err := x509.MarshalPKIXPublicKey(privateKey.PublicKey())
+	if err != nil {
+		return nil, fmt.Errorf("marshal ECC public key: %w", err)
+	}
+
+	return &models.AsymmetricKeyData{
+		PrivateKey: base64.StdEncoding.EncodeToString(privateDER),
+		PublicKey:  base64.StdEncoding.EncodeToString(publicDER),
+		Provider:   "local",
+	}, nil
+}
+
 // RSA_OAEP_Encode encrypts plaintext with RSA-OAEP using a Base64-encoded
 // public key.
 func (asymmetricRepository) RSA_OAEP_Encode(ctx context.Context, publicKey, text string) (string, error) {
 	_ = ctx
-	pub, err := ParseRSAPublicKeyFromBase64(publicKey)
+	pub, err := utilities.ParseRSAPublicKeyFromBase64(publicKey)
 	if err != nil {
 		return "", fmt.Errorf("load public key: %w", err)
 	}
@@ -211,7 +237,7 @@ func (asymmetricRepository) RSA_OAEP_Encode(ctx context.Context, publicKey, text
 // encoded private key.
 func (asymmetricRepository) RSA_OAEP_Decode(ctx context.Context, privateKey, cipherText string) (string, error) {
 	_ = ctx
-	priv, err := ParseRSAPrivateKeyFromBase64(privateKey)
+	priv, err := utilities.ParseRSAPrivateKeyFromBase64(privateKey)
 	if err != nil {
 		return "", fmt.Errorf("load private key: %w", err)
 	}
@@ -227,6 +253,95 @@ func (asymmetricRepository) RSA_OAEP_Decode(ctx context.Context, privateKey, cip
 		return "", fmt.Errorf("decrypt with RSA-OAEP: %w", err)
 	}
 	return string(plainBytes), nil
+}
+
+// ECC_Encode encrypts plaintext with ECDH-derived AES-GCM using a Base64-
+// encoded ECC public key.
+func (repository asymmetricRepository) ECC_Encode(ctx context.Context, publicKey, text string) (string, error) {
+	recipientPublicKey, err := utilities.ParseECDHPublicKeyFromBase64(publicKey)
+	if err != nil {
+		return "", fmt.Errorf("load public key: %w", err)
+	}
+
+	curveName, err := utilities.CurveNameFromECDH(recipientPublicKey.Curve())
+	if err != nil {
+		return "", err
+	}
+
+	ephemeralPrivateKey, err := recipientPublicKey.Curve().GenerateKey(rand.Reader)
+	if err != nil {
+		return "", fmt.Errorf("generate ephemeral key: %w", err)
+	}
+
+	sharedSecret, err := ephemeralPrivateKey.ECDH(recipientPublicKey)
+	if err != nil {
+		return "", fmt.Errorf("derive shared secret: %w", err)
+	}
+
+	derivedKey, err := utilities.DeriveECCAESKey(sharedSecret, curveName)
+	if err != nil {
+		return "", err
+	}
+
+	additional := curveName
+	ciphertext, err := NewSymmetricRepository().EncryptAES(ctx, base64.StdEncoding.EncodeToString(derivedKey), text, &additional)
+	if err != nil {
+		return "", fmt.Errorf("encrypt payload with AES-GCM: %w", err)
+	}
+
+	ephemeralPublicDER, err := x509.MarshalPKIXPublicKey(ephemeralPrivateKey.PublicKey())
+	if err != nil {
+		return "", fmt.Errorf("marshal ephemeral public key: %w", err)
+	}
+
+	payload, err := utilities.EncodeECCCipherPayload(utilities.ECCCipherPayload{
+		Curve:              curveName,
+		EphemeralPublicKey: base64.StdEncoding.EncodeToString(ephemeralPublicDER),
+		Ciphertext:         ciphertext,
+	})
+	if err != nil {
+		return "", err
+	}
+	return payload, nil
+}
+
+// ECC_Decode decrypts ciphertext produced by ECC_Encode with a Base64-encoded
+// ECC private key.
+func (repository asymmetricRepository) ECC_Decode(ctx context.Context, privateKey, cipherText string) (string, error) {
+	recipientPrivateKey, err := utilities.ParseECDHPrivateKeyFromBase64(privateKey)
+	if err != nil {
+		return "", fmt.Errorf("load private key: %w", err)
+	}
+
+	payload, err := utilities.DecodeECCCipherPayload(cipherText)
+	if err != nil {
+		return "", err
+	}
+
+	ephemeralPublicKey, err := utilities.ParseECDHPublicKeyFromBase64(payload.EphemeralPublicKey)
+	if err != nil {
+		return "", fmt.Errorf("load ephemeral public key: %w", err)
+	}
+
+	curveName, err := utilities.CurveNameFromECDH(recipientPrivateKey.Curve())
+	if err != nil {
+		return "", err
+	}
+	if curveName != payload.Curve {
+		return "", fmt.Errorf("ecc payload curve mismatch: key uses %s, payload uses %s", curveName, payload.Curve)
+	}
+
+	sharedSecret, err := recipientPrivateKey.ECDH(ephemeralPublicKey)
+	if err != nil {
+		return "", fmt.Errorf("derive shared secret: %w", err)
+	}
+
+	derivedKey, err := utilities.DeriveECCAESKey(sharedSecret, payload.Curve)
+	if err != nil {
+		return "", err
+	}
+
+	return NewSymmetricRepository().DecryptAES(ctx, base64.StdEncoding.EncodeToString(derivedKey), payload.Ciphertext, &payload.Curve)
 }
 
 type signatureRepository struct{}
@@ -284,7 +399,7 @@ func validateAsymmetricKeySize(size common.SizeAsymetrycKey) error {
 // SignEd25519 signs text using a Base64-encoded Ed25519 private key.
 func (sr signatureRepository) SignEd25519(ctx context.Context, privateKey, text string) (string, error) {
 	_ = ctx
-	ed25519PrivateKey, err := ParseEd25519PrivateKeyFromBase64(privateKey)
+	ed25519PrivateKey, err := utilities.ParseEd25519PrivateKeyFromBase64(privateKey)
 	if err != nil {
 		return "", fmt.Errorf("load private key: %w", err)
 	}
@@ -296,7 +411,7 @@ func (sr signatureRepository) SignEd25519(ctx context.Context, privateKey, text 
 // VerifyEd25519 verifies a Base64-encoded Ed25519 signature.
 func (sr signatureRepository) VerifyEd25519(ctx context.Context, publicKey, text, signature string) error {
 	_ = ctx
-	ed25519PublicKey, err := ParseEd25519PublicKeyFromBase64(publicKey)
+	ed25519PublicKey, err := utilities.ParseEd25519PublicKeyFromBase64(publicKey)
 	if err != nil {
 		return fmt.Errorf("load public key: %w", err)
 	}
@@ -315,7 +430,7 @@ func (sr signatureRepository) VerifyEd25519(ctx context.Context, publicKey, text
 // SignRSAPSS signs text using RSA-PSS and returns the signature in Base64.
 func (signatureRepository) SignRSAPSS(ctx context.Context, privateKey, text string) (string, error) {
 	_ = ctx
-	priv, err := ParseRSAPrivateKeyFromBase64(privateKey)
+	priv, err := utilities.ParseRSAPrivateKeyFromBase64(privateKey)
 	if err != nil {
 		return "", fmt.Errorf("load private key: %w", err)
 	}
@@ -331,7 +446,7 @@ func (signatureRepository) SignRSAPSS(ctx context.Context, privateKey, text stri
 // VerifyRSAPSS verifies a Base64-encoded RSA-PSS signature.
 func (signatureRepository) VerifyRSAPSS(ctx context.Context, publicKey, text, signature string) error {
 	_ = ctx
-	pub, err := ParseRSAPublicKeyFromBase64(publicKey)
+	pub, err := utilities.ParseRSAPublicKeyFromBase64(publicKey)
 	if err != nil {
 		return fmt.Errorf("load public key: %w", err)
 	}

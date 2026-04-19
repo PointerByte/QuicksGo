@@ -6,6 +6,7 @@ package gcpkms
 import (
 	"context"
 	"crypto"
+	"crypto/ecdh"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
@@ -19,6 +20,7 @@ import (
 	kmspb "cloud.google.com/go/kms/apiv1/kmspb"
 	"github.com/PointerByte/QuicksGo/encrypt/common"
 	"github.com/PointerByte/QuicksGo/encrypt/local"
+	"github.com/PointerByte/QuicksGo/encrypt/utilities"
 	"github.com/spf13/viper"
 )
 
@@ -185,6 +187,9 @@ func TestGCPRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	if _, err := repository.GeneratesEd255Key(context.Background(), common.Key2048Bits); err != nil {
 		t.Fatalf("GeneratesEd255Key() error = %v", err)
 	}
+	if _, err := repository.GeneratesECCKey(context.Background(), common.CurveP256); !errors.Is(err, errGCPECCUnsupported) {
+		t.Fatalf("GeneratesECCKey() error = %v", err)
+	}
 	edSignature, err := repository.SignEd25519(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/ed/cryptoKeyVersions/1", "payload")
 	if err != nil {
 		t.Fatalf("SignEd25519() error = %v", err)
@@ -228,6 +233,15 @@ func TestGCPRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	if _, err := repository.RSA_OAEP_Decode(context.Background(), localRSAPrivate, localRSACiphertext); err != nil {
 		t.Fatalf("RSA_OAEP_Decode() local fallback error = %v", err)
 	}
+	localECCPrivate := mustGCPECCPrivateBase64(t, ecdh.P256())
+	localECCPublic := mustGCPECCPublicBase64(t, localECCPrivate)
+	localEccCiphertext, err := repository.ECC_Encode(context.Background(), localECCPublic, "payload")
+	if err != nil {
+		t.Fatalf("ECC_Encode() local fallback error = %v", err)
+	}
+	if plaintext, err := repository.ECC_Decode(context.Background(), localECCPrivate, localEccCiphertext); err != nil || plaintext != "payload" {
+		t.Fatalf("ECC_Decode() local fallback = %q, %v", plaintext, err)
+	}
 	localPSSSignature, err := repository.SignRSAPSS(context.Background(), localRSAPrivate, "payload")
 	if err != nil {
 		t.Fatalf("SignRSAPSS() local fallback error = %v", err)
@@ -264,11 +278,11 @@ func TestGCPRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	if !looksLikeGCPKMSKeyReference("projects/test/locations/global/keyRings/ring/cryptoKeys/key") || looksLikeGCPKMSKeyReference("local") {
 		t.Fatal("unexpected looksLikeGCPKMSKeyReference() result")
 	}
-	if got := bytesFromOptionalString(nil); got != nil {
-		t.Fatal("expected bytesFromOptionalString(nil) to return nil")
+	if got := utilities.BytesFromOptionalString(nil); got != nil {
+		t.Fatal("expected utilities.BytesFromOptionalString(nil) to return nil")
 	}
-	if isLocalAESKey("%%%") {
-		t.Fatal("expected isLocalAESKey() false for invalid base64")
+	if utilities.IsLocalAESKey("%%%") {
+		t.Fatal("expected utilities.IsLocalAESKey() false for invalid base64")
 	}
 }
 
@@ -381,6 +395,15 @@ func TestGCPRepositoryErrorBranches(t *testing.T) {
 	}
 	if _, err := asymmetricRepository.RSA_OAEP_Decode(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1", base64.StdEncoding.EncodeToString([]byte("cipher"))); err == nil {
 		t.Fatal("expected RSA_OAEP_Decode() provider error")
+	}
+	if _, err := asymmetricRepository.GeneratesECCKey(context.Background(), common.CurveP256); !errors.Is(err, errGCPECCUnsupported) {
+		t.Fatalf("GeneratesECCKey() error = %v", err)
+	}
+	if _, err := asymmetricRepository.ECC_Encode(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1", "payload"); !errors.Is(err, errGCPECCUnsupported) {
+		t.Fatalf("ECC_Encode() error = %v", err)
+	}
+	if _, err := asymmetricRepository.ECC_Decode(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1", "payload"); !errors.Is(err, errGCPECCUnsupported) {
+		t.Fatalf("ECC_Decode() error = %v", err)
 	}
 	if got := hashRepository.GenerateHMAC(context.Background(), viper.GetString(defaultGCPKeyIDKey), "message"); got != "" {
 		t.Fatalf("GenerateHMAC() = %q, want empty string on provider error", got)
@@ -504,6 +527,32 @@ func mustGCPRSAPrivateBase64(t *testing.T, privateKey *rsa.PrivateKey) string {
 func mustGCPRSAPublicBase64(t *testing.T, publicKey *rsa.PublicKey) string {
 	t.Helper()
 	der, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		t.Fatalf("x509.MarshalPKIXPublicKey() error = %v", err)
+	}
+	return base64.StdEncoding.EncodeToString(der)
+}
+
+func mustGCPECCPrivateBase64(t *testing.T, curve ecdh.Curve) string {
+	t.Helper()
+	privateKey, err := curve.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("ecdh.GenerateKey() error = %v", err)
+	}
+	der, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		t.Fatalf("x509.MarshalPKCS8PrivateKey() error = %v", err)
+	}
+	return base64.StdEncoding.EncodeToString(der)
+}
+
+func mustGCPECCPublicBase64(t *testing.T, privateKeyBase64 string) string {
+	t.Helper()
+	privateKey, err := utilities.ParseECDHPrivateKeyFromBase64(privateKeyBase64)
+	if err != nil {
+		t.Fatalf("ParseECDHPrivateKeyFromBase64() error = %v", err)
+	}
+	der, err := x509.MarshalPKIXPublicKey(privateKey.PublicKey())
 	if err != nil {
 		t.Fatalf("x509.MarshalPKIXPublicKey() error = %v", err)
 	}

@@ -3,4 +3,4 @@
 
 // Package codigo contains the qgo scaffolding logic used to generate
 // QuicksGo Gin and gRPC services from the command line.
-package codigo
+package code
