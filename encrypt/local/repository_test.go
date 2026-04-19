@@ -5,6 +5,7 @@ package local
 
 import (
 	"context"
+	"crypto/ecdh"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
@@ -15,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/PointerByte/QuicksGo/encrypt/common"
+	"github.com/PointerByte/QuicksGo/encrypt/utilities"
 	"github.com/zeebo/blake3"
 )
 
@@ -151,6 +153,34 @@ func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 		t.Fatalf("RSA_OAEP_Decode() = %q, want %q", plaintext, "hello")
 	}
 
+	eccKeyData, err := asymmetricRepository.GeneratesECCKey(testContext, common.CurveP256)
+	if err != nil {
+		t.Fatalf("GeneratesECCKey() error = %v", err)
+	}
+	if eccKeyData == nil || eccKeyData.PrivateKey == "" || eccKeyData.PublicKey == "" || eccKeyData.Provider != "local" {
+		t.Fatalf("GeneratesECCKey() = %#v, want populated local key data", eccKeyData)
+	}
+
+	eccPublicKey, err := utilities.ParseECDHPublicKeyFromBase64(eccKeyData.PublicKey)
+	if err != nil {
+		t.Fatalf("ParseECDHPublicKeyFromBase64() error = %v", err)
+	}
+	if eccPublicKey.Curve() != ecdh.P256() {
+		t.Fatalf("ECC public key curve = %v, want P-256", eccPublicKey.Curve())
+	}
+
+	eccCiphertext, err := asymmetricRepository.ECC_Encode(testContext, eccKeyData.PublicKey, "hello")
+	if err != nil {
+		t.Fatalf("ECC_Encode() error = %v", err)
+	}
+	eccPlaintext, err := asymmetricRepository.ECC_Decode(testContext, eccKeyData.PrivateKey, eccCiphertext)
+	if err != nil {
+		t.Fatalf("ECC_Decode() error = %v", err)
+	}
+	if eccPlaintext != "hello" {
+		t.Fatalf("ECC_Decode() = %q, want %q", eccPlaintext, "hello")
+	}
+
 	signature, err := signatureRepository.SignRSAPSS(testContext, mustMarshalPKCS8RSAPrivateKey(t, privateKey), "payload")
 	if err != nil {
 		t.Fatalf("SignRSAPSS() error = %v", err)
@@ -210,6 +240,28 @@ func TestAsymmetricAndSignatureRepositoryErrors(t *testing.T) {
 	}
 	if _, err := asymmetricRepository.GeneratesRSAKey(testContext, 0); err == nil {
 		t.Fatal("expected GeneratesRSAKey() error")
+	}
+	if _, err := asymmetricRepository.GeneratesECCKey(testContext, "P-111"); err == nil {
+		t.Fatal("expected GeneratesECCKey() error")
+	}
+	if _, err := asymmetricRepository.ECC_Encode(testContext, "%%%", "payload"); err == nil {
+		t.Fatal("expected ECC_Encode() key error")
+	}
+	if _, err := asymmetricRepository.ECC_Decode(testContext, "%%%", "payload"); err == nil {
+		t.Fatal("expected ECC_Decode() key error")
+	}
+	if _, err := asymmetricRepository.ECC_Decode(testContext, mustECCPrivateKeyBase64(t, ecdh.P256()), "%%%"); err == nil {
+		t.Fatal("expected ECC_Decode() payload error")
+	}
+	p256Private := mustECCPrivateKeyBase64(t, ecdh.P256())
+	p521Private := mustECCPrivateKeyBase64(t, ecdh.P521())
+	p256Public := mustECCPublicKeyBase64(t, p256Private)
+	eccCiphertext, err := asymmetricRepository.ECC_Encode(testContext, p256Public, "payload")
+	if err != nil {
+		t.Fatalf("ECC_Encode() error = %v", err)
+	}
+	if _, err := asymmetricRepository.ECC_Decode(testContext, p521Private, eccCiphertext); err == nil {
+		t.Fatal("expected ECC_Decode() curve mismatch error")
 	}
 
 	if _, err := signatureRepository.SignEd25519(testContext, "%%%", "payload"); err == nil {
@@ -289,29 +341,29 @@ func TestParseKeyUtilities(t *testing.T) {
 		t.Fatalf("ed25519.GenerateKey() error = %v", err)
 	}
 
-	if _, err := ParseRSAPublicKeyFromBase64(mustMarshalPKIXRSAPublicKey(t, publicKey)); err != nil {
+	if _, err := utilities.ParseRSAPublicKeyFromBase64(mustMarshalPKIXRSAPublicKey(t, publicKey)); err != nil {
 		t.Fatalf("ParseRSAPublicKeyFromBase64() error = %v", err)
 	}
-	if _, err := ParseRSAPrivateKeyFromBase64(mustMarshalPKCS8RSAPrivateKey(t, privateKey)); err != nil {
+	if _, err := utilities.ParseRSAPrivateKeyFromBase64(mustMarshalPKCS8RSAPrivateKey(t, privateKey)); err != nil {
 		t.Fatalf("ParseRSAPrivateKeyFromBase64() error = %v", err)
 	}
-	if _, err := ParseEd25519PublicKeyFromBase64(mustMarshalEd25519PublicKey(t, edPublic)); err != nil {
+	if _, err := utilities.ParseEd25519PublicKeyFromBase64(mustMarshalEd25519PublicKey(t, edPublic)); err != nil {
 		t.Fatalf("ParseEd25519PublicKeyFromBase64() error = %v", err)
 	}
-	if _, err := ParseEd25519PrivateKeyFromBase64(mustMarshalEd25519PrivateKey(t, edPrivate)); err != nil {
+	if _, err := utilities.ParseEd25519PrivateKeyFromBase64(mustMarshalEd25519PrivateKey(t, edPrivate)); err != nil {
 		t.Fatalf("ParseEd25519PrivateKeyFromBase64() error = %v", err)
 	}
 
-	if _, err := ParseRSAPublicKeyFromBase64("%%%"); err == nil {
+	if _, err := utilities.ParseRSAPublicKeyFromBase64("%%%"); err == nil {
 		t.Fatal("expected ParseRSAPublicKeyFromBase64() error")
 	}
-	if _, err := ParseRSAPrivateKeyFromBase64("%%%"); err == nil {
+	if _, err := utilities.ParseRSAPrivateKeyFromBase64("%%%"); err == nil {
 		t.Fatal("expected ParseRSAPrivateKeyFromBase64() error")
 	}
-	if _, err := ParseEd25519PublicKeyFromBase64("%%%"); err == nil {
+	if _, err := utilities.ParseEd25519PublicKeyFromBase64("%%%"); err == nil {
 		t.Fatal("expected ParseEd25519PublicKeyFromBase64() error")
 	}
-	if _, err := ParseEd25519PrivateKeyFromBase64("%%%"); err == nil {
+	if _, err := utilities.ParseEd25519PrivateKeyFromBase64("%%%"); err == nil {
 		t.Fatal("expected ParseEd25519PrivateKeyFromBase64() error")
 	}
 
@@ -332,29 +384,29 @@ func TestParseKeyUtilities(t *testing.T) {
 		t.Fatalf("x509.MarshalPKCS8PrivateKey() error = %v", err)
 	}
 
-	if _, err := ParseRSAPublicKeyFromBase64(base64.StdEncoding.EncodeToString([]byte("bad"))); err == nil {
+	if _, err := utilities.ParseRSAPublicKeyFromBase64(base64.StdEncoding.EncodeToString([]byte("bad"))); err == nil {
 		t.Fatal("expected ParseRSAPublicKeyFromBase64() parse error")
 	}
-	if _, err := ParseRSAPrivateKeyFromBase64(base64.StdEncoding.EncodeToString([]byte("bad"))); err == nil {
+	if _, err := utilities.ParseRSAPrivateKeyFromBase64(base64.StdEncoding.EncodeToString([]byte("bad"))); err == nil {
 		t.Fatal("expected ParseRSAPrivateKeyFromBase64() parse error")
 	}
-	if _, err := ParseEd25519PublicKeyFromBase64(base64.StdEncoding.EncodeToString([]byte("bad"))); err == nil {
+	if _, err := utilities.ParseEd25519PublicKeyFromBase64(base64.StdEncoding.EncodeToString([]byte("bad"))); err == nil {
 		t.Fatal("expected ParseEd25519PublicKeyFromBase64() parse error")
 	}
-	if _, err := ParseEd25519PrivateKeyFromBase64(base64.StdEncoding.EncodeToString([]byte("bad"))); err == nil {
+	if _, err := utilities.ParseEd25519PrivateKeyFromBase64(base64.StdEncoding.EncodeToString([]byte("bad"))); err == nil {
 		t.Fatal("expected ParseEd25519PrivateKeyFromBase64() parse error")
 	}
 
-	if _, err := ParseRSAPublicKeyFromBase64(base64.StdEncoding.EncodeToString(edPublicDER)); err == nil {
+	if _, err := utilities.ParseRSAPublicKeyFromBase64(base64.StdEncoding.EncodeToString(edPublicDER)); err == nil {
 		t.Fatal("expected ParseRSAPublicKeyFromBase64() wrong type error")
 	}
-	if _, err := ParseRSAPrivateKeyFromBase64(base64.StdEncoding.EncodeToString(edPrivateDER)); err == nil {
+	if _, err := utilities.ParseRSAPrivateKeyFromBase64(base64.StdEncoding.EncodeToString(edPrivateDER)); err == nil {
 		t.Fatal("expected ParseRSAPrivateKeyFromBase64() wrong type error")
 	}
-	if _, err := ParseEd25519PublicKeyFromBase64(base64.StdEncoding.EncodeToString(rsaPublicDER)); err == nil {
+	if _, err := utilities.ParseEd25519PublicKeyFromBase64(base64.StdEncoding.EncodeToString(rsaPublicDER)); err == nil {
 		t.Fatal("expected ParseEd25519PublicKeyFromBase64() wrong type error")
 	}
-	if _, err := ParseEd25519PrivateKeyFromBase64(base64.StdEncoding.EncodeToString(rsaPrivateDER)); err == nil {
+	if _, err := utilities.ParseEd25519PrivateKeyFromBase64(base64.StdEncoding.EncodeToString(rsaPrivateDER)); err == nil {
 		t.Fatal("expected ParseEd25519PrivateKeyFromBase64() wrong type error")
 	}
 }
@@ -366,6 +418,38 @@ func mustRSAKey(t *testing.T) *rsa.PrivateKey {
 		t.Fatalf("rsa.GenerateKey() error = %v", err)
 	}
 	return privateKey
+}
+
+func mustECCKey(t *testing.T, curve ecdh.Curve) *ecdh.PrivateKey {
+	t.Helper()
+	privateKey, err := curve.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("ecdh.GenerateKey() error = %v", err)
+	}
+	return privateKey
+}
+
+func mustECCPrivateKeyBase64(t *testing.T, curve ecdh.Curve) string {
+	t.Helper()
+	privateKey := mustECCKey(t, curve)
+	privateDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		t.Fatalf("x509.MarshalPKCS8PrivateKey() error = %v", err)
+	}
+	return base64.StdEncoding.EncodeToString(privateDER)
+}
+
+func mustECCPublicKeyBase64(t *testing.T, privateKeyBase64 string) string {
+	t.Helper()
+	privateKey, err := utilities.ParseECDHPrivateKeyFromBase64(privateKeyBase64)
+	if err != nil {
+		t.Fatalf("ParseECDHPrivateKeyFromBase64() error = %v", err)
+	}
+	publicDER, err := x509.MarshalPKIXPublicKey(privateKey.PublicKey())
+	if err != nil {
+		t.Fatalf("x509.MarshalPKIXPublicKey() error = %v", err)
+	}
+	return base64.StdEncoding.EncodeToString(publicDER)
 }
 
 func mustMarshalPKCS8RSAPrivateKey(t *testing.T, privateKey *rsa.PrivateKey) string {

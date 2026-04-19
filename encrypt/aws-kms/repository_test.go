@@ -5,6 +5,7 @@ package awskms
 
 import (
 	"context"
+	"crypto/ecdh"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/PointerByte/QuicksGo/encrypt/common"
 	"github.com/PointerByte/QuicksGo/encrypt/local"
+	"github.com/PointerByte/QuicksGo/encrypt/utilities"
 	sdkaws "github.com/aws/aws-sdk-go-v2/aws"
 	kms "github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
@@ -22,20 +24,27 @@ import (
 )
 
 type fakeKMSClient struct {
-	createKeyFn    func(context.Context, *kms.CreateKeyInput, ...func(*kms.Options)) (*kms.CreateKeyOutput, error)
-	getPublicKeyFn func(context.Context, *kms.GetPublicKeyInput, ...func(*kms.Options)) (*kms.GetPublicKeyOutput, error)
-	encryptFn      func(context.Context, *kms.EncryptInput, ...func(*kms.Options)) (*kms.EncryptOutput, error)
-	decryptFn      func(context.Context, *kms.DecryptInput, ...func(*kms.Options)) (*kms.DecryptOutput, error)
-	generateMacFn  func(context.Context, *kms.GenerateMacInput, ...func(*kms.Options)) (*kms.GenerateMacOutput, error)
-	verifyMacFn    func(context.Context, *kms.VerifyMacInput, ...func(*kms.Options)) (*kms.VerifyMacOutput, error)
-	signFn         func(context.Context, *kms.SignInput, ...func(*kms.Options)) (*kms.SignOutput, error)
-	verifyFn       func(context.Context, *kms.VerifyInput, ...func(*kms.Options)) (*kms.VerifyOutput, error)
+	createKeyFn          func(context.Context, *kms.CreateKeyInput, ...func(*kms.Options)) (*kms.CreateKeyOutput, error)
+	deriveSharedSecretFn func(context.Context, *kms.DeriveSharedSecretInput, ...func(*kms.Options)) (*kms.DeriveSharedSecretOutput, error)
+	getPublicKeyFn       func(context.Context, *kms.GetPublicKeyInput, ...func(*kms.Options)) (*kms.GetPublicKeyOutput, error)
+	encryptFn            func(context.Context, *kms.EncryptInput, ...func(*kms.Options)) (*kms.EncryptOutput, error)
+	decryptFn            func(context.Context, *kms.DecryptInput, ...func(*kms.Options)) (*kms.DecryptOutput, error)
+	generateMacFn        func(context.Context, *kms.GenerateMacInput, ...func(*kms.Options)) (*kms.GenerateMacOutput, error)
+	verifyMacFn          func(context.Context, *kms.VerifyMacInput, ...func(*kms.Options)) (*kms.VerifyMacOutput, error)
+	signFn               func(context.Context, *kms.SignInput, ...func(*kms.Options)) (*kms.SignOutput, error)
+	verifyFn             func(context.Context, *kms.VerifyInput, ...func(*kms.Options)) (*kms.VerifyOutput, error)
 }
 
 var testContext = context.Background()
 
 func (fake fakeKMSClient) CreateKey(ctx context.Context, in *kms.CreateKeyInput, optFns ...func(*kms.Options)) (*kms.CreateKeyOutput, error) {
 	return fake.createKeyFn(ctx, in, optFns...)
+}
+func (fake fakeKMSClient) DeriveSharedSecret(ctx context.Context, in *kms.DeriveSharedSecretInput, optFns ...func(*kms.Options)) (*kms.DeriveSharedSecretOutput, error) {
+	if fake.deriveSharedSecretFn == nil {
+		return nil, errors.New("derive shared secret not implemented")
+	}
+	return fake.deriveSharedSecretFn(ctx, in, optFns...)
 }
 func (fake fakeKMSClient) GetPublicKey(ctx context.Context, in *kms.GetPublicKeyInput, optFns ...func(*kms.Options)) (*kms.GetPublicKeyOutput, error) {
 	return fake.getPublicKeyFn(ctx, in, optFns...)
@@ -245,6 +254,11 @@ func TestAsymmetricAndSignatureProviderFlows(t *testing.T) {
 	if err != nil {
 		t.Fatalf("x509.MarshalPKIXPublicKey() error = %v", err)
 	}
+	eccPrivateKey := mustECCKey(t, ecdh.P256())
+	eccPublicDER, err := x509.MarshalPKIXPublicKey(eccPrivateKey.PublicKey())
+	if err != nil {
+		t.Fatalf("x509.MarshalPKIXPublicKey() error = %v", err)
+	}
 	edPublic, edPrivate, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatalf("ed25519.GenerateKey() error = %v", err)
@@ -267,11 +281,28 @@ func TestAsymmetricAndSignatureProviderFlows(t *testing.T) {
 				if in.KeySpec == types.KeySpecEccNistEdwards25519 {
 					return &kms.CreateKeyOutput{KeyMetadata: &types.KeyMetadata{Arn: sdkaws.String("arn:aws:kms:ed25519"), KeyId: sdkaws.String("ed25519-key-id")}}, nil
 				}
+				if in.KeyUsage == types.KeyUsageTypeKeyAgreement {
+					return &kms.CreateKeyOutput{KeyMetadata: &types.KeyMetadata{Arn: sdkaws.String("arn:aws:kms:ecc"), KeyId: sdkaws.String("ecc-key-id")}}, nil
+				}
 				return &kms.CreateKeyOutput{KeyMetadata: &types.KeyMetadata{Arn: sdkaws.String("arn:aws:kms:test"), KeyId: sdkaws.String("key-id")}}, nil
+			},
+			deriveSharedSecretFn: func(_ context.Context, in *kms.DeriveSharedSecretInput, _ ...func(*kms.Options)) (*kms.DeriveSharedSecretOutput, error) {
+				peerPublicKey, err := utilities.ParseECDHPublicKeyFromBase64(base64.StdEncoding.EncodeToString(in.PublicKey))
+				if err != nil {
+					return nil, err
+				}
+				sharedSecret, err := eccPrivateKey.ECDH(peerPublicKey)
+				if err != nil {
+					return nil, err
+				}
+				return &kms.DeriveSharedSecretOutput{SharedSecret: sharedSecret}, nil
 			},
 			getPublicKeyFn: func(_ context.Context, in *kms.GetPublicKeyInput, _ ...func(*kms.Options)) (*kms.GetPublicKeyOutput, error) {
 				if sdkaws.ToString(in.KeyId) == "ed25519-key-id" {
 					return &kms.GetPublicKeyOutput{PublicKey: edPublicDER}, nil
+				}
+				if sdkaws.ToString(in.KeyId) == "ecc-key-id" || sdkaws.ToString(in.KeyId) == "arn:aws:kms:ecc" {
+					return &kms.GetPublicKeyOutput{PublicKey: eccPublicDER}, nil
 				}
 				return &kms.GetPublicKeyOutput{PublicKey: publicDER}, nil
 			},
@@ -326,6 +357,25 @@ func TestAsymmetricAndSignatureProviderFlows(t *testing.T) {
 	}
 	if plaintext != "plain" {
 		t.Fatalf("RSA_OAEP_Decode() = %q, want %q", plaintext, "plain")
+	}
+
+	eccKeyData, err := asymmetricRepository.GeneratesECCKey(testContext, common.CurveP256)
+	if err != nil {
+		t.Fatalf("GeneratesECCKey() error = %v", err)
+	}
+	if eccKeyData == nil || eccKeyData.PublicKey == "" || eccKeyData.KeyRef == "" || eccKeyData.Provider != "aws-kms" {
+		t.Fatalf("GeneratesECCKey() = %#v, want public key metadata", eccKeyData)
+	}
+	eccCiphertext, err := asymmetricRepository.ECC_Encode(testContext, eccKeyData.KeyRef, "payload")
+	if err != nil {
+		t.Fatalf("ECC_Encode() error = %v", err)
+	}
+	eccPlaintext, err := asymmetricRepository.ECC_Decode(testContext, eccKeyData.KeyRef, eccCiphertext)
+	if err != nil {
+		t.Fatalf("ECC_Decode() error = %v", err)
+	}
+	if eccPlaintext != "payload" {
+		t.Fatalf("ECC_Decode() = %q, want %q", eccPlaintext, "payload")
 	}
 
 	signature, err := signatureRepository.SignRSAPSS(testContext, keyData.KeyRef, "payload")
@@ -522,6 +572,9 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 	if _, err := asymmetricRepository.RSA_OAEP_Encode(testContext, "", "payload"); err == nil {
 		t.Fatal("expected RSA_OAEP_Encode() key id error")
 	}
+	if _, err := asymmetricRepository.GeneratesECCKey(testContext, "P-111"); err == nil {
+		t.Fatal("expected GeneratesECCKey() curve error")
+	}
 	viper.Set(defaultKMSARNKey, "arn:aws:kms:test")
 	if _, err := symmetricRepository.EncryptAES(testContext, "", "payload", nil); err == nil {
 		t.Fatal("expected EncryptAES() provider error")
@@ -547,6 +600,15 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 	}
 	if _, err := asymmetricRepository.RSA_OAEP_Decode(testContext, "", base64.StdEncoding.EncodeToString([]byte("cipher"))); err == nil {
 		t.Fatal("expected RSA_OAEP_Decode() provider error")
+	}
+	if _, err := asymmetricRepository.ECC_Encode(testContext, "", "payload"); err == nil {
+		t.Fatal("expected ECC_Encode() provider error")
+	}
+	if _, err := asymmetricRepository.ECC_Decode(testContext, "", "%%%"); err == nil {
+		t.Fatal("expected ECC_Decode() payload error")
+	}
+	if _, err := asymmetricRepository.ECC_Decode(testContext, "", base64.StdEncoding.EncodeToString([]byte("{}"))); err == nil {
+		t.Fatal("expected ECC_Decode() provider error")
 	}
 
 	if _, err := signatureRepository.GeneratesEd255Key(testContext, common.Key2048Bits); err == nil {
@@ -590,6 +652,8 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 	publicKey := &privateKey.PublicKey
 	publicB64 := mustMarshalPKIXRSAPublicKey(t, publicKey)
 	privateB64 := mustMarshalPKCS8RSAPrivateKey(t, privateKey)
+	eccPrivateB64 := mustECCPrivateKeyBase64(t, ecdh.P256())
+	eccPublicB64 := mustECCPublicKeyBase64(t, eccPrivateB64)
 
 	if _, err := asymmetricRepository.RSA_OAEP_Encode(testContext, publicB64, "payload"); err != nil {
 		t.Fatalf("RSA_OAEP_Encode() local fallback error = %v", err)
@@ -600,6 +664,13 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 	}
 	if _, err := asymmetricRepository.RSA_OAEP_Decode(testContext, privateB64, ciphertext); err != nil {
 		t.Fatalf("RSA_OAEP_Decode() local fallback error = %v", err)
+	}
+	eccCiphertext, err := asymmetricRepository.ECC_Encode(testContext, eccPublicB64, "payload")
+	if err != nil {
+		t.Fatalf("ECC_Encode() local fallback error = %v", err)
+	}
+	if plaintext, err := asymmetricRepository.ECC_Decode(testContext, eccPrivateB64, eccCiphertext); err != nil || plaintext != "payload" {
+		t.Fatalf("ECC_Decode() local fallback = %q, %v", plaintext, err)
 	}
 	signature, err := signatureRepository.SignRSAPSS(testContext, privateB64, "payload")
 	if err != nil {
@@ -636,11 +707,20 @@ func TestAWSKMSOperationsReturnLoadConfigErrors(t *testing.T) {
 	if _, err := asymmetricRepository.GeneratesRSAKey(testContext, common.Key2048Bits); err == nil {
 		t.Fatal("expected GeneratesRSAKey() config error")
 	}
+	if _, err := asymmetricRepository.GeneratesECCKey(testContext, common.CurveP256); err == nil {
+		t.Fatal("expected GeneratesECCKey() config error")
+	}
 	if _, err := asymmetricRepository.RSA_OAEP_Encode(testContext, "arn", "payload"); err == nil {
 		t.Fatal("expected RSA_OAEP_Encode() config error")
 	}
 	if _, err := asymmetricRepository.RSA_OAEP_Decode(testContext, "arn", base64.StdEncoding.EncodeToString([]byte("cipher"))); err == nil {
 		t.Fatal("expected RSA_OAEP_Decode() config error")
+	}
+	if _, err := asymmetricRepository.ECC_Encode(testContext, "arn", "payload"); err == nil {
+		t.Fatal("expected ECC_Encode() config error")
+	}
+	if _, err := asymmetricRepository.ECC_Decode(testContext, "arn", base64.StdEncoding.EncodeToString([]byte("{}"))); err == nil {
+		t.Fatal("expected ECC_Decode() config error")
 	}
 	if _, err := signatureRepository.SignRSAPSS(testContext, "arn", "payload"); err == nil {
 		t.Fatal("expected SignRSAPSS() config error")
@@ -671,11 +751,43 @@ func mustRSAKey(t *testing.T) *rsa.PrivateKey {
 	return privateKey
 }
 
+func mustECCKey(t *testing.T, curve ecdh.Curve) *ecdh.PrivateKey {
+	t.Helper()
+	privateKey, err := curve.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("ecdh.GenerateKey() error = %v", err)
+	}
+	return privateKey
+}
+
 func mustMarshalPKCS8RSAPrivateKey(t *testing.T, privateKey *rsa.PrivateKey) string {
 	t.Helper()
 	der, err := x509.MarshalPKCS8PrivateKey(privateKey)
 	if err != nil {
 		t.Fatalf("x509.MarshalPKCS8PrivateKey() error = %v", err)
+	}
+	return base64.StdEncoding.EncodeToString(der)
+}
+
+func mustECCPrivateKeyBase64(t *testing.T, curve ecdh.Curve) string {
+	t.Helper()
+	privateKey := mustECCKey(t, curve)
+	der, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		t.Fatalf("x509.MarshalPKCS8PrivateKey() error = %v", err)
+	}
+	return base64.StdEncoding.EncodeToString(der)
+}
+
+func mustECCPublicKeyBase64(t *testing.T, privateKeyBase64 string) string {
+	t.Helper()
+	privateKey, err := utilities.ParseECDHPrivateKeyFromBase64(privateKeyBase64)
+	if err != nil {
+		t.Fatalf("ParseECDHPrivateKeyFromBase64() error = %v", err)
+	}
+	der, err := x509.MarshalPKIXPublicKey(privateKey.PublicKey())
+	if err != nil {
+		t.Fatalf("x509.MarshalPKIXPublicKey() error = %v", err)
 	}
 	return base64.StdEncoding.EncodeToString(der)
 }

@@ -24,3 +24,15 @@ const (
 	// Key4096Bits represents a 4096-bit asymmetric key.
 	Key4096Bits SizeAsymetrycKey = 4096
 )
+
+// CurveAsymmetricKey defines the supported elliptic curves for ECC encryption.
+type CurveAsymmetricKey string
+
+const (
+	// CurveP256 represents the NIST P-256 curve.
+	CurveP256 CurveAsymmetricKey = "P-256"
+	// CurveP384 represents the NIST P-384 curve.
+	CurveP384 CurveAsymmetricKey = "P-384"
+	// CurveP521 represents the NIST P-521 curve.
+	CurveP521 CurveAsymmetricKey = "P-521"
+)

@@ -5,6 +5,7 @@ package azurekeyvault
 
 import (
 	"context"
+	"crypto/ecdh"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
@@ -20,6 +21,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
 	"github.com/PointerByte/QuicksGo/encrypt/common"
 	"github.com/PointerByte/QuicksGo/encrypt/local"
+	"github.com/PointerByte/QuicksGo/encrypt/utilities"
 	"github.com/spf13/viper"
 )
 
@@ -168,6 +170,9 @@ func TestAzureRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	if _, err := repository.GeneratesEd255Key(context.Background(), common.Key2048Bits); !errors.Is(err, errAzureEd25519Unsupported) {
 		t.Fatalf("GeneratesEd255Key() error = %v", err)
 	}
+	if _, err := repository.GeneratesECCKey(context.Background(), common.CurveP256); !errors.Is(err, errAzureECCUnsupported) {
+		t.Fatalf("GeneratesECCKey() error = %v", err)
+	}
 
 	localRepository := local.NewRepository()
 	localSymmetricKey, err := localRepository.GeneratesSymetrycKey(context.Background(), common.Key256Bits)
@@ -196,6 +201,15 @@ func TestAzureRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	}
 	if _, err := repository.RSA_OAEP_Decode(context.Background(), localRSAPrivate, localRSACiphertext); err != nil {
 		t.Fatalf("RSA_OAEP_Decode() local fallback error = %v", err)
+	}
+	localECCPrivate := mustAzureECCPrivateBase64(t, ecdh.P256())
+	localECCPublic := mustAzureECCPublicBase64(t, localECCPrivate)
+	localEccCiphertext, err := repository.ECC_Encode(context.Background(), localECCPublic, "payload")
+	if err != nil {
+		t.Fatalf("ECC_Encode() local fallback error = %v", err)
+	}
+	if plaintext, err := repository.ECC_Decode(context.Background(), localECCPrivate, localEccCiphertext); err != nil || plaintext != "payload" {
+		t.Fatalf("ECC_Decode() local fallback = %q, %v", plaintext, err)
 	}
 	localPSSSignature, err := repository.SignRSAPSS(context.Background(), localRSAPrivate, "payload")
 	if err != nil {
@@ -230,8 +244,8 @@ func TestAzureRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	if !looksLikeAzureKeyReference(symmetricKey.KeyRef) || looksLikeAzureKeyReference("local") {
 		t.Fatal("unexpected looksLikeAzureKeyReference() result")
 	}
-	if got := bytesFromOptionalString(nil); got != nil {
-		t.Fatal("expected bytesFromOptionalString(nil) to return nil")
+	if got := utilities.BytesFromOptionalString(nil); got != nil {
+		t.Fatal("expected utilities.BytesFromOptionalString(nil) to return nil")
 	}
 	if boolValue(nil) || !boolValue(ptr(true)) {
 		t.Fatal("unexpected boolValue() result")
@@ -242,8 +256,8 @@ func TestAzureRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	if _, err := rsaPublicKeyFromAzureBundle(azkeys.KeyBundle{}); err == nil {
 		t.Fatal("expected rsaPublicKeyFromAzureBundle() error")
 	}
-	if isLocalAESKey("%%%") {
-		t.Fatal("expected isLocalAESKey() false for invalid base64")
+	if utilities.IsLocalAESKey("%%%") {
+		t.Fatal("expected utilities.IsLocalAESKey() false for invalid base64")
 	}
 
 	_ = publicDER
@@ -351,6 +365,15 @@ func TestAzureRepositoryErrorBranches(t *testing.T) {
 	}
 	if _, err := asymmetricRepository.RSA_OAEP_Decode(context.Background(), "https://vault.test/keys/default-key/v1", base64.StdEncoding.EncodeToString([]byte("cipher"))); err == nil {
 		t.Fatal("expected RSA_OAEP_Decode() provider error")
+	}
+	if _, err := asymmetricRepository.GeneratesECCKey(context.Background(), common.CurveP256); !errors.Is(err, errAzureECCUnsupported) {
+		t.Fatalf("GeneratesECCKey() error = %v", err)
+	}
+	if _, err := asymmetricRepository.ECC_Encode(context.Background(), "https://vault.test/keys/default-key/v1", "payload"); !errors.Is(err, errAzureECCUnsupported) {
+		t.Fatalf("ECC_Encode() error = %v", err)
+	}
+	if _, err := asymmetricRepository.ECC_Decode(context.Background(), "https://vault.test/keys/default-key/v1", "payload"); !errors.Is(err, errAzureECCUnsupported) {
+		t.Fatalf("ECC_Decode() error = %v", err)
 	}
 	if _, err := signatureRepository.SignEd25519(context.Background(), "https://vault.test/keys/default-key/v1", "payload"); !errors.Is(err, errAzureEd25519Unsupported) {
 		t.Fatalf("SignEd25519() error = %v", err)
@@ -567,6 +590,32 @@ func mustAzureRSAPrivateBase64(t *testing.T, privateKey *rsa.PrivateKey) string 
 func mustAzureRSAPublicBase64(t *testing.T, publicKey *rsa.PublicKey) string {
 	t.Helper()
 	der, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		t.Fatalf("x509.MarshalPKIXPublicKey() error = %v", err)
+	}
+	return base64.StdEncoding.EncodeToString(der)
+}
+
+func mustAzureECCPrivateBase64(t *testing.T, curve ecdh.Curve) string {
+	t.Helper()
+	privateKey, err := curve.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("ecdh.GenerateKey() error = %v", err)
+	}
+	der, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		t.Fatalf("x509.MarshalPKCS8PrivateKey() error = %v", err)
+	}
+	return base64.StdEncoding.EncodeToString(der)
+}
+
+func mustAzureECCPublicBase64(t *testing.T, privateKeyBase64 string) string {
+	t.Helper()
+	privateKey, err := utilities.ParseECDHPrivateKeyFromBase64(privateKeyBase64)
+	if err != nil {
+		t.Fatalf("ParseECDHPrivateKeyFromBase64() error = %v", err)
+	}
+	der, err := x509.MarshalPKIXPublicKey(privateKey.PublicKey())
 	if err != nil {
 		t.Fatalf("x509.MarshalPKIXPublicKey() error = %v", err)
 	}

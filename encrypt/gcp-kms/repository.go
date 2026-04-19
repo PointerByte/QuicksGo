@@ -6,7 +6,6 @@ package gcpkms
 import (
 	"context"
 	"crypto"
-	"crypto/aes"
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -23,6 +22,7 @@ import (
 	"github.com/PointerByte/QuicksGo/encrypt/common"
 	"github.com/PointerByte/QuicksGo/encrypt/local"
 	"github.com/PointerByte/QuicksGo/encrypt/models"
+	"github.com/PointerByte/QuicksGo/encrypt/utilities"
 	"github.com/spf13/viper"
 )
 
@@ -39,6 +39,7 @@ var (
 	errGCPKMSKeyIDRequired   = errors.New("gcp-kms: key id is required")
 	errGCPKMSKeyRingRequired = errors.New("gcp-kms: key ring path is required")
 	errGCPKMSVersionRequired = errors.New("gcp-kms: crypto key version is required")
+	errGCPECCUnsupported     = errors.New("gcp-kms: ECC provider-backed encryption is not supported")
 	newGCPKMSClientFn        = kms.NewKeyManagementClient
 	newGCPClientFn           = func(ctx context.Context) (gcpKMSClient, error) {
 		client, err := newGCPKMSClientFn(ctx)
@@ -163,7 +164,7 @@ func (repository *symmetricRepository) GeneratesSymetrycKey(ctx context.Context,
 }
 
 func (repository *symmetricRepository) EncryptAES(ctx context.Context, secretKey, value string, additional *string) (string, error) {
-	if isLocalAESKey(secretKey) {
+	if utilities.IsLocalAESKey(secretKey) {
 		return repository.local.EncryptAES(ctx, secretKey, value, additional)
 	}
 
@@ -180,7 +181,7 @@ func (repository *symmetricRepository) EncryptAES(ctx context.Context, secretKey
 	response, err := client.Encrypt(ctx, &kmspb.EncryptRequest{
 		Name:                        keyName,
 		Plaintext:                   []byte(value),
-		AdditionalAuthenticatedData: bytesFromOptionalString(additional),
+		AdditionalAuthenticatedData: utilities.BytesFromOptionalString(additional),
 	})
 	if err != nil {
 		return "", fmt.Errorf("gcp-kms: encrypt with symmetric key: %w", err)
@@ -189,7 +190,7 @@ func (repository *symmetricRepository) EncryptAES(ctx context.Context, secretKey
 }
 
 func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey, cipherValue string, additional *string) (string, error) {
-	if isLocalAESKey(secretKey) {
+	if utilities.IsLocalAESKey(secretKey) {
 		return repository.local.DecryptAES(ctx, secretKey, cipherValue, additional)
 	}
 
@@ -210,7 +211,7 @@ func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey
 	response, err := client.Decrypt(ctx, &kmspb.DecryptRequest{
 		Name:                        keyName,
 		Ciphertext:                  ciphertext,
-		AdditionalAuthenticatedData: bytesFromOptionalString(additional),
+		AdditionalAuthenticatedData: utilities.BytesFromOptionalString(additional),
 	})
 	if err != nil {
 		return "", fmt.Errorf("gcp-kms: decrypt with symmetric key: %w", err)
@@ -322,8 +323,14 @@ func (repository *asymmetricRepository) GeneratesRSAKey(ctx context.Context, siz
 	}, nil
 }
 
+func (repository *asymmetricRepository) GeneratesECCKey(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error) {
+	_ = ctx
+	_ = curve
+	return nil, errGCPECCUnsupported
+}
+
 func (repository *asymmetricRepository) RSA_OAEP_Encode(ctx context.Context, publicKey, text string) (string, error) {
-	if _, err := ParseRSAPublicKeyFromBase64(publicKey); err == nil {
+	if _, err := utilities.ParseRSAPublicKeyFromBase64(publicKey); err == nil {
 		return repository.local.RSA_OAEP_Encode(ctx, publicKey, text)
 	}
 
@@ -345,7 +352,7 @@ func (repository *asymmetricRepository) RSA_OAEP_Encode(ctx context.Context, pub
 }
 
 func (repository *asymmetricRepository) RSA_OAEP_Decode(ctx context.Context, privateKey, cipherText string) (string, error) {
-	if _, err := ParseRSAPrivateKeyFromBase64(privateKey); err == nil {
+	if _, err := utilities.ParseRSAPrivateKeyFromBase64(privateKey); err == nil {
 		return repository.local.RSA_OAEP_Decode(ctx, privateKey, cipherText)
 	}
 
@@ -368,6 +375,20 @@ func (repository *asymmetricRepository) RSA_OAEP_Decode(ctx context.Context, pri
 		return "", fmt.Errorf("gcp-kms: asymmetric decrypt: %w", err)
 	}
 	return string(response.Plaintext), nil
+}
+
+func (repository *asymmetricRepository) ECC_Encode(ctx context.Context, publicKey, text string) (string, error) {
+	if _, err := utilities.ParseECDHPublicKeyFromBase64(publicKey); err == nil {
+		return repository.local.ECC_Encode(ctx, publicKey, text)
+	}
+	return "", errGCPECCUnsupported
+}
+
+func (repository *asymmetricRepository) ECC_Decode(ctx context.Context, privateKey, cipherText string) (string, error) {
+	if _, err := utilities.ParseECDHPrivateKeyFromBase64(privateKey); err == nil {
+		return repository.local.ECC_Decode(ctx, privateKey, cipherText)
+	}
+	return "", errGCPECCUnsupported
 }
 
 func (repository *signatureRepository) GeneratesEd255Key(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
@@ -416,7 +437,7 @@ func (repository *signatureRepository) GeneratesEd255Key(ctx context.Context, si
 }
 
 func (repository *signatureRepository) SignEd25519(ctx context.Context, privateKey, text string) (string, error) {
-	if _, err := ParseEd25519PrivateKeyFromBase64(privateKey); err == nil {
+	if _, err := utilities.ParseEd25519PrivateKeyFromBase64(privateKey); err == nil {
 		return repository.local.SignEd25519(ctx, privateKey, text)
 	}
 
@@ -438,7 +459,7 @@ func (repository *signatureRepository) SignEd25519(ctx context.Context, privateK
 }
 
 func (repository *signatureRepository) VerifyEd25519(ctx context.Context, publicKey, text, signature string) error {
-	if _, err := ParseEd25519PublicKeyFromBase64(publicKey); err == nil {
+	if _, err := utilities.ParseEd25519PublicKeyFromBase64(publicKey); err == nil {
 		return repository.local.VerifyEd25519(ctx, publicKey, text, signature)
 	}
 
@@ -475,7 +496,7 @@ func (repository *signatureRepository) VerifyEd25519(ctx context.Context, public
 }
 
 func (repository *signatureRepository) SignRSAPSS(ctx context.Context, privateKey, text string) (string, error) {
-	if _, err := ParseRSAPrivateKeyFromBase64(privateKey); err == nil {
+	if _, err := utilities.ParseRSAPrivateKeyFromBase64(privateKey); err == nil {
 		return repository.local.SignRSAPSS(ctx, privateKey, text)
 	}
 
@@ -501,7 +522,7 @@ func (repository *signatureRepository) SignRSAPSS(ctx context.Context, privateKe
 }
 
 func (repository *signatureRepository) VerifyRSAPSS(ctx context.Context, publicKey, text, signature string) error {
-	if _, err := ParseRSAPublicKeyFromBase64(publicKey); err == nil {
+	if _, err := utilities.ParseRSAPublicKeyFromBase64(publicKey); err == nil {
 		return repository.local.VerifyRSAPSS(ctx, publicKey, text, signature)
 	}
 
@@ -706,26 +727,10 @@ func gcpRSADecryptAlgorithm(size common.SizeAsymetrycKey) (kmspb.CryptoKeyVersio
 	}
 }
 
-func isLocalAESKey(key string) bool {
-	decoded, err := base64.StdEncoding.DecodeString(key)
-	if err != nil {
-		return false
-	}
-	_, err = aes.NewCipher(decoded)
-	return err == nil
-}
-
 func looksLikeGCPKMSKeyReference(key string) bool {
 	trimmed := strings.TrimSpace(key)
 	if trimmed == "" {
 		return configuredGCPKeyID() != ""
 	}
 	return strings.HasPrefix(trimmed, "projects/")
-}
-
-func bytesFromOptionalString(value *string) []byte {
-	if value == nil {
-		return nil
-	}
-	return []byte(*value)
 }
