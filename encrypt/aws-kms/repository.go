@@ -94,7 +94,7 @@ func NewRepository() *Repository {
 	}
 }
 
-func (repository *symmetricRepository) GeneratesSymetrycKey(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error) {
+func (repository *symmetricRepository) GenerateSymetrycKeys(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error) {
 	keySpec, err := toAWSSymmetricKeySpec(size)
 	if err != nil {
 		return nil, err
@@ -258,7 +258,7 @@ func (repository *hashRepository) Blake3(ctx context.Context, message string) st
 	return repository.local.Blake3(ctx, message)
 }
 
-func (repository *asymmetricRepository) GeneratesRSAKey(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
+func (repository *asymmetricRepository) GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
 	client, err := newAWSKMSClient(ctx)
 	if err != nil {
 		return nil, err
@@ -298,7 +298,7 @@ func (repository *asymmetricRepository) GeneratesRSAKey(ctx context.Context, siz
 	}, nil
 }
 
-func (repository *asymmetricRepository) GeneratesECCKey(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error) {
+func (repository *asymmetricRepository) GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error) {
 	client, err := newAWSKMSClient(ctx)
 	if err != nil {
 		return nil, err
@@ -456,7 +456,7 @@ func (repository *asymmetricRepository) ECC_Decode(ctx context.Context, privateK
 	return local.NewSymmetricRepository().DecryptAES(ctx, base64.StdEncoding.EncodeToString(derivedKey), payload.Ciphertext, &payload.Curve)
 }
 
-func (repository *signatureRepository) GeneratesEd255Key(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
+func (repository *signatureRepository) GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
 	_ = size
 	client, err := newAWSKMSClient(ctx)
 	if err != nil {

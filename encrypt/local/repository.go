@@ -34,9 +34,9 @@ func NewSymmetricRepository() SymmetricRepository {
 	return &symmetricRepository{}
 }
 
-// GeneratesSymetrycKey creates a random symmetric key and returns it in Base64
+// GenerateSymetrycKeys creates a random symmetric key and returns it in Base64
 // form.
-func (symmetricRepository) GeneratesSymetrycKey(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error) {
+func (symmetricRepository) GenerateSymetrycKeys(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error) {
 	_ = ctx
 	if err := validateSymmetricKeySize(size); err != nil {
 		return nil, err
@@ -160,9 +160,9 @@ func NewAsymmetricRepository() AsymmetricRepository {
 	return &asymmetricRepository{}
 }
 
-// GeneratesRSAKey creates an RSA key pair and returns both keys encoded in
+// GenerateRSAKeys creates an RSA key pair and returns both keys encoded in
 // Base64.
-func (asymmetricRepository) GeneratesRSAKey(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
+func (asymmetricRepository) GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
 	_ = ctx
 	if err := validateAsymmetricKeySize(size); err != nil {
 		return nil, err
@@ -184,9 +184,9 @@ func (asymmetricRepository) GeneratesRSAKey(ctx context.Context, size common.Siz
 	}, nil
 }
 
-// GeneratesECCKey creates an ECC key pair and returns both keys encoded in
+// GenerateECCKeys creates an ECC key pair and returns both keys encoded in
 // Base64.
-func (asymmetricRepository) GeneratesECCKey(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error) {
+func (asymmetricRepository) GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error) {
 	_ = ctx
 
 	curveImpl, err := utilities.ResolveECDHCurve(curve)
@@ -351,8 +351,8 @@ func NewSignatureRepository() SignatureRepository {
 	return &signatureRepository{}
 }
 
-// GeneratesEd255Key creates an Ed25519 key pair encoded in Base64.
-func (signatureRepository) GeneratesEd255Key(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
+// GenerateEd255Keys creates an Ed25519 key pair encoded in Base64.
+func (signatureRepository) GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
 	_ = ctx
 	_ = size
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)

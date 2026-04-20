@@ -15,8 +15,8 @@ import (
 
 // SymmetricRepository exposes symmetric encryption helpers.
 type SymmetricRepository interface {
-	// GeneratesSymetrycKey returns a random Base64-encoded symmetric key.
-	GeneratesSymetrycKey(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error)
+	// GenerateSymetrycKeys returns a random Base64-encoded symmetric key.
+	GenerateSymetrycKeys(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error)
 	// EncryptAES encrypts plaintext using a Base64-encoded AES key and optional
 	// additional authenticated data, returning the ciphertext in Base64.
 	EncryptAES(ctx context.Context, secretKey, value string, additional *string) (string, error)
@@ -27,12 +27,12 @@ type SymmetricRepository interface {
 
 // AsymmetricRepository exposes RSA key generation and RSA-OAEP helpers.
 type AsymmetricRepository interface {
-	// GeneratesRSAKey creates an RSA key pair and returns the encoded key
+	// GenerateRSAKeys creates an RSA key pair and returns the encoded key
 	// material plus provider metadata.
-	GeneratesRSAKey(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error)
-	// GeneratesECCKey creates an ECC key pair on the requested curve and returns
+	GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error)
+	// GenerateECCKeys creates an ECC key pair on the requested curve and returns
 	// the encoded key material plus provider metadata.
-	GeneratesECCKey(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error)
+	GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error)
 	// RSA_OAEP_Encode encrypts plaintext with a Base64-encoded RSA public key
 	// and returns the ciphertext in Base64.
 	RSA_OAEP_Encode(ctx context.Context, publicKey, text string) (string, error)
@@ -61,9 +61,9 @@ type HashRepository interface {
 
 // SignatureRepository exposes asymmetric signing and verification helpers.
 type SignatureRepository interface {
-	// GeneratesEd255Key creates an Ed25519 key pair and returns the encoded key
+	// GenerateEd255Keys creates an Ed25519 key pair and returns the encoded key
 	// material plus provider metadata.
-	GeneratesEd255Key(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error)
+	GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error)
 	// SignEd25519 signs text using a Base64-encoded Ed25519 private key and
 	// returns the signature in Base64.
 	SignEd25519(ctx context.Context, privateKey, text string) (string, error)
