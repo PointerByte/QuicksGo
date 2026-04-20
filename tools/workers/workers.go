@@ -22,9 +22,9 @@ func AddTask(task func()) {
 	workerPool <- task
 }
 
-// SetWorkerLimit sets the maximum number of concurrent workers for future runs.
+// SetWorkersLimit sets the maximum number of concurrent workers for future runs.
 // Non-positive limits fall back to the default worker limit.
-func SetWorkerLimit(limit int) {
+func SetWorkersLimit(limit int) {
 	if limit <= 0 {
 		limit = defaultWorkerLimit
 	}
