@@ -8,32 +8,18 @@ import (
 const defaultWorkerLimit = 1000
 
 var (
-	workerPool  chan struct{}
+	workerPool  chan func()
 	stateMu     sync.Mutex
 	stopSignal  chan struct{}
 	flagRunning atomic.Bool
 )
 
 func init() {
-	workerPool = make(chan struct{}, defaultWorkerLimit)
+	workerPool = make(chan func(), defaultWorkerLimit)
 }
 
-// acquireWorker blocks until a worker slot is available in the current pool.
-func acquireWorker() {
-	acquireWorkerFromPool(workerPool)
-}
-
-// releaseWorker releases a worker slot from the current pool.
-func releaseWorker() {
-	releaseWorkerFromPool(workerPool)
-}
-
-func acquireWorkerFromPool(pool chan struct{}) {
-	pool <- struct{}{}
-}
-
-func releaseWorkerFromPool(pool chan struct{}) {
-	<-pool
+func AddTask(task func()) {
+	workerPool <- task
 }
 
 // SetWorkerLimit sets the maximum number of concurrent workers for future runs.
@@ -42,7 +28,7 @@ func SetWorkerLimit(limit int) {
 	if limit <= 0 {
 		limit = defaultWorkerLimit
 	}
-	workerPool = make(chan struct{}, limit)
+	workerPool = make(chan func(), limit)
 }
 
 // StopWorkers stops the currently running worker loop, if any.
@@ -59,8 +45,8 @@ func StopWorkers() {
 
 // RunWorkers starts a managed worker loop for the given task if one is not already running.
 // Each started task still respects the configured worker pool limit.
-func RunWorkers(task func()) {
-	if task == nil || !flagRunning.CompareAndSwap(false, true) {
+func RunWorkers() {
+	if !flagRunning.CompareAndSwap(false, true) {
 		return
 	}
 
@@ -71,7 +57,7 @@ func RunWorkers(task func()) {
 	stopSignal = stop
 	stateMu.Unlock()
 
-	go func(pool chan struct{}, stop <-chan struct{}) {
+	go func(stop <-chan struct{}) {
 		defer func() {
 			stateMu.Lock()
 			if stopSignal != nil {
@@ -85,12 +71,9 @@ func RunWorkers(task func()) {
 			select {
 			case <-stop:
 				return
-			case pool <- struct{}{}:
-				go func() {
-					defer releaseWorkerFromPool(pool)
-					task()
-				}()
+			case task := <-pool:
+				go task()
 			}
 		}
-	}(pool, stop)
+	}(stop)
 }
