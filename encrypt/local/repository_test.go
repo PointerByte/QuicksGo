@@ -32,12 +32,12 @@ func TestNewRepositoryBuildsAllRepositories(t *testing.T) {
 func TestSymmetricRepositoryAES(t *testing.T) {
 	repository := NewSymmetricRepository()
 
-	key, err := repository.GeneratesSymetrycKey(testContext, common.Key256Bits)
+	key, err := repository.GenerateSymetrycKeys(testContext, common.Key256Bits)
 	if err != nil {
-		t.Fatalf("GeneratesSymetrycKey() error = %v", err)
+		t.Fatalf("GenerateSymetrycKeys() error = %v", err)
 	}
 	if key == nil || key.KeyID == "" || key.Provider != "local" {
-		t.Fatalf("GeneratesSymetrycKey() = %#v, want populated local key data", key)
+		t.Fatalf("GenerateSymetrycKeys() = %#v, want populated local key data", key)
 	}
 	keyBytes, err := base64.StdEncoding.DecodeString(key.KeyID)
 	if err != nil {
@@ -124,12 +124,12 @@ func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 	asymmetricRepository := NewAsymmetricRepository()
 	signatureRepository := NewSignatureRepository()
 
-	keyData, err := asymmetricRepository.GeneratesRSAKey(testContext, common.Key2048Bits)
+	keyData, err := asymmetricRepository.GenerateRSAKeys(testContext, common.Key2048Bits)
 	if err != nil {
-		t.Fatalf("GeneratesRSAKey() error = %v", err)
+		t.Fatalf("GenerateRSAKeys() error = %v", err)
 	}
 	if keyData == nil || keyData.PrivateKey == "" || keyData.PublicKey == "" || keyData.Provider != "local" {
-		t.Fatalf("GeneratesRSAKey() = %#v, want populated local key data", keyData)
+		t.Fatalf("GenerateRSAKeys() = %#v, want populated local key data", keyData)
 	}
 
 	privateKey, err := x509.ParsePKCS1PrivateKey(mustBase64Decode(t, keyData.PrivateKey))
@@ -153,12 +153,12 @@ func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 		t.Fatalf("RSA_OAEP_Decode() = %q, want %q", plaintext, "hello")
 	}
 
-	eccKeyData, err := asymmetricRepository.GeneratesECCKey(testContext, common.CurveP256)
+	eccKeyData, err := asymmetricRepository.GenerateECCKeys(testContext, common.CurveP256)
 	if err != nil {
-		t.Fatalf("GeneratesECCKey() error = %v", err)
+		t.Fatalf("GenerateECCKeys() error = %v", err)
 	}
 	if eccKeyData == nil || eccKeyData.PrivateKey == "" || eccKeyData.PublicKey == "" || eccKeyData.Provider != "local" {
-		t.Fatalf("GeneratesECCKey() = %#v, want populated local key data", eccKeyData)
+		t.Fatalf("GenerateECCKeys() = %#v, want populated local key data", eccKeyData)
 	}
 
 	eccPublicKey, err := utilities.ParseECDHPublicKeyFromBase64(eccKeyData.PublicKey)
@@ -197,12 +197,12 @@ func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 		t.Fatalf("VerifySHA256() error = %v", err)
 	}
 
-	edKeyData, err := signatureRepository.GeneratesEd255Key(testContext, common.Key2048Bits)
+	edKeyData, err := signatureRepository.GenerateEd255Keys(testContext, common.Key2048Bits)
 	if err != nil {
-		t.Fatalf("GeneratesEd255Key() error = %v", err)
+		t.Fatalf("GenerateEd255Keys() error = %v", err)
 	}
 	if edKeyData == nil || edKeyData.PrivateKey == "" || edKeyData.PublicKey == "" || edKeyData.Provider != "local" {
-		t.Fatalf("GeneratesEd255Key() = %#v, want populated local key data", edKeyData)
+		t.Fatalf("GenerateEd255Keys() = %#v, want populated local key data", edKeyData)
 	}
 	edSignature, err := signatureRepository.SignEd25519(testContext, edKeyData.PrivateKey, "payload")
 	if err != nil {
@@ -238,11 +238,11 @@ func TestAsymmetricAndSignatureRepositoryErrors(t *testing.T) {
 	if _, err := asymmetricRepository.RSA_OAEP_Decode(testContext, mustMarshalPKCS8RSAPrivateKey(t, mustRSAKey(t)), "%%%"); err == nil {
 		t.Fatal("expected RSA_OAEP_Decode() ciphertext error")
 	}
-	if _, err := asymmetricRepository.GeneratesRSAKey(testContext, 0); err == nil {
-		t.Fatal("expected GeneratesRSAKey() error")
+	if _, err := asymmetricRepository.GenerateRSAKeys(testContext, 0); err == nil {
+		t.Fatal("expected GenerateRSAKeys() error")
 	}
-	if _, err := asymmetricRepository.GeneratesECCKey(testContext, "P-111"); err == nil {
-		t.Fatal("expected GeneratesECCKey() error")
+	if _, err := asymmetricRepository.GenerateECCKeys(testContext, "P-111"); err == nil {
+		t.Fatal("expected GenerateECCKeys() error")
 	}
 	if _, err := asymmetricRepository.ECC_Encode(testContext, "%%%", "payload"); err == nil {
 		t.Fatal("expected ECC_Encode() key error")

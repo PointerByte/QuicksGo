@@ -126,12 +126,12 @@ func TestDelegatedLocalHelpers(t *testing.T) {
 	}
 
 	repository := NewRepository()
-	key, err := repository.GeneratesSymetrycKey(testContext, common.Key256Bits)
+	key, err := repository.GenerateSymetrycKeys(testContext, common.Key256Bits)
 	if err != nil {
-		t.Fatalf("GeneratesSymetrycKey() error = %v", err)
+		t.Fatalf("GenerateSymetrycKeys() error = %v", err)
 	}
 	if key == nil || key.KeyID != "kms-symmetric-id" || key.KeyRef != "arn:aws:kms:test-symmetric" || key.Provider != "aws-kms" {
-		t.Fatalf("GeneratesSymetrycKey() = %#v, want KMS symmetric key metadata", key)
+		t.Fatalf("GenerateSymetrycKeys() = %#v, want KMS symmetric key metadata", key)
 	}
 
 	additional := "aad"
@@ -156,16 +156,16 @@ func TestDelegatedLocalHelpers(t *testing.T) {
 		t.Fatal("expected digest helpers to return values")
 	}
 	localRepository := local.NewSymmetricRepository()
-	localKey, err := localRepository.GeneratesSymetrycKey(testContext, common.Key256Bits)
+	localKey, err := localRepository.GenerateSymetrycKeys(testContext, common.Key256Bits)
 	if err != nil {
-		t.Fatalf("local GeneratesSymetrycKey() error = %v", err)
+		t.Fatalf("local GenerateSymetrycKeys() error = %v", err)
 	}
 	if _, err := repository.EncryptAES(testContext, localKey.KeyID, "hello", &additional); err != nil {
 		t.Fatalf("EncryptAES() local fallback error = %v", err)
 	}
 }
 
-func TestGeneratesSymetrycKeyUsesConfiguredKeyMetadata(t *testing.T) {
+func TestGenerateSymetrycKeysUsesConfiguredKeyMetadata(t *testing.T) {
 	t.Cleanup(viper.Reset)
 	previousLoad := loadAWSConfigFn
 	previousClient := newKMSClientFn
@@ -189,12 +189,12 @@ func TestGeneratesSymetrycKeyUsesConfiguredKeyMetadata(t *testing.T) {
 	}
 
 	repository := NewRepository()
-	key, err := repository.GeneratesSymetrycKey(testContext, common.Key256Bits)
+	key, err := repository.GenerateSymetrycKeys(testContext, common.Key256Bits)
 	if err != nil {
-		t.Fatalf("GeneratesSymetrycKey() error = %v", err)
+		t.Fatalf("GenerateSymetrycKeys() error = %v", err)
 	}
 	if key == nil || key.Provider != "aws-kms" || key.KeyID != "test-key-id" || key.KeyRef != "arn:aws:kms:us-east-1:123456789012:key/test-key" {
-		t.Fatalf("GeneratesSymetrycKey() = %#v, want aws-kms metadata", key)
+		t.Fatalf("GenerateSymetrycKeys() = %#v, want aws-kms metadata", key)
 	}
 }
 
@@ -336,12 +336,12 @@ func TestAsymmetricAndSignatureProviderFlows(t *testing.T) {
 	asymmetricRepository := NewAsymmetricRepository()
 	signatureRepository := NewSignatureRepository()
 
-	keyData, err := asymmetricRepository.GeneratesRSAKey(testContext, common.Key2048Bits)
+	keyData, err := asymmetricRepository.GenerateRSAKeys(testContext, common.Key2048Bits)
 	if err != nil {
-		t.Fatalf("GeneratesRSAKey() error = %v", err)
+		t.Fatalf("GenerateRSAKeys() error = %v", err)
 	}
 	if keyData == nil || keyData.PublicKey == "" || keyData.PrivateKey != "" || keyData.KeyID == "" || keyData.KeyRef == "" || keyData.Provider != "aws-kms" {
-		t.Fatalf("GeneratesRSAKey() = %#v, want public key metadata", keyData)
+		t.Fatalf("GenerateRSAKeys() = %#v, want public key metadata", keyData)
 	}
 
 	ciphertext, err := asymmetricRepository.RSA_OAEP_Encode(testContext, keyData.KeyRef, "payload")
@@ -359,12 +359,12 @@ func TestAsymmetricAndSignatureProviderFlows(t *testing.T) {
 		t.Fatalf("RSA_OAEP_Decode() = %q, want %q", plaintext, "plain")
 	}
 
-	eccKeyData, err := asymmetricRepository.GeneratesECCKey(testContext, common.CurveP256)
+	eccKeyData, err := asymmetricRepository.GenerateECCKeys(testContext, common.CurveP256)
 	if err != nil {
-		t.Fatalf("GeneratesECCKey() error = %v", err)
+		t.Fatalf("GenerateECCKeys() error = %v", err)
 	}
 	if eccKeyData == nil || eccKeyData.PublicKey == "" || eccKeyData.KeyRef == "" || eccKeyData.Provider != "aws-kms" {
-		t.Fatalf("GeneratesECCKey() = %#v, want public key metadata", eccKeyData)
+		t.Fatalf("GenerateECCKeys() = %#v, want public key metadata", eccKeyData)
 	}
 	eccCiphertext, err := asymmetricRepository.ECC_Encode(testContext, eccKeyData.KeyRef, "payload")
 	if err != nil {
@@ -398,12 +398,12 @@ func TestAsymmetricAndSignatureProviderFlows(t *testing.T) {
 		t.Fatalf("VerifySHA256() error = %v", err)
 	}
 
-	edKeyData, err := signatureRepository.GeneratesEd255Key(testContext, common.Key2048Bits)
+	edKeyData, err := signatureRepository.GenerateEd255Keys(testContext, common.Key2048Bits)
 	if err != nil {
-		t.Fatalf("GeneratesEd255Key() error = %v", err)
+		t.Fatalf("GenerateEd255Keys() error = %v", err)
 	}
 	if edKeyData == nil || edKeyData.PublicKey == "" || edKeyData.PrivateKey != "" || edKeyData.KeyID == "" || edKeyData.KeyRef == "" || edKeyData.Provider != "aws-kms" {
-		t.Fatalf("GeneratesEd255Key() = %#v, want public key metadata", edKeyData)
+		t.Fatalf("GenerateEd255Keys() = %#v, want public key metadata", edKeyData)
 	}
 	edSignature, err := signatureRepository.SignEd25519(testContext, edKeyData.KeyRef, "payload")
 	if err != nil {
@@ -465,17 +465,17 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 	symmetricRepository := NewSymmetricRepository()
 	signatureRepository := NewSignatureRepository()
 
-	if _, err := symmetricRepository.GeneratesSymetrycKey(testContext, common.Key128Bits); err == nil {
-		t.Fatal("expected GeneratesSymetrycKey() symmetric key spec error")
+	if _, err := symmetricRepository.GenerateSymetrycKeys(testContext, common.Key128Bits); err == nil {
+		t.Fatal("expected GenerateSymetrycKeys() symmetric key spec error")
 	}
-	if _, err := symmetricRepository.GeneratesSymetrycKey(testContext, common.Key256Bits); err == nil {
-		t.Fatal("expected GeneratesSymetrycKey() create error")
+	if _, err := symmetricRepository.GenerateSymetrycKeys(testContext, common.Key256Bits); err == nil {
+		t.Fatal("expected GenerateSymetrycKeys() create error")
 	}
-	if _, err := asymmetricRepository.GeneratesRSAKey(testContext, 0); err == nil {
-		t.Fatal("expected GeneratesRSAKey() key spec error")
+	if _, err := asymmetricRepository.GenerateRSAKeys(testContext, 0); err == nil {
+		t.Fatal("expected GenerateRSAKeys() key spec error")
 	}
-	if _, err := asymmetricRepository.GeneratesRSAKey(testContext, common.Key2048Bits); err == nil {
-		t.Fatal("expected GeneratesRSAKey() create error")
+	if _, err := asymmetricRepository.GenerateRSAKeys(testContext, common.Key2048Bits); err == nil {
+		t.Fatal("expected GenerateRSAKeys() create error")
 	}
 
 	newKMSClientFn = func(cfg sdkaws.Config) kmsClient {
@@ -504,11 +504,11 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 			},
 		}
 	}
-	if _, err := symmetricRepository.GeneratesSymetrycKey(testContext, common.Key256Bits); err == nil {
-		t.Fatal("expected GeneratesSymetrycKey() missing metadata error")
+	if _, err := symmetricRepository.GenerateSymetrycKeys(testContext, common.Key256Bits); err == nil {
+		t.Fatal("expected GenerateSymetrycKeys() missing metadata error")
 	}
-	if _, err := asymmetricRepository.GeneratesRSAKey(testContext, common.Key2048Bits); err == nil {
-		t.Fatal("expected GeneratesRSAKey() missing metadata error")
+	if _, err := asymmetricRepository.GenerateRSAKeys(testContext, common.Key2048Bits); err == nil {
+		t.Fatal("expected GenerateRSAKeys() missing metadata error")
 	}
 
 	newKMSClientFn = func(cfg sdkaws.Config) kmsClient {
@@ -537,8 +537,8 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 			},
 		}
 	}
-	if _, err := asymmetricRepository.GeneratesRSAKey(testContext, common.Key2048Bits); err == nil {
-		t.Fatal("expected GeneratesRSAKey() get public key error")
+	if _, err := asymmetricRepository.GenerateRSAKeys(testContext, common.Key2048Bits); err == nil {
+		t.Fatal("expected GenerateRSAKeys() get public key error")
 	}
 
 	newKMSClientFn = func(cfg sdkaws.Config) kmsClient {
@@ -572,8 +572,8 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 	if _, err := asymmetricRepository.RSA_OAEP_Encode(testContext, "", "payload"); err == nil {
 		t.Fatal("expected RSA_OAEP_Encode() key id error")
 	}
-	if _, err := asymmetricRepository.GeneratesECCKey(testContext, "P-111"); err == nil {
-		t.Fatal("expected GeneratesECCKey() curve error")
+	if _, err := asymmetricRepository.GenerateECCKeys(testContext, "P-111"); err == nil {
+		t.Fatal("expected GenerateECCKeys() curve error")
 	}
 	viper.Set(defaultKMSARNKey, "arn:aws:kms:test")
 	if _, err := symmetricRepository.EncryptAES(testContext, "", "payload", nil); err == nil {
@@ -611,8 +611,8 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 		t.Fatal("expected ECC_Decode() provider error")
 	}
 
-	if _, err := signatureRepository.GeneratesEd255Key(testContext, common.Key2048Bits); err == nil {
-		t.Fatal("expected GeneratesEd255Key() create error")
+	if _, err := signatureRepository.GenerateEd255Keys(testContext, common.Key2048Bits); err == nil {
+		t.Fatal("expected GenerateEd255Keys() create error")
 	}
 	if _, err := signatureRepository.SignEd25519(testContext, "", "payload"); err == nil {
 		t.Fatal("expected SignEd25519() key id error")
@@ -701,14 +701,14 @@ func TestAWSKMSOperationsReturnLoadConfigErrors(t *testing.T) {
 	asymmetricRepository := NewAsymmetricRepository()
 	signatureRepository := NewSignatureRepository()
 
-	if _, err := symmetricRepository.GeneratesSymetrycKey(testContext, common.Key256Bits); err == nil {
-		t.Fatal("expected GeneratesSymetrycKey() config error")
+	if _, err := symmetricRepository.GenerateSymetrycKeys(testContext, common.Key256Bits); err == nil {
+		t.Fatal("expected GenerateSymetrycKeys() config error")
 	}
-	if _, err := asymmetricRepository.GeneratesRSAKey(testContext, common.Key2048Bits); err == nil {
-		t.Fatal("expected GeneratesRSAKey() config error")
+	if _, err := asymmetricRepository.GenerateRSAKeys(testContext, common.Key2048Bits); err == nil {
+		t.Fatal("expected GenerateRSAKeys() config error")
 	}
-	if _, err := asymmetricRepository.GeneratesECCKey(testContext, common.CurveP256); err == nil {
-		t.Fatal("expected GeneratesECCKey() config error")
+	if _, err := asymmetricRepository.GenerateECCKeys(testContext, common.CurveP256); err == nil {
+		t.Fatal("expected GenerateECCKeys() config error")
 	}
 	if _, err := asymmetricRepository.RSA_OAEP_Encode(testContext, "arn", "payload"); err == nil {
 		t.Fatal("expected RSA_OAEP_Encode() config error")

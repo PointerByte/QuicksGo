@@ -12,9 +12,9 @@ import (
 )
 
 type SymmetricRepository interface {
-	// GeneratesSymetrycKey creates a symmetric key managed by AWS KMS and
+	// GenerateSymetrycKeys creates a symmetric key managed by AWS KMS and
 	// returns its metadata reference.
-	GeneratesSymetrycKey(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error)
+	GenerateSymetrycKeys(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error)
 	// EncryptAES encrypts plaintext with an AWS KMS symmetric key reference or
 	// falls back to local AES-GCM when secretKey is a Base64 AES key.
 	EncryptAES(ctx context.Context, secretKey, value string, additional *string) (string, error)
@@ -24,14 +24,14 @@ type SymmetricRepository interface {
 }
 
 type AsymmetricRepository interface {
-	// GeneratesRSAKey creates an RSA key pair using AWS KMS when possible.
+	// GenerateRSAKeys creates an RSA key pair using AWS KMS when possible.
 	// AWS KMS never exports the private key, so the private-key return value is
 	// always empty and the generated key ARN is stored in viper under
 	// "encrypt.aws-kms.arn".
-	GeneratesRSAKey(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error)
-	// GeneratesECCKey creates an AWS KMS key-agreement key on the requested NIST
+	GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error)
+	// GenerateECCKeys creates an AWS KMS key-agreement key on the requested NIST
 	// curve and returns its public key and metadata.
-	GeneratesECCKey(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error)
+	GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error)
 	// RSA_OAEP_Encode encrypts plaintext with a KMS key id/ARN or a Base64 RSA
 	// public key, using local RSA-OAEP as fallback for exported keys.
 	RSA_OAEP_Encode(ctx context.Context, publicKey, text string) (string, error)
@@ -60,8 +60,8 @@ type HashRepository interface {
 }
 
 type SignatureRepository interface {
-	// GeneratesEd255Key creates an Ed25519 signing key in AWS KMS when possible.
-	GeneratesEd255Key(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error)
+	// GenerateEd255Keys creates an Ed25519 signing key in AWS KMS when possible.
+	GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error)
 	// SignEd25519 signs text with an AWS KMS Ed25519 key reference or a Base64
 	// Ed25519 private key.
 	SignEd25519(ctx context.Context, privateKey, text string) (string, error)

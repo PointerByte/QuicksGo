@@ -122,9 +122,9 @@ func TestAzureRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	viper.Set(defaultAzureKeyIDKey, "https://vault.test/keys/default-key/v1")
 	repository := NewRepository()
 
-	symmetricKey, err := repository.GeneratesSymetrycKey(context.Background(), common.Key256Bits)
+	symmetricKey, err := repository.GenerateSymetrycKeys(context.Background(), common.Key256Bits)
 	if err != nil || symmetricKey == nil || symmetricKey.Provider != azureProviderName {
-		t.Fatalf("GeneratesSymetrycKey() = %#v, %v", symmetricKey, err)
+		t.Fatalf("GenerateSymetrycKeys() = %#v, %v", symmetricKey, err)
 	}
 	additional := "aad"
 	ciphertext, err := repository.EncryptAES(context.Background(), symmetricKey.KeyRef, "hello", &additional)
@@ -145,9 +145,9 @@ func TestAzureRepositoryProviderFlowsAndHelpers(t *testing.T) {
 		t.Fatal("expected hash helpers to return values")
 	}
 
-	rsaKey, err := repository.GeneratesRSAKey(context.Background(), common.Key2048Bits)
+	rsaKey, err := repository.GenerateRSAKeys(context.Background(), common.Key2048Bits)
 	if err != nil || rsaKey == nil || rsaKey.PublicKey == "" {
-		t.Fatalf("GeneratesRSAKey() = %#v, %v", rsaKey, err)
+		t.Fatalf("GenerateRSAKeys() = %#v, %v", rsaKey, err)
 	}
 	if _, err := repository.RSA_OAEP_Encode(context.Background(), rsaKey.KeyRef, "payload"); err != nil {
 		t.Fatalf("RSA_OAEP_Encode() error = %v", err)
@@ -167,17 +167,17 @@ func TestAzureRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	if err := repository.VerifySHA256(context.Background(), "payload", base64.StdEncoding.EncodeToString([]byte("sig")), nil); err != nil {
 		t.Fatalf("VerifySHA256() error = %v", err)
 	}
-	if _, err := repository.GeneratesEd255Key(context.Background(), common.Key2048Bits); !errors.Is(err, errAzureEd25519Unsupported) {
-		t.Fatalf("GeneratesEd255Key() error = %v", err)
+	if _, err := repository.GenerateEd255Keys(context.Background(), common.Key2048Bits); !errors.Is(err, errAzureEd25519Unsupported) {
+		t.Fatalf("GenerateEd255Keys() error = %v", err)
 	}
-	if _, err := repository.GeneratesECCKey(context.Background(), common.CurveP256); !errors.Is(err, errAzureECCUnsupported) {
-		t.Fatalf("GeneratesECCKey() error = %v", err)
+	if _, err := repository.GenerateECCKeys(context.Background(), common.CurveP256); !errors.Is(err, errAzureECCUnsupported) {
+		t.Fatalf("GenerateECCKeys() error = %v", err)
 	}
 
 	localRepository := local.NewRepository()
-	localSymmetricKey, err := localRepository.GeneratesSymetrycKey(context.Background(), common.Key256Bits)
+	localSymmetricKey, err := localRepository.GenerateSymetrycKeys(context.Background(), common.Key256Bits)
 	if err != nil {
-		t.Fatalf("local GeneratesSymetrycKey() error = %v", err)
+		t.Fatalf("local GenerateSymetrycKeys() error = %v", err)
 	}
 	if _, err := repository.EncryptAES(context.Background(), localSymmetricKey.KeyID, "hello", &additional); err != nil {
 		t.Fatalf("EncryptAES() local fallback error = %v", err)
@@ -272,10 +272,10 @@ func TestAzureRepositoryErrorBranches(t *testing.T) {
 		newAzureClientFn = previousClient
 	})
 
-	if _, err := NewSymmetricRepository().GeneratesSymetrycKey(context.Background(), common.Key128Bits); err == nil {
+	if _, err := NewSymmetricRepository().GenerateSymetrycKeys(context.Background(), common.Key128Bits); err == nil {
 		t.Fatal("expected unsupported symmetric size error")
 	}
-	if _, err := NewAsymmetricRepository().GeneratesRSAKey(context.Background(), 0); err == nil {
+	if _, err := NewAsymmetricRepository().GenerateRSAKeys(context.Background(), 0); err == nil {
 		t.Fatal("expected unsupported rsa size error")
 	}
 	if _, err := resolveAzureKeyReference(""); err == nil {
@@ -322,8 +322,8 @@ func TestAzureRepositoryErrorBranches(t *testing.T) {
 	asymmetricRepository := NewAsymmetricRepository()
 	signatureRepository := NewSignatureRepository()
 
-	if _, err := symmetricRepository.GeneratesSymetrycKey(context.Background(), common.Key256Bits); err == nil {
-		t.Fatal("expected GeneratesSymetrycKey() provider error")
+	if _, err := symmetricRepository.GenerateSymetrycKeys(context.Background(), common.Key256Bits); err == nil {
+		t.Fatal("expected GenerateSymetrycKeys() provider error")
 	}
 	if _, err := symmetricRepository.EncryptAES(context.Background(), "", "payload", nil); err == nil {
 		t.Fatal("expected EncryptAES() key reference error")
@@ -366,8 +366,8 @@ func TestAzureRepositoryErrorBranches(t *testing.T) {
 	if _, err := asymmetricRepository.RSA_OAEP_Decode(context.Background(), "https://vault.test/keys/default-key/v1", base64.StdEncoding.EncodeToString([]byte("cipher"))); err == nil {
 		t.Fatal("expected RSA_OAEP_Decode() provider error")
 	}
-	if _, err := asymmetricRepository.GeneratesECCKey(context.Background(), common.CurveP256); !errors.Is(err, errAzureECCUnsupported) {
-		t.Fatalf("GeneratesECCKey() error = %v", err)
+	if _, err := asymmetricRepository.GenerateECCKeys(context.Background(), common.CurveP256); !errors.Is(err, errAzureECCUnsupported) {
+		t.Fatalf("GenerateECCKeys() error = %v", err)
 	}
 	if _, err := asymmetricRepository.ECC_Encode(context.Background(), "https://vault.test/keys/default-key/v1", "payload"); !errors.Is(err, errAzureECCUnsupported) {
 		t.Fatalf("ECC_Encode() error = %v", err)
@@ -561,11 +561,11 @@ func TestAzureRepositoryMetadataFallbackPaths(t *testing.T) {
 	}
 
 	viper.Set(defaultAzureVaultURLKey, "https://vault.test")
-	if key, err := NewSymmetricRepository().GeneratesSymetrycKey(context.Background(), common.Key256Bits); err != nil || key.KeyRef != "https://vault.test/keys/"+key.KeyID {
-		t.Fatalf("GeneratesSymetrycKey() fallback metadata = %#v, %v", key, err)
+	if key, err := NewSymmetricRepository().GenerateSymetrycKeys(context.Background(), common.Key256Bits); err != nil || key.KeyRef != "https://vault.test/keys/"+key.KeyID {
+		t.Fatalf("GenerateSymetrycKeys() fallback metadata = %#v, %v", key, err)
 	}
-	if key, err := NewAsymmetricRepository().GeneratesRSAKey(context.Background(), common.Key2048Bits); err != nil || key.KeyRef != "https://vault.test/keys/"+key.KeyID {
-		t.Fatalf("GeneratesRSAKey() fallback metadata = %#v, %v", key, err)
+	if key, err := NewAsymmetricRepository().GenerateRSAKeys(context.Background(), common.Key2048Bits); err != nil || key.KeyRef != "https://vault.test/keys/"+key.KeyID {
+		t.Fatalf("GenerateRSAKeys() fallback metadata = %#v, %v", key, err)
 	}
 }
 

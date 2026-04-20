@@ -65,7 +65,7 @@ func main() {
 ### AES-GCM
 
 ```go
-keyData, err := repository.GeneratesSymetrycKey(ctx, 32)
+keyData, err := repository.GenerateSymetrycKeys(ctx, 32)
 if err != nil {
 	panic(err)
 }
@@ -98,7 +98,7 @@ _, _, _ = valid, sha, blake
 ### RSA-OAEP
 
 ```go
-keys, err := repository.GeneratesRSAKey(ctx, 2048)
+keys, err := repository.GenerateRSAKeys(ctx, 2048)
 if err != nil {
 	panic(err)
 }
@@ -119,7 +119,7 @@ _, _ = cipherText, plainText
 ### Ed25519
 
 ```go
-keys, err := repository.GeneratesEd255Key(ctx, 2048)
+keys, err := repository.GenerateEd255Keys(ctx, 2048)
 if err != nil {
 	panic(err)
 }

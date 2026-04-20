@@ -153,9 +153,9 @@ func TestGCPRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	keyName := "projects/test/locations/global/keyRings/ring/cryptoKeys/sym"
 	additional := "aad"
 
-	key, err := repository.GeneratesSymetrycKey(context.Background(), common.Key256Bits)
+	key, err := repository.GenerateSymetrycKeys(context.Background(), common.Key256Bits)
 	if err != nil || key == nil || key.Provider != gcpProviderName {
-		t.Fatalf("GeneratesSymetrycKey() = %#v, %v", key, err)
+		t.Fatalf("GenerateSymetrycKeys() = %#v, %v", key, err)
 	}
 	ciphertext, err := repository.EncryptAES(context.Background(), keyName, "hello", &additional)
 	if err != nil {
@@ -174,9 +174,9 @@ func TestGCPRepositoryProviderFlowsAndHelpers(t *testing.T) {
 		t.Fatal("expected hash helpers to return values")
 	}
 
-	rsaKey, err := repository.GeneratesRSAKey(context.Background(), common.Key2048Bits)
+	rsaKey, err := repository.GenerateRSAKeys(context.Background(), common.Key2048Bits)
 	if err != nil || rsaKey == nil || rsaKey.PublicKey == "" {
-		t.Fatalf("GeneratesRSAKey() = %#v, %v", rsaKey, err)
+		t.Fatalf("GenerateRSAKeys() = %#v, %v", rsaKey, err)
 	}
 	if _, err := repository.RSA_OAEP_Encode(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/rsa/cryptoKeyVersions/1", "payload"); err != nil {
 		t.Fatalf("RSA_OAEP_Encode() error = %v", err)
@@ -184,11 +184,11 @@ func TestGCPRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	if plaintext, err := repository.RSA_OAEP_Decode(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/rsa/cryptoKeyVersions/1", base64.StdEncoding.EncodeToString([]byte("cipher"))); err != nil || plaintext != "plain" {
 		t.Fatalf("RSA_OAEP_Decode() = %q, %v", plaintext, err)
 	}
-	if _, err := repository.GeneratesEd255Key(context.Background(), common.Key2048Bits); err != nil {
-		t.Fatalf("GeneratesEd255Key() error = %v", err)
+	if _, err := repository.GenerateEd255Keys(context.Background(), common.Key2048Bits); err != nil {
+		t.Fatalf("GenerateEd255Keys() error = %v", err)
 	}
-	if _, err := repository.GeneratesECCKey(context.Background(), common.CurveP256); !errors.Is(err, errGCPECCUnsupported) {
-		t.Fatalf("GeneratesECCKey() error = %v", err)
+	if _, err := repository.GenerateECCKeys(context.Background(), common.CurveP256); !errors.Is(err, errGCPECCUnsupported) {
+		t.Fatalf("GenerateECCKeys() error = %v", err)
 	}
 	edSignature, err := repository.SignEd25519(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/ed/cryptoKeyVersions/1", "payload")
 	if err != nil {
@@ -213,9 +213,9 @@ func TestGCPRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	}
 
 	localRepository := local.NewRepository()
-	localSymmetricKey, err := localRepository.GeneratesSymetrycKey(context.Background(), common.Key256Bits)
+	localSymmetricKey, err := localRepository.GenerateSymetrycKeys(context.Background(), common.Key256Bits)
 	if err != nil {
-		t.Fatalf("local GeneratesSymetrycKey() error = %v", err)
+		t.Fatalf("local GenerateSymetrycKeys() error = %v", err)
 	}
 	localCiphertext, err := localRepository.EncryptAES(context.Background(), localSymmetricKey.KeyID, "hello", &additional)
 	if err != nil {
@@ -291,10 +291,10 @@ func TestGCPRepositoryErrorBranches(t *testing.T) {
 	previousClient := newGCPClientFn
 	t.Cleanup(func() { newGCPClientFn = previousClient })
 
-	if _, err := NewSymmetricRepository().GeneratesSymetrycKey(context.Background(), common.Key128Bits); err == nil {
+	if _, err := NewSymmetricRepository().GenerateSymetrycKeys(context.Background(), common.Key128Bits); err == nil {
 		t.Fatal("expected unsupported symmetric size error")
 	}
-	if _, err := NewAsymmetricRepository().GeneratesRSAKey(context.Background(), 0); err == nil {
+	if _, err := NewAsymmetricRepository().GenerateRSAKeys(context.Background(), 0); err == nil {
 		t.Fatal("expected unsupported rsa size error")
 	}
 	if _, err := resolveGCPKeyRingName(""); err == nil {
@@ -366,8 +366,8 @@ func TestGCPRepositoryErrorBranches(t *testing.T) {
 	asymmetricRepository := NewAsymmetricRepository()
 	signatureRepository := NewSignatureRepository()
 
-	if _, err := symmetricRepository.GeneratesSymetrycKey(context.Background(), common.Key256Bits); err == nil {
-		t.Fatal("expected GeneratesSymetrycKey() provider error")
+	if _, err := symmetricRepository.GenerateSymetrycKeys(context.Background(), common.Key256Bits); err == nil {
+		t.Fatal("expected GenerateSymetrycKeys() provider error")
 	}
 	if _, err := symmetricRepository.EncryptAES(context.Background(), "", "payload", nil); err == nil {
 		t.Fatal("expected EncryptAES() key name error")
@@ -381,8 +381,8 @@ func TestGCPRepositoryErrorBranches(t *testing.T) {
 	if _, err := symmetricRepository.DecryptAES(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/key", base64.StdEncoding.EncodeToString([]byte("cipher")), nil); err == nil {
 		t.Fatal("expected DecryptAES() provider error")
 	}
-	if _, err := asymmetricRepository.GeneratesRSAKey(context.Background(), common.Key2048Bits); err == nil {
-		t.Fatal("expected GeneratesRSAKey() provider error")
+	if _, err := asymmetricRepository.GenerateRSAKeys(context.Background(), common.Key2048Bits); err == nil {
+		t.Fatal("expected GenerateRSAKeys() provider error")
 	}
 	if _, err := asymmetricRepository.RSA_OAEP_Encode(context.Background(), "", "payload"); err == nil {
 		t.Fatal("expected RSA_OAEP_Encode() version error")
@@ -396,8 +396,8 @@ func TestGCPRepositoryErrorBranches(t *testing.T) {
 	if _, err := asymmetricRepository.RSA_OAEP_Decode(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1", base64.StdEncoding.EncodeToString([]byte("cipher"))); err == nil {
 		t.Fatal("expected RSA_OAEP_Decode() provider error")
 	}
-	if _, err := asymmetricRepository.GeneratesECCKey(context.Background(), common.CurveP256); !errors.Is(err, errGCPECCUnsupported) {
-		t.Fatalf("GeneratesECCKey() error = %v", err)
+	if _, err := asymmetricRepository.GenerateECCKeys(context.Background(), common.CurveP256); !errors.Is(err, errGCPECCUnsupported) {
+		t.Fatalf("GenerateECCKeys() error = %v", err)
 	}
 	if _, err := asymmetricRepository.ECC_Encode(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1", "payload"); !errors.Is(err, errGCPECCUnsupported) {
 		t.Fatalf("ECC_Encode() error = %v", err)
@@ -411,8 +411,8 @@ func TestGCPRepositoryErrorBranches(t *testing.T) {
 	if hashRepository.ValidateHMAC(context.Background(), viper.GetString(defaultGCPKeyIDKey), "message", "%%%") {
 		t.Fatal("expected ValidateHMAC() to fail on invalid MAC")
 	}
-	if _, err := signatureRepository.GeneratesEd255Key(context.Background(), common.Key2048Bits); err == nil {
-		t.Fatal("expected GeneratesEd255Key() provider error")
+	if _, err := signatureRepository.GenerateEd255Keys(context.Background(), common.Key2048Bits); err == nil {
+		t.Fatal("expected GenerateEd255Keys() provider error")
 	}
 	if _, err := signatureRepository.SignEd25519(context.Background(), "", "payload"); err == nil {
 		t.Fatal("expected SignEd25519() version error")
