@@ -36,7 +36,7 @@ func NewSymmetricRepository() SymmetricRepository {
 
 // GenerateSymetrycKeys creates a random symmetric key and returns it in Base64
 // form.
-func (symmetricRepository) GenerateSymetrycKeys(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error) {
+func (symmetricRepository) GenerateSymetrycKeys(ctx context.Context, size common.SizeSymetrycKey) (*models.KeyData, error) {
 	_ = ctx
 	if err := validateSymmetricKeySize(size); err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func (symmetricRepository) GenerateSymetrycKeys(ctx context.Context, size common
 	if err != nil {
 		return nil, err
 	}
-	return &models.SymmetricKeyData{
+	return &models.KeyData{
 		KeyID:    base64.StdEncoding.EncodeToString(b),
 		Provider: "local",
 	}, nil
@@ -162,7 +162,7 @@ func NewAsymmetricRepository() AsymmetricRepository {
 
 // GenerateRSAKeys creates an RSA key pair and returns both keys encoded in
 // Base64.
-func (asymmetricRepository) GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
+func (asymmetricRepository) GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error) {
 	_ = ctx
 	if err := validateAsymmetricKeySize(size); err != nil {
 		return nil, err
@@ -177,16 +177,16 @@ func (asymmetricRepository) GenerateRSAKeys(ctx context.Context, size common.Siz
 	publicKey := &privateKey.PublicKey
 	publicDer := x509.MarshalPKCS1PublicKey(publicKey)
 	pub := base64.StdEncoding.EncodeToString(publicDer)
-	return &models.AsymmetricKeyData{
-		PrivateKey: priv,
-		PublicKey:  pub,
-		Provider:   "local",
+	return &models.KeyData{
+		KeyID:     priv,
+		PublicKey: pub,
+		Provider:  "local",
 	}, nil
 }
 
 // GenerateECCKeys creates an ECC key pair and returns both keys encoded in
 // Base64.
-func (asymmetricRepository) GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error) {
+func (asymmetricRepository) GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.KeyData, error) {
 	_ = ctx
 
 	curveImpl, err := utilities.ResolveECDHCurve(curve)
@@ -209,10 +209,10 @@ func (asymmetricRepository) GenerateECCKeys(ctx context.Context, curve common.Cu
 		return nil, fmt.Errorf("marshal ECC public key: %w", err)
 	}
 
-	return &models.AsymmetricKeyData{
-		PrivateKey: base64.StdEncoding.EncodeToString(privateDER),
-		PublicKey:  base64.StdEncoding.EncodeToString(publicDER),
-		Provider:   "local",
+	return &models.KeyData{
+		KeyID:     base64.StdEncoding.EncodeToString(privateDER),
+		PublicKey: base64.StdEncoding.EncodeToString(publicDER),
+		Provider:  "local",
 	}, nil
 }
 
@@ -352,7 +352,7 @@ func NewSignatureRepository() SignatureRepository {
 }
 
 // GenerateEd255Keys creates an Ed25519 key pair encoded in Base64.
-func (signatureRepository) GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
+func (signatureRepository) GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error) {
 	_ = ctx
 	_ = size
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
@@ -371,10 +371,10 @@ func (signatureRepository) GenerateEd255Keys(ctx context.Context, size common.Si
 		return nil, err
 	}
 	pub := base64.StdEncoding.EncodeToString(publicDer)
-	return &models.AsymmetricKeyData{
-		PrivateKey: priv,
-		PublicKey:  pub,
-		Provider:   "local",
+	return &models.KeyData{
+		KeyID:     priv,
+		PublicKey: pub,
+		Provider:  "local",
 	}, nil
 }
 

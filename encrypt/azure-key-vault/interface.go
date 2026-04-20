@@ -14,7 +14,7 @@ import (
 type SymmetricRepository interface {
 	// GenerateSymetrycKeys creates an Azure Key Vault symmetric key and returns
 	// its metadata reference.
-	GenerateSymetrycKeys(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error)
+	GenerateSymetrycKeys(ctx context.Context, size common.SizeSymetrycKey) (*models.KeyData, error)
 	// EncryptAES encrypts plaintext with an Azure Key Vault symmetric key
 	// reference or falls back to local AES-GCM when secretKey is a Base64 AES
 	// key.
@@ -27,10 +27,10 @@ type SymmetricRepository interface {
 type AsymmetricRepository interface {
 	// GenerateRSAKeys creates an RSA key in Azure Key Vault and returns its
 	// public key plus metadata reference.
-	GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error)
+	GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error)
 	// GenerateECCKeys creates an ECC key pair when provider-backed support is
 	// available for the backend.
-	GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error)
+	GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.KeyData, error)
 	// RSA_OAEP_Encode encrypts plaintext with an Azure Key Vault key reference
 	// or a Base64 RSA public key.
 	RSA_OAEP_Encode(ctx context.Context, publicKey, text string) (string, error)
@@ -61,7 +61,7 @@ type HashRepository interface {
 type SignatureRepository interface {
 	// GenerateEd255Keys creates an Ed25519 signing key when provider-backed
 	// support is available for the backend.
-	GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error)
+	GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error)
 	// SignEd25519 signs text with a supported provider-backed key or a Base64
 	// Ed25519 private key.
 	SignEd25519(ctx context.Context, privateKey, text string) (string, error)

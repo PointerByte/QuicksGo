@@ -16,7 +16,7 @@ import (
 // SymmetricRepository exposes symmetric encryption helpers.
 type SymmetricRepository interface {
 	// GenerateSymetrycKeys returns a random Base64-encoded symmetric key.
-	GenerateSymetrycKeys(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error)
+	GenerateSymetrycKeys(ctx context.Context, size common.SizeSymetrycKey) (*models.KeyData, error)
 
 	// EncryptAES encrypts plaintext using a Base64-encoded AES key and optional
 	// additional authenticated data, returning the ciphertext in Base64.
@@ -30,10 +30,10 @@ type SymmetricRepository interface {
 type AsymmetricRepository interface {
 	// GenerateRSAKeys creates an RSA key pair and returns the encoded key
 	// material plus provider metadata.
-	GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error)
+	GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error)
 	// GenerateECCKeys creates an ECC key pair on the requested curve and returns
 	// the encoded key material plus provider metadata.
-	GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error)
+	GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.KeyData, error)
 	// RSA_OAEP_Encode encrypts plaintext with a Base64-encoded RSA public key
 	// and returns the ciphertext in Base64.
 	RSA_OAEP_Encode(ctx context.Context, publicKey, text string) (string, error)
@@ -64,7 +64,7 @@ type HashRepository interface {
 type SignatureRepository interface {
 	// GenerateEd255Keys creates an Ed25519 key pair and returns the encoded key
 	// material plus provider metadata.
-	GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error)
+	GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error)
 	// SignEd25519 signs text using a Base64-encoded Ed25519 private key and
 	// returns the signature in Base64.
 	SignEd25519(ctx context.Context, privateKey, text string) (string, error)
