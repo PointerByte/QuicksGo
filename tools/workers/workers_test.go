@@ -58,7 +58,7 @@ func TestSetWorkerLimitReplacesPoolCapacity(t *testing.T) {
 		workerPool = originalPool
 	})
 
-	SetWorkerLimit(3)
+	SetWorkersLimit(3)
 
 	if cap(workerPool) != 3 {
 		t.Fatalf("expected worker pool capacity 3, got %d", cap(workerPool))
@@ -71,7 +71,7 @@ func TestSetWorkerLimitUsesDefaultForInvalidValues(t *testing.T) {
 		workerPool = originalPool
 	})
 
-	SetWorkerLimit(0)
+	SetWorkersLimit(0)
 
 	if cap(workerPool) != defaultWorkerLimit {
 		t.Fatalf("expected default worker pool capacity %d, got %d", defaultWorkerLimit, cap(workerPool))
