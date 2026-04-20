@@ -6,36 +6,50 @@ import (
 	"time"
 )
 
-func TestAcquireWorkerBlocksUntilRelease(t *testing.T) {
+func resetWorkerState(t *testing.T, capacity int) {
+	t.Helper()
+
 	originalPool := workerPool
-	workerPool = make(chan struct{}, 1)
+	originalStop := stopSignal
+	originalRunning := flagRunning.Load()
+
+	workerPool = make(chan func(), capacity)
+	stopSignal = nil
+	flagRunning.Store(false)
+
 	t.Cleanup(func() {
+		StopWorkers()
 		workerPool = originalPool
+		stopSignal = originalStop
+		flagRunning.Store(originalRunning)
 	})
+}
 
-	acquireWorker()
+func TestAddTaskBlocksWhenPoolIsFullUntilDispatcherConsumesTask(t *testing.T) {
+	resetWorkerState(t, 1)
 
-	acquired := make(chan struct{})
+	secondTaskQueued := make(chan struct{})
+
+	AddTask(func() {})
+
 	go func() {
-		acquireWorker()
-		close(acquired)
+		AddTask(func() {})
+		close(secondTaskQueued)
 	}()
 
 	select {
-	case <-acquired:
-		t.Fatal("expected acquireWorker to block while the pool is full")
+	case <-secondTaskQueued:
+		t.Fatal("expected AddTask to block while the pool is full")
 	case <-time.After(30 * time.Millisecond):
 	}
 
-	releaseWorker()
+	RunWorkers()
 
 	select {
-	case <-acquired:
+	case <-secondTaskQueued:
 	case <-time.After(200 * time.Millisecond):
-		t.Fatal("expected acquireWorker to resume after releaseWorker")
+		t.Fatal("expected AddTask to resume after RunWorkers consumes from the pool")
 	}
-
-	releaseWorker()
 }
 
 func TestSetWorkerLimitReplacesPoolCapacity(t *testing.T) {
@@ -64,91 +78,67 @@ func TestSetWorkerLimitUsesDefaultForInvalidValues(t *testing.T) {
 	}
 }
 
-func TestRunWorkersStartsTasksUsingWorkerPool(t *testing.T) {
-	originalPool := workerPool
-	originalStop := stopSignal
-	originalRunning := flagRunning.Load()
-	workerPool = make(chan struct{}, 1)
-	t.Cleanup(func() {
-		StopWorkers()
-		workerPool = originalPool
-		stopSignal = originalStop
-		flagRunning.Store(originalRunning)
-	})
+func TestRunWorkersExecutesQueuedTasks(t *testing.T) {
+	resetWorkerState(t, 2)
 
 	taskStarted := make(chan struct{})
-	releaseTask := make(chan struct{})
-	var started atomic.Int32
-
-	go RunWorkers(func() {
-		if started.Add(1) == 1 {
-			close(taskStarted)
-		}
-		<-releaseTask
+	AddTask(func() {
+		close(taskStarted)
 	})
+
+	RunWorkers()
 
 	select {
 	case <-taskStarted:
 	case <-time.After(200 * time.Millisecond):
-		t.Fatal("expected RunWorkers to start at least one task")
+		t.Fatal("expected queued task to run")
 	}
-
-	if len(workerPool) != 1 {
-		t.Fatalf("expected one worker slot to be acquired, got %d", len(workerPool))
-	}
-
-	close(releaseTask)
-	StopWorkers()
 }
 
 func TestRunWorkersIgnoresSecondStartAndStopResetsState(t *testing.T) {
-	originalPool := workerPool
-	originalStop := stopSignal
-	originalRunning := flagRunning.Load()
-	workerPool = make(chan struct{}, 1)
-	t.Cleanup(func() {
-		StopWorkers()
-		workerPool = originalPool
-		stopSignal = originalStop
-		flagRunning.Store(originalRunning)
-	})
+	resetWorkerState(t, 1)
 
-	releaseTask := make(chan struct{})
-	var started atomic.Int32
-
-	RunWorkers(func() {
-		started.Add(1)
-		<-releaseTask
-	})
-
-	time.Sleep(40 * time.Millisecond)
-	RunWorkers(func() {
-		started.Add(1)
-	})
-
-	time.Sleep(40 * time.Millisecond)
-	if started.Load() != 1 {
-		t.Fatalf("expected only one active worker loop, got %d task starts", started.Load())
+	RunWorkers()
+	firstStop := stopSignal
+	if firstStop == nil {
+		t.Fatal("expected stop signal to be initialized")
 	}
 
-	close(releaseTask)
+	RunWorkers()
+
+	if stopSignal != firstStop {
+		t.Fatal("expected second RunWorkers call to keep the existing worker loop")
+	}
+
 	StopWorkers()
 
 	if flagRunning.Load() {
-		t.Fatal("expected worker loop state to be reset after StopWorkers")
+		t.Fatal("expected workers to be marked as stopped")
+	}
+	if stopSignal != nil {
+		t.Fatal("expected stop signal to be cleared")
 	}
 }
 
-func TestRunWorkersReturnsWhenTaskIsNil(t *testing.T) {
-	originalRunning := flagRunning.Load()
-	t.Cleanup(func() {
-		flagRunning.Store(originalRunning)
-	})
+func TestRunWorkersProcessesMultipleTasks(t *testing.T) {
+	resetWorkerState(t, 3)
 
-	flagRunning.Store(false)
-	RunWorkers(nil)
+	var executed atomic.Int32
+	done := make(chan struct{})
 
-	if flagRunning.Load() {
-		t.Fatal("expected nil task to leave workers stopped")
+	for range 3 {
+		AddTask(func() {
+			if executed.Add(1) == 3 {
+				close(done)
+			}
+		})
+	}
+
+	RunWorkers()
+
+	select {
+	case <-done:
+	case <-time.After(300 * time.Millisecond):
+		t.Fatalf("expected all tasks to execute, got %d", executed.Load())
 	}
 }
