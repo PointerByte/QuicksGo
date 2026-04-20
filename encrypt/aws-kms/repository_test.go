@@ -340,7 +340,7 @@ func TestAsymmetricAndSignatureProviderFlows(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateRSAKeys() error = %v", err)
 	}
-	if keyData == nil || keyData.PublicKey == "" || keyData.PrivateKey != "" || keyData.KeyID == "" || keyData.KeyRef == "" || keyData.Provider != "aws-kms" {
+	if keyData == nil || keyData.PublicKey == "" || keyData.KeyID == "" || keyData.KeyRef == "" || keyData.Provider != "aws-kms" {
 		t.Fatalf("GenerateRSAKeys() = %#v, want public key metadata", keyData)
 	}
 
@@ -402,7 +402,7 @@ func TestAsymmetricAndSignatureProviderFlows(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateEd255Keys() error = %v", err)
 	}
-	if edKeyData == nil || edKeyData.PublicKey == "" || edKeyData.PrivateKey != "" || edKeyData.KeyID == "" || edKeyData.KeyRef == "" || edKeyData.Provider != "aws-kms" {
+	if edKeyData == nil || edKeyData.PublicKey == "" || edKeyData.KeyID == "" || edKeyData.KeyRef == "" || edKeyData.Provider != "aws-kms" {
 		t.Fatalf("GenerateEd255Keys() = %#v, want public key metadata", edKeyData)
 	}
 	edSignature, err := signatureRepository.SignEd25519(testContext, edKeyData.KeyRef, "payload")

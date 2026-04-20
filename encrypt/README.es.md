@@ -108,7 +108,7 @@ if err != nil {
 	panic(err)
 }
 
-plainText, err := repository.RSA_OAEP_Decode(ctx, keys.PrivateKey, cipherText)
+plainText, err := repository.RSA_OAEP_Decode(ctx, keys.KeyID, cipherText)
 if err != nil {
 	panic(err)
 }
@@ -124,7 +124,7 @@ if err != nil {
 	panic(err)
 }
 
-signature, err := repository.SignEd25519(ctx, keys.PrivateKey, "hola")
+signature, err := repository.SignEd25519(ctx, keys.KeyID, "hola")
 if err != nil {
 	panic(err)
 }

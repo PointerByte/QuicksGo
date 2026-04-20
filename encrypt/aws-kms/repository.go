@@ -94,7 +94,7 @@ func NewRepository() *Repository {
 	}
 }
 
-func (repository *symmetricRepository) GenerateSymetrycKeys(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error) {
+func (repository *symmetricRepository) GenerateSymetrycKeys(ctx context.Context, size common.SizeSymetrycKey) (*models.KeyData, error) {
 	keySpec, err := toAWSSymmetricKeySpec(size)
 	if err != nil {
 		return nil, err
@@ -120,7 +120,7 @@ func (repository *symmetricRepository) GenerateSymetrycKeys(ctx context.Context,
 	keyID := sdkaws.ToString(output.KeyMetadata.KeyId)
 	keyRef := sdkaws.ToString(output.KeyMetadata.Arn)
 
-	return &models.SymmetricKeyData{
+	return &models.KeyData{
 		KeyID:    keyID,
 		KeyRef:   keyRef,
 		Provider: "aws-kms",
@@ -258,7 +258,7 @@ func (repository *hashRepository) Blake3(ctx context.Context, message string) st
 	return repository.local.Blake3(ctx, message)
 }
 
-func (repository *asymmetricRepository) GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
+func (repository *asymmetricRepository) GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error) {
 	client, err := newAWSKMSClient(ctx)
 	if err != nil {
 		return nil, err
@@ -290,7 +290,7 @@ func (repository *asymmetricRepository) GenerateRSAKeys(ctx context.Context, siz
 	keyID := sdkaws.ToString(output.KeyMetadata.KeyId)
 	keyRef := sdkaws.ToString(output.KeyMetadata.Arn)
 	publicKey := base64.StdEncoding.EncodeToString(publicKeyOutput.PublicKey)
-	return &models.AsymmetricKeyData{
+	return &models.KeyData{
 		PublicKey: publicKey,
 		KeyID:     keyID,
 		KeyRef:    keyRef,
@@ -298,7 +298,7 @@ func (repository *asymmetricRepository) GenerateRSAKeys(ctx context.Context, siz
 	}, nil
 }
 
-func (repository *asymmetricRepository) GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error) {
+func (repository *asymmetricRepository) GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.KeyData, error) {
 	client, err := newAWSKMSClient(ctx)
 	if err != nil {
 		return nil, err
@@ -326,7 +326,7 @@ func (repository *asymmetricRepository) GenerateECCKeys(ctx context.Context, cur
 		return nil, fmt.Errorf("aws-kms: get ecc public key: %w", err)
 	}
 
-	return &models.AsymmetricKeyData{
+	return &models.KeyData{
 		PublicKey: base64.StdEncoding.EncodeToString(publicKeyOutput.PublicKey),
 		KeyID:     sdkaws.ToString(output.KeyMetadata.KeyId),
 		KeyRef:    sdkaws.ToString(output.KeyMetadata.Arn),
@@ -456,7 +456,7 @@ func (repository *asymmetricRepository) ECC_Decode(ctx context.Context, privateK
 	return local.NewSymmetricRepository().DecryptAES(ctx, base64.StdEncoding.EncodeToString(derivedKey), payload.Ciphertext, &payload.Curve)
 }
 
-func (repository *signatureRepository) GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
+func (repository *signatureRepository) GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error) {
 	_ = size
 	client, err := newAWSKMSClient(ctx)
 	if err != nil {
@@ -485,7 +485,7 @@ func (repository *signatureRepository) GenerateEd255Keys(ctx context.Context, si
 	keyID := sdkaws.ToString(output.KeyMetadata.KeyId)
 	keyRef := sdkaws.ToString(output.KeyMetadata.Arn)
 	publicKey := base64.StdEncoding.EncodeToString(publicKeyOutput.PublicKey)
-	return &models.AsymmetricKeyData{
+	return &models.KeyData{
 		PublicKey: publicKey,
 		KeyID:     keyID,
 		KeyRef:    keyRef,

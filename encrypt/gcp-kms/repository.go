@@ -130,7 +130,7 @@ func NewRepository() *Repository {
 	}
 }
 
-func (repository *symmetricRepository) GenerateSymetrycKeys(ctx context.Context, size common.SizeSymetrycKey) (*models.SymmetricKeyData, error) {
+func (repository *symmetricRepository) GenerateSymetrycKeys(ctx context.Context, size common.SizeSymetrycKey) (*models.KeyData, error) {
 	if size != common.Key256Bits {
 		return nil, fmt.Errorf("gcp-kms: unsupported symmetric key size: %d", size)
 	}
@@ -160,7 +160,7 @@ func (repository *symmetricRepository) GenerateSymetrycKeys(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("gcp-kms: create symmetric key: %w", err)
 	}
-	return &models.SymmetricKeyData{KeyID: keyID, KeyRef: cryptoKey.GetName(), Provider: gcpProviderName}, nil
+	return &models.KeyData{KeyID: keyID, KeyRef: cryptoKey.GetName(), Provider: gcpProviderName}, nil
 }
 
 func (repository *symmetricRepository) EncryptAES(ctx context.Context, secretKey, value string, additional *string) (string, error) {
@@ -275,7 +275,7 @@ func (repository *hashRepository) Blake3(ctx context.Context, message string) st
 	return repository.local.Blake3(ctx, message)
 }
 
-func (repository *asymmetricRepository) GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
+func (repository *asymmetricRepository) GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error) {
 	algorithm, err := gcpRSADecryptAlgorithm(size)
 	if err != nil {
 		return nil, err
@@ -315,7 +315,7 @@ func (repository *asymmetricRepository) GenerateRSAKeys(ctx context.Context, siz
 		return nil, err
 	}
 
-	return &models.AsymmetricKeyData{
+	return &models.KeyData{
 		PublicKey: base64.StdEncoding.EncodeToString(publicKey),
 		KeyID:     keyID,
 		KeyRef:    versionName,
@@ -323,7 +323,7 @@ func (repository *asymmetricRepository) GenerateRSAKeys(ctx context.Context, siz
 	}, nil
 }
 
-func (repository *asymmetricRepository) GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.AsymmetricKeyData, error) {
+func (repository *asymmetricRepository) GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.KeyData, error) {
 	_ = ctx
 	_ = curve
 	return nil, errGCPECCUnsupported
@@ -391,7 +391,7 @@ func (repository *asymmetricRepository) ECC_Decode(ctx context.Context, privateK
 	return "", errGCPECCUnsupported
 }
 
-func (repository *signatureRepository) GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.AsymmetricKeyData, error) {
+func (repository *signatureRepository) GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error) {
 	_ = size
 
 	client, err := newGCPClient(ctx)
@@ -428,7 +428,7 @@ func (repository *signatureRepository) GenerateEd255Keys(ctx context.Context, si
 		return nil, err
 	}
 
-	return &models.AsymmetricKeyData{
+	return &models.KeyData{
 		PublicKey: base64.StdEncoding.EncodeToString(publicKey),
 		KeyID:     keyID,
 		KeyRef:    versionName,

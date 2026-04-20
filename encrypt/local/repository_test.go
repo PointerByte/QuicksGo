@@ -128,11 +128,11 @@ func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateRSAKeys() error = %v", err)
 	}
-	if keyData == nil || keyData.PrivateKey == "" || keyData.PublicKey == "" || keyData.Provider != "local" {
+	if keyData == nil || keyData.KeyID == "" || keyData.PublicKey == "" || keyData.Provider != "local" {
 		t.Fatalf("GenerateRSAKeys() = %#v, want populated local key data", keyData)
 	}
 
-	privateKey, err := x509.ParsePKCS1PrivateKey(mustBase64Decode(t, keyData.PrivateKey))
+	privateKey, err := x509.ParsePKCS1PrivateKey(mustBase64Decode(t, keyData.KeyID))
 	if err != nil {
 		t.Fatalf("ParsePKCS1PrivateKey() error = %v", err)
 	}
@@ -157,7 +157,7 @@ func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateECCKeys() error = %v", err)
 	}
-	if eccKeyData == nil || eccKeyData.PrivateKey == "" || eccKeyData.PublicKey == "" || eccKeyData.Provider != "local" {
+	if eccKeyData == nil || eccKeyData.KeyID == "" || eccKeyData.PublicKey == "" || eccKeyData.Provider != "local" {
 		t.Fatalf("GenerateECCKeys() = %#v, want populated local key data", eccKeyData)
 	}
 
@@ -173,7 +173,7 @@ func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ECC_Encode() error = %v", err)
 	}
-	eccPlaintext, err := asymmetricRepository.ECC_Decode(testContext, eccKeyData.PrivateKey, eccCiphertext)
+	eccPlaintext, err := asymmetricRepository.ECC_Decode(testContext, eccKeyData.KeyID, eccCiphertext)
 	if err != nil {
 		t.Fatalf("ECC_Decode() error = %v", err)
 	}
@@ -201,10 +201,10 @@ func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateEd255Keys() error = %v", err)
 	}
-	if edKeyData == nil || edKeyData.PrivateKey == "" || edKeyData.PublicKey == "" || edKeyData.Provider != "local" {
+	if edKeyData == nil || edKeyData.KeyID == "" || edKeyData.PublicKey == "" || edKeyData.Provider != "local" {
 		t.Fatalf("GenerateEd255Keys() = %#v, want populated local key data", edKeyData)
 	}
-	edSignature, err := signatureRepository.SignEd25519(testContext, edKeyData.PrivateKey, "payload")
+	edSignature, err := signatureRepository.SignEd25519(testContext, edKeyData.KeyID, "payload")
 	if err != nil {
 		t.Fatalf("SignEd25519() error = %v", err)
 	}
