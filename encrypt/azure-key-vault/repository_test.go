@@ -135,13 +135,10 @@ func TestAzureRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	if err != nil || plaintext != "hello" {
 		t.Fatalf("DecryptAES() = %q, %v", plaintext, err)
 	}
-	if got := repository.SingHMAC(context.Background(), symmetricKey.KeyRef, "message"); got == "" {
-		t.Fatal("expected SingHMAC() to return a value")
+	if got := repository.HMAC(context.Background(), symmetricKey.KeyRef, "message"); got == "" {
+		t.Fatal("expected HMAC() to return a value")
 	}
-	if !repository.ValidateHMAC(context.Background(), symmetricKey.KeyRef, "message", base64.StdEncoding.EncodeToString([]byte("mac"))) {
-		t.Fatal("expected ValidateHMAC() to succeed")
-	}
-	if repository.Sha256Hex(context.Background(), "message") == "" || repository.SingBlake3(context.Background(), "message") == "" {
+	if repository.Sha256Hex(context.Background(), "message") == "" || repository.Blake3(context.Background(), "message") == "" {
 		t.Fatal("expected hash helpers to return values")
 	}
 
@@ -189,8 +186,8 @@ func TestAzureRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	if _, err := repository.DecryptAES(context.Background(), localSymmetricKey.KeyID, localCiphertext, &additional); err != nil {
 		t.Fatalf("DecryptAES() local fallback error = %v", err)
 	}
-	localMac := repository.SingHMAC(context.Background(), "secret", "message")
-	if localMac == "" || !repository.ValidateHMAC(context.Background(), "secret", "message", localMac) {
+	localMac := repository.HMAC(context.Background(), "secret", "message")
+	if localMac == "" {
 		t.Fatal("expected local HMAC fallback to succeed")
 	}
 	localRSAPrivate := mustAzureRSAPrivateBase64(t, privateKey)
@@ -345,14 +342,8 @@ func TestAzureRepositoryErrorBranches(t *testing.T) {
 	if _, err := symmetricRepository.DecryptAES(context.Background(), "https://vault.test/keys/default-key/v1", base64.StdEncoding.EncodeToString(payloadBytes), nil); err == nil {
 		t.Fatal("expected DecryptAES() ciphertext decode error")
 	}
-	if got := hashRepository.SingHMAC(context.Background(), "https://vault.test/keys/default-key/v1", "message"); got != "" {
-		t.Fatalf("SingHMAC() = %q, want empty string on provider error", got)
-	}
-	if hashRepository.ValidateHMAC(context.Background(), "https://vault.test/keys/default-key/v1", "message", "%%%") {
-		t.Fatal("expected ValidateHMAC() to fail on invalid signature")
-	}
-	if hashRepository.ValidateHMAC(context.Background(), "https://vault.test/keys/default-key/v1", "message", base64.StdEncoding.EncodeToString([]byte("sig"))) {
-		t.Fatal("expected ValidateHMAC() to fail on provider error")
+	if got := hashRepository.HMAC(context.Background(), "https://vault.test/keys/default-key/v1", "message"); got != "" {
+		t.Fatalf("HMAC() = %q, want empty string on provider error", got)
 	}
 	if _, err := asymmetricRepository.RSA_OAEP_Encode(context.Background(), "", "payload"); err == nil {
 		t.Fatal("expected RSA_OAEP_Encode() key reference error")

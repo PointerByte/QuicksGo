@@ -50,18 +50,12 @@ type AsymmetricRepository interface {
 
 // HashRepository exposes hashing and message-authentication helpers.
 type HashRepository interface {
-	// SingHMAC returns a Base64-encoded HMAC-SHA256 signature.
-	SingHMAC(ctx context.Context, secretKey, message string) string
-	// ValidateHMAC checks whether providedHash matches the message HMAC.
-	ValidateHMAC(ctx context.Context, secretKey, message, providedHash string) bool
+	// HMAC returns a Base64-encoded HMAC-SHA256 signature.
+	HMAC(ctx context.Context, secretKey, message string) string
 	// Sha256Hex returns the SHA-256 digest as a hexadecimal string.
 	Sha256Hex(ctx context.Context, message string) string
-	// ValidateSha256Hex checks whether providedHash matches the message SHA-256 digest.
-	ValidateSha256Hex(ctx context.Context, message, providedHash string) bool
-	// SingBlake3 returns the BLAKE3 digest encoded as Base64.
-	SingBlake3(ctx context.Context, message string) string
-	// ValidateBlake3 checks whether providedHash matches the message BLAKE3 digest.
-	ValidateBlake3(ctx context.Context, message, providedHash string) bool
+	// Blake3 returns the BLAKE3 digest encoded as Base64.
+	Blake3(ctx context.Context, message string) string
 }
 
 // SignatureRepository exposes asymmetric signing and verification helpers.

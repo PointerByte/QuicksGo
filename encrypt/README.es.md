@@ -87,14 +87,11 @@ _, _ = cipherText, plainText
 ### HMAC y hashes
 
 ```go
-signature := repository.SingHMAC(ctx, "secret", "message")
-valid := repository.ValidateHMAC(ctx, "secret", "message", signature)
+signature := repository.HMAC(ctx, "secret", "message")
 sha := repository.Sha256Hex(ctx, "message")
-shaValid := repository.ValidateSha256Hex(ctx, "message", sha)
-blake := repository.SingBlake3(ctx, "message")
-blakeValid := repository.ValidateBlake3(ctx, "message", blake)
+blake := repository.Blake3(ctx, "message")
 
-_, _, _, _, _ = valid, sha, shaValid, blake, blakeValid
+_, _, _ = signature, sha, blake
 ```
 
 ### RSA-OAEP

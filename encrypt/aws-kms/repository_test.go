@@ -146,13 +146,10 @@ func TestDelegatedLocalHelpers(t *testing.T) {
 	if plaintext != "hello" {
 		t.Fatalf("DecryptAES() = %q, want %q", plaintext, "hello")
 	}
-	if got := repository.SingHMAC(testContext, key.KeyRef, "message"); got == "" {
-		t.Fatal("expected SingHMAC() to return a KMS MAC")
+	if got := repository.HMAC(testContext, key.KeyRef, "message"); got == "" {
+		t.Fatal("expected HMAC() to return a KMS MAC")
 	}
-	if !repository.ValidateHMAC(testContext, key.KeyRef, "message", base64.StdEncoding.EncodeToString([]byte("mac"))) {
-		t.Fatal("expected ValidateHMAC() to succeed with KMS MAC")
-	}
-	if repository.Sha256Hex(testContext, "message") == "" || repository.SingBlake3(testContext, "message") == "" {
+	if repository.Sha256Hex(testContext, "message") == "" || repository.Blake3(testContext, "message") == "" {
 		t.Fatal("expected digest helpers to return values")
 	}
 	localRepository := local.NewSymmetricRepository()
@@ -586,11 +583,8 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 	if _, err := symmetricRepository.DecryptAES(testContext, "", base64.StdEncoding.EncodeToString([]byte("cipher")), &additional); err == nil {
 		t.Fatal("expected DecryptAES() provider error")
 	}
-	if got := NewHashRepository().SingHMAC(testContext, "arn:aws:kms:test", "message"); got != "" {
-		t.Fatalf("SingHMAC() = %q, want empty string on provider error", got)
-	}
-	if NewHashRepository().ValidateHMAC(testContext, "arn:aws:kms:test", "message", base64.StdEncoding.EncodeToString([]byte("mac"))) {
-		t.Fatal("expected ValidateHMAC() to fail on provider error")
+	if got := NewHashRepository().HMAC(testContext, "arn:aws:kms:test", "message"); got != "" {
+		t.Fatalf("HMAC() = %q, want empty string on provider error", got)
 	}
 	if _, err := asymmetricRepository.RSA_OAEP_Encode(testContext, "", "payload"); err == nil {
 		t.Fatal("expected RSA_OAEP_Encode() provider error")

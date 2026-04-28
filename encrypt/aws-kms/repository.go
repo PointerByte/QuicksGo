@@ -192,9 +192,9 @@ func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey
 	return string(output.Plaintext), nil
 }
 
-func (repository *hashRepository) SingHMAC(ctx context.Context, secretKey, message string) string {
+func (repository *hashRepository) HMAC(ctx context.Context, secretKey, message string) string {
 	if !looksLikeAWSKMSKeyReference(secretKey) {
-		return repository.local.SingHMAC(ctx, secretKey, message)
+		return repository.local.HMAC(ctx, secretKey, message)
 	}
 
 	client, err := newAWSKMSClient(ctx)
@@ -218,52 +218,12 @@ func (repository *hashRepository) SingHMAC(ctx context.Context, secretKey, messa
 	return base64.StdEncoding.EncodeToString(output.Mac)
 }
 
-func (repository *hashRepository) ValidateHMAC(ctx context.Context, secretKey, message, providedHash string) bool {
-	if !looksLikeAWSKMSKeyReference(secretKey) {
-		return repository.local.ValidateHMAC(ctx, secretKey, message, providedHash)
-	}
-
-	client, err := newAWSKMSClient(ctx)
-	if err != nil {
-		return false
-	}
-
-	keyID, err := resolveAWSKMSKeyID(secretKey)
-	if err != nil {
-		return false
-	}
-
-	mac, err := base64.StdEncoding.DecodeString(providedHash)
-	if err != nil {
-		return false
-	}
-
-	output, err := client.VerifyMac(ctx, &kms.VerifyMacInput{
-		KeyId:        sdkaws.String(keyID),
-		Mac:          mac,
-		Message:      []byte(message),
-		MacAlgorithm: types.MacAlgorithmSpecHmacSha256,
-	})
-	if err != nil {
-		return false
-	}
-	return output.MacValid
-}
-
 func (repository *hashRepository) Sha256Hex(ctx context.Context, message string) string {
 	return repository.local.Sha256Hex(ctx, message)
 }
 
-func (repository *hashRepository) ValidateSha256Hex(ctx context.Context, message, providedHash string) bool {
-	return repository.local.ValidateSha256Hex(ctx, message, providedHash)
-}
-
-func (repository *hashRepository) SingBlake3(ctx context.Context, message string) string {
-	return repository.local.SingBlake3(ctx, message)
-}
-
-func (repository *hashRepository) ValidateBlake3(ctx context.Context, message, providedHash string) bool {
-	return repository.local.ValidateBlake3(ctx, message, providedHash)
+func (repository *hashRepository) Blake3(ctx context.Context, message string) string {
+	return repository.local.Blake3(ctx, message)
 }
 
 func (repository *asymmetricRepository) GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error) {
