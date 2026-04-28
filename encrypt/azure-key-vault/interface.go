@@ -46,16 +46,20 @@ type AsymmetricRepository interface {
 }
 
 type HashRepository interface {
-	// GenerateHMAC generates an HMAC-SHA256 value with Azure Key Vault when
+	// SingHMAC generates an HMAC-SHA256 value with Azure Key Vault when
 	// secretKey is a vault reference, or locally otherwise.
-	GenerateHMAC(ctx context.Context, secretKey, message string) string
+	SingHMAC(ctx context.Context, secretKey, message string) string
 	// ValidateHMAC validates a provided HMAC-SHA256 value with Azure Key Vault
 	// or locally, depending on the secretKey format.
 	ValidateHMAC(ctx context.Context, secretKey, message, providedHash string) bool
 	// Sha256Hex returns the SHA-256 digest encoded as hexadecimal.
 	Sha256Hex(ctx context.Context, message string) string
-	// Blake3 returns the BLAKE3 digest encoded as Base64.
-	Blake3(ctx context.Context, message string) string
+	// ValidateSha256Hex checks whether providedHash matches the message SHA-256 digest.
+	ValidateSha256Hex(ctx context.Context, message, providedHash string) bool
+	// SingBlake3 returns the BLAKE3 digest encoded as Base64.
+	SingBlake3(ctx context.Context, message string) string
+	// ValidateBlake3 checks whether providedHash matches the message BLAKE3 digest.
+	ValidateBlake3(ctx context.Context, message, providedHash string) bool
 }
 
 type SignatureRepository interface {

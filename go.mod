@@ -9,8 +9,8 @@ replace (
 )
 
 require (
-	github.com/PointerByte/QuicksGo/logger v0.0.8
-	github.com/PointerByte/QuicksGo/security v0.0.21
+	github.com/PointerByte/QuicksGo/logger v0.0.9
+	github.com/PointerByte/QuicksGo/security v0.0.22
 	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/config v1.32.14
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.74.0
@@ -48,7 +48,7 @@ require (
 )
 
 require (
-	github.com/PointerByte/QuicksGo/encrypt v0.0.2 // indirect
+	github.com/PointerByte/QuicksGo/encrypt v0.0.5 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.14 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.21 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.21 // indirect
