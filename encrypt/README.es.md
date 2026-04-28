@@ -118,7 +118,7 @@ _, _ = cipherText, plainText
 ### Ed25519
 
 ```go
-keys, err := repository.GenerateEd255Keys(ctx, 2048)
+keys, err := repository.GenerateEd255Keys(ctx)
 if err != nil {
 	panic(err)
 }

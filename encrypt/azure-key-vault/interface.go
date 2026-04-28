@@ -5,8 +5,6 @@ package azurekeyvault
 
 import (
 	"context"
-	"crypto/rsa"
-
 	"github.com/PointerByte/QuicksGo/encrypt/common"
 	"github.com/PointerByte/QuicksGo/encrypt/models"
 )
@@ -58,7 +56,7 @@ type HashRepository interface {
 type SignatureRepository interface {
 	// GenerateEd255Keys creates an Ed25519 signing key when provider-backed
 	// support is available for the backend.
-	GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error)
+	GenerateEd255Keys(ctx context.Context) (*models.KeyData, error)
 	// SignEd25519 signs text with a supported provider-backed key or a Base64
 	// Ed25519 private key.
 	SignEd25519(ctx context.Context, privateKey, text string) (string, error)
@@ -71,10 +69,10 @@ type SignatureRepository interface {
 	// VerifyRSAPSS verifies a Base64 RSA-PSS signature with an Azure Key Vault
 	// key reference or a Base64 RSA public key.
 	VerifyRSAPSS(ctx context.Context, publicKey, text, signature string) error
-	// SignPKCS1v15_SHA256 signs data with RSA PKCS#1 v1.5 using Azure Key Vault
-	// when privateKey is nil, or a local RSA private key otherwise.
-	SignPKCS1v15_SHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error)
-	// VerifySHA256 verifies an RSA PKCS#1 v1.5 SHA-256 signature with Azure Key
-	// Vault when publicKey is nil, or a local RSA public key otherwise.
-	VerifySHA256(ctx context.Context, data, signature string, publicKey *rsa.PublicKey) error
+	// Sign_RSA_PKCS1v15_SHA256 signs data with RSA PKCS#1 v1.5 using Azure Key Vault
+	// when privateKey is empty, or a local Base64 RSA private key otherwise.
+	Sign_RSA_PKCS1v15_SHA256(ctx context.Context, privateKey, data string) (string, error)
+	// Verify_RSA_PKCS1v15_SHA256 verifies an RSA PKCS#1 v1.5 SHA-256 signature with Azure Key
+	// Vault when publicKey is empty, or a local Base64 RSA public key otherwise.
+	Verify_RSA_PKCS1v15_SHA256(ctx context.Context, data, publicKey string, signature string) error
 }

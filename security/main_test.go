@@ -29,6 +29,7 @@ func TestNewRouterHealthEndpoints(t *testing.T) {
 		{name: "root health", path: "/health"},
 		{name: "hmac health", path: "/hmac/health"},
 		{name: "rsa health", path: "/rsa/health"},
+		{name: "custom health", path: "/custom/health"},
 	}
 
 	for _, test := range tests {
@@ -136,6 +137,36 @@ func TestRSALoginAndProtectedMe(t *testing.T) {
 
 	if body["user_id"] != "84" {
 		t.Fatalf("expected user_id 84, got %q", body["user_id"])
+	}
+}
+
+func TestCustomJWTLoginAndProtectedMe(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := newTestRouter(t)
+	token := loginAndGetToken(t, router, "/custom/login", `{"user_id":"126","role":"admin"}`)
+
+	req := httptest.NewRequest(http.MethodGet, "/custom/api/me", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d with body %s", http.StatusOK, rec.Code, rec.Body.String())
+	}
+
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("expected json response, got %v", err)
+	}
+
+	if body["user_id"] != "126" {
+		t.Fatalf("expected user_id 126, got %q", body["user_id"])
+	}
+
+	if body["example"] != "Custom / CUSTOM" {
+		t.Fatalf("expected custom example, got %q", body["example"])
 	}
 }
 

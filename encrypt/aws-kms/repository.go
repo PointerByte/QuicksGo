@@ -5,7 +5,6 @@ package awskms
 
 import (
 	"context"
-	"crypto/rsa"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -424,8 +423,7 @@ func (repository *asymmetricRepository) ECC_Decode(ctx context.Context, privateK
 	return local.NewSymmetricRepository().DecryptAES(ctx, base64.StdEncoding.EncodeToString(derivedKey), payload.Ciphertext, &payload.Curve)
 }
 
-func (repository *signatureRepository) GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error) {
-	_ = size
+func (repository *signatureRepository) GenerateEd255Keys(ctx context.Context) (*models.KeyData, error) {
 	client, err := newAWSKMSClient(ctx)
 	if err != nil {
 		return nil, err
@@ -587,9 +585,9 @@ func (repository *signatureRepository) VerifyRSAPSS(ctx context.Context, publicK
 	return nil
 }
 
-func (repository *signatureRepository) SignPKCS1v15_SHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error) {
-	if privateKey != nil {
-		return repository.local.SignPKCS1v15_SHA256(ctx, data, privateKey)
+func (repository *signatureRepository) Sign_RSA_PKCS1v15_SHA256(ctx context.Context, privateKey, data string) (string, error) {
+	if privateKey != "" && !looksLikeAWSKMSKeyReference(privateKey) {
+		return repository.local.Sign_RSA_PKCS1v15_SHA256(ctx, privateKey, data)
 	}
 
 	client, err := newAWSKMSClient(ctx)
@@ -597,7 +595,7 @@ func (repository *signatureRepository) SignPKCS1v15_SHA256(ctx context.Context, 
 		return "", err
 	}
 
-	keyID, err := resolveAWSKMSKeyID("")
+	keyID, err := resolveAWSKMSKeyID(privateKey)
 	if err != nil {
 		return "", err
 	}
@@ -614,9 +612,9 @@ func (repository *signatureRepository) SignPKCS1v15_SHA256(ctx context.Context, 
 	return base64.StdEncoding.EncodeToString(output.Signature), nil
 }
 
-func (repository *signatureRepository) VerifySHA256(ctx context.Context, data, signature string, publicKey *rsa.PublicKey) error {
-	if publicKey != nil {
-		return repository.local.VerifySHA256(ctx, data, signature, publicKey)
+func (repository *signatureRepository) Verify_RSA_PKCS1v15_SHA256(ctx context.Context, data, publicKey string, signature string) error {
+	if publicKey != "" && !looksLikeAWSKMSKeyReference(publicKey) {
+		return repository.local.Verify_RSA_PKCS1v15_SHA256(ctx, data, publicKey, signature)
 	}
 
 	client, err := newAWSKMSClient(ctx)
@@ -624,7 +622,7 @@ func (repository *signatureRepository) VerifySHA256(ctx context.Context, data, s
 		return err
 	}
 
-	keyID, err := resolveAWSKMSKeyID("")
+	keyID, err := resolveAWSKMSKeyID(publicKey)
 	if err != nil {
 		return err
 	}

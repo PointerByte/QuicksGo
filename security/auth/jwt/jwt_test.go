@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -133,6 +134,40 @@ func TestCreateValidateAndReadJWT(t *testing.T) {
 
 	if gotClaims != wantClaims {
 		t.Fatalf("expected claims %+v, got %+v", wantClaims, gotClaims)
+	}
+}
+
+func TestServiceContextTimeout(t *testing.T) {
+	issuer, err := New(WithHMACSHA256("super-secret"))
+	if err != nil {
+		t.Fatalf("expected issuer without error, got %v", err)
+	}
+	token, err := issuer.Create(testClaims{UserID: "42"})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	service, err := New(
+		WithHMACSHA256("super-secret"),
+		WithContextTimeout(time.Nanosecond),
+		WithValidator(func(ctx context.Context, token Token) error {
+			<-ctx.Done()
+			return ctx.Err()
+		}),
+	)
+	if err != nil {
+		t.Fatalf("expected service without error, got %v", err)
+	}
+
+	var claims testClaims
+	if _, err := service.Decode(context.Background(), token, &claims); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Decode() error = %v, want context.DeadlineExceeded", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := service.CreateWithContext(ctx, testClaims{UserID: "42"}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("CreateWithContext() error = %v, want context.Canceled", err)
 	}
 }
 
@@ -365,6 +400,54 @@ func TestCreateValidateAndReadJWTWithEdDSA(t *testing.T) {
 	}
 }
 
+func TestCreateValidateAndReadJWTWithCustomStrategy(t *testing.T) {
+	sign := func(ctx context.Context, signingInput []byte) ([]byte, error) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		return []byte("custom:" + string(signingInput)), nil
+	}
+	verify := func(ctx context.Context, signingInput []byte, signature []byte) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		want := "custom:" + string(signingInput)
+		if string(signature) != want {
+			return ErrInvalidSignature
+		}
+		return nil
+	}
+
+	service, err := New(WithCustomStrategy("CUSTOM", sign, verify))
+	if err != nil {
+		t.Fatalf("expected service without error, got %v", err)
+	}
+
+	wantClaims := testClaims{UserID: "custom-user", Role: "operator", Active: true}
+	token, err := service.Create(wantClaims)
+	if err != nil {
+		t.Fatalf("expected token without error, got %v", err)
+	}
+
+	var gotClaims testClaims
+	parsedToken, err := service.Decode(context.Background(), token, &gotClaims)
+	if err != nil {
+		t.Fatalf("expected decode without error, got %v", err)
+	}
+	if parsedToken.Header.Algorithm != "CUSTOM" {
+		t.Fatalf("expected algorithm CUSTOM, got %s", parsedToken.Header.Algorithm)
+	}
+	if gotClaims != wantClaims {
+		t.Fatalf("expected claims %+v, got %+v", wantClaims, gotClaims)
+	}
+
+	parts := strings.Split(token, ".")
+	parts[2] = encodeSegment([]byte("bad-signature"))
+	if err := service.ValidateSignature(strings.Join(parts, ".")); !errors.Is(err, ErrInvalidSignature) {
+		t.Fatalf("expected ErrInvalidSignature, got %v", err)
+	}
+}
+
 func TestNewAndOptionsErrors(t *testing.T) {
 	if _, err := New(); !errors.Is(err, ErrNilStrategy) {
 		t.Fatalf("expected ErrNilStrategy, got %v", err)
@@ -405,6 +488,18 @@ func TestNewAndOptionsErrors(t *testing.T) {
 
 	if _, err := New(WithEd25519(nil, nil)); !errors.Is(err, ErrMissingEdDSAPrivateKey) {
 		t.Fatalf("expected ErrMissingEdDSAPrivateKey, got %v", err)
+	}
+
+	if _, err := New(WithCustomStrategy("", func(context.Context, []byte) ([]byte, error) { return nil, nil }, func(context.Context, []byte, []byte) error { return nil })); !errors.Is(err, ErrMissingAlgorithm) {
+		t.Fatalf("expected ErrMissingAlgorithm, got %v", err)
+	}
+
+	if _, err := New(WithCustomStrategy("CUSTOM", nil, func(context.Context, []byte, []byte) error { return nil })); !errors.Is(err, ErrMissingSignFunc) {
+		t.Fatalf("expected ErrMissingSignFunc, got %v", err)
+	}
+
+	if _, err := New(WithCustomStrategy("CUSTOM", func(context.Context, []byte) ([]byte, error) { return nil, nil }, nil)); !errors.Is(err, ErrMissingVerifyFunc) {
+		t.Fatalf("expected ErrMissingVerifyFunc, got %v", err)
 	}
 }
 

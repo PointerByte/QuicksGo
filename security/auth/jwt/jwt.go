@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/PointerByte/QuicksGo/encrypt"
 	"github.com/PointerByte/QuicksGo/encrypt/local"
@@ -36,6 +37,9 @@ var (
 	ErrNilValidator           = errors.New("jwt: validator cannot be nil")
 	ErrMissingValidation      = errors.New("jwt: validation callback is required")
 	ErrUnsupportedAlg         = errors.New("jwt: unsupported algorithm")
+	ErrMissingAlgorithm       = errors.New("jwt: algorithm is required")
+	ErrMissingSignFunc        = errors.New("jwt: custom sign function is required")
+	ErrMissingVerifyFunc      = errors.New("jwt: custom verify function is required")
 )
 
 const (
@@ -74,6 +78,17 @@ type Strategy interface {
 	Verify(signingInput []byte, signature []byte) error
 }
 
+type contextStrategy interface {
+	SignContext(ctx context.Context, signingInput []byte) ([]byte, error)
+	VerifyContext(ctx context.Context, signingInput []byte, signature []byte) error
+}
+
+// SignFunc signs a JWT signing input and returns the raw signature bytes.
+type SignFunc func(ctx context.Context, signingInput []byte) ([]byte, error)
+
+// VerifyFunc validates raw signature bytes for a JWT signing input.
+type VerifyFunc func(ctx context.Context, signingInput []byte, signature []byte) error
+
 // Validator represents an additional validation step executed after the token
 // signature has been verified and its claims have been decoded.
 type Validator func(ctx context.Context, token Token) error
@@ -85,8 +100,10 @@ type Option func(*Service) error
 // It uses a Strategy for cryptographic concerns and a validation pipeline for
 // domain-specific checks.
 type Service struct {
-	strategy   Strategy
-	validators []Validator
+	strategy         Strategy
+	validators       []Validator
+	contextTimeout   time.Duration
+	contextTimeoutOn bool
 }
 
 // Header represents the standard JWT header section.
@@ -125,6 +142,12 @@ type ed25519Strategy struct {
 	publicKey  ed25519.PublicKey
 }
 
+type customStrategy struct {
+	algorithm string
+	sign      SignFunc
+	verify    VerifyFunc
+}
+
 // HMACServiceInput configures NewHMACService.
 // SecretEnv keeps its original name for compatibility and is treated as a
 // viper key when Secret is empty.
@@ -133,6 +156,7 @@ type HMACServiceInput struct {
 	Secret    string
 	SecretEnv string
 	Validator Validator
+	Timeout   time.Duration
 }
 
 // RSAServiceInput configures NewRSAService.
@@ -145,6 +169,7 @@ type RSAServiceInput struct {
 	PrivateKeyEnv string
 	PublicKeyEnv  string
 	Validator     Validator
+	Timeout       time.Duration
 }
 
 // Ed25519ServiceInput configures NewEd25519Service.
@@ -154,6 +179,7 @@ type Ed25519ServiceInput struct {
 	PrivateKeyEnv string
 	PublicKeyEnv  string
 	Validator     Validator
+	Timeout       time.Duration
 }
 
 // ConfigServiceInput configures NewConfiguredService.
@@ -168,6 +194,7 @@ type ConfigServiceInput struct {
 	EdDSAPrivateKeyKey string
 	EdDSAPublicKeyKey  string
 	Validator          Validator
+	Timeout            time.Duration
 }
 
 // New builds a JWT service from the provided options.
@@ -202,24 +229,28 @@ func NewConfiguredService(input ConfigServiceInput) (*Service, error) {
 		return NewHMACService(HMACServiceInput{
 			SecretEnv: stringOrDefault(input.HMACSecretKey, DefaultHMACSecretKey),
 			Validator: input.Validator,
+			Timeout:   input.Timeout,
 		})
 	case "RS256":
 		return NewRSAService(RSAServiceInput{
 			PrivateKeyEnv: stringOrDefault(input.RSAPrivateKeyKey, DefaultRSAPrivateKeyKey),
 			PublicKeyEnv:  stringOrDefault(input.RSAPublicKeyKey, DefaultRSAPublicKeyKey),
 			Validator:     input.Validator,
+			Timeout:       input.Timeout,
 		})
 	case "PS256":
 		return NewRSAPSSService(RSAServiceInput{
 			PrivateKeyEnv: stringOrDefault(input.RSAPrivateKeyKey, DefaultRSAPrivateKeyKey),
 			PublicKeyEnv:  stringOrDefault(input.RSAPublicKeyKey, DefaultRSAPublicKeyKey),
 			Validator:     input.Validator,
+			Timeout:       input.Timeout,
 		})
 	case "EDDSA":
 		return NewEd25519Service(Ed25519ServiceInput{
 			PrivateKeyEnv: stringOrDefault(input.EdDSAPrivateKeyKey, DefaultEdDSAPrivateKeyKey),
 			PublicKeyEnv:  stringOrDefault(input.EdDSAPublicKeyKey, DefaultEdDSAPublicKeyKey),
 			Validator:     input.Validator,
+			Timeout:       input.Timeout,
 		})
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedAlg, algorithm)
@@ -255,6 +286,9 @@ func NewRSAPSSService(input RSAServiceInput) (*Service, error) {
 	}
 
 	options := []Option{WithRSAPSSSHA256(privateKey, publicKey)}
+	if input.Timeout > 0 {
+		options = append(options, WithContextTimeout(input.Timeout))
+	}
 	if input.Validator != nil {
 		options = append(options, WithValidator(input.Validator))
 	}
@@ -290,6 +324,9 @@ func NewEd25519Service(input Ed25519ServiceInput) (*Service, error) {
 	}
 
 	options := []Option{WithEd25519(privateKey, publicKey)}
+	if input.Timeout > 0 {
+		options = append(options, WithContextTimeout(input.Timeout))
+	}
 	if input.Validator != nil {
 		options = append(options, WithValidator(input.Validator))
 	}
@@ -306,6 +343,9 @@ func NewHMACService(input HMACServiceInput) (*Service, error) {
 	}
 
 	options := []Option{WithHMACSHA256(secret)}
+	if input.Timeout > 0 {
+		options = append(options, WithContextTimeout(input.Timeout))
+	}
 	if input.Validator != nil {
 		options = append(options, WithValidator(input.Validator))
 	}
@@ -343,6 +383,9 @@ func NewRSAService(input RSAServiceInput) (*Service, error) {
 	}
 
 	options := []Option{WithRSASHA256(privateKey, publicKey)}
+	if input.Timeout > 0 {
+		options = append(options, WithContextTimeout(input.Timeout))
+	}
 	if input.Validator != nil {
 		options = append(options, WithValidator(input.Validator))
 	}
@@ -380,6 +423,26 @@ func NewEd25519(privateKey ed25519.PrivateKey, publicKey ed25519.PublicKey) Stra
 		privateKey: privateKey,
 		publicKey:  publicKey,
 	}
+}
+
+// NewCustomStrategy returns a signing strategy backed by caller-provided
+// signing and verification functions.
+func NewCustomStrategy(algorithm string, sign SignFunc, verify VerifyFunc) (Strategy, error) {
+	algorithm = strings.TrimSpace(algorithm)
+	if algorithm == "" {
+		return nil, ErrMissingAlgorithm
+	}
+	if sign == nil {
+		return nil, ErrMissingSignFunc
+	}
+	if verify == nil {
+		return nil, ErrMissingVerifyFunc
+	}
+	return &customStrategy{
+		algorithm: algorithm,
+		sign:      sign,
+		verify:    verify,
+	}, nil
 }
 
 // WithHMACSHA256 configures the service to use HMAC-SHA256 signatures.
@@ -439,6 +502,19 @@ func WithEd25519(privateKey ed25519.PrivateKey, publicKey ed25519.PublicKey) Opt
 	}
 }
 
+// WithCustomStrategy configures the service to sign and verify tokens with
+// caller-provided functions.
+func WithCustomStrategy(algorithm string, sign SignFunc, verify VerifyFunc) Option {
+	return func(service *Service) error {
+		strategy, err := NewCustomStrategy(algorithm, sign, verify)
+		if err != nil {
+			return err
+		}
+		service.strategy = strategy
+		return nil
+	}
+}
+
 // WithStrategy injects a custom signing strategy into the service.
 func WithStrategy(strategy Strategy) Option {
 	return func(service *Service) error {
@@ -462,12 +538,34 @@ func WithValidator(validator Validator) Option {
 	}
 }
 
+// WithContextTimeout configures a maximum duration for JWT signing,
+// signature verification, and validation work performed by the service.
+func WithContextTimeout(timeout time.Duration) Option {
+	return func(service *Service) error {
+		if timeout <= 0 {
+			service.contextTimeout = 0
+			service.contextTimeoutOn = false
+			return nil
+		}
+		service.contextTimeout = timeout
+		service.contextTimeoutOn = true
+		return nil
+	}
+}
+
 // Create builds and signs a JWT using the configured signing strategy.
 // The token header is generated automatically, so callers only provide claims.
 func (service *Service) Create(claims any) (string, error) {
+	return service.CreateWithContext(context.Background(), claims)
+}
+
+// CreateWithContext builds and signs a JWT using ctx plus any service timeout.
+func (service *Service) CreateWithContext(ctx context.Context, claims any) (string, error) {
 	if service == nil || service.strategy == nil {
 		return "", ErrNilStrategy
 	}
+	ctx, cancel := service.contextFor(ctx)
+	defer cancel()
 
 	headerJSON, err := json.Marshal(Header{
 		Type:      "JWT",
@@ -486,7 +584,7 @@ func (service *Service) Create(claims any) (string, error) {
 	claimsPart := encodeSegment(claimsJSON)
 	signingInput := headerPart + "." + claimsPart
 
-	signature, err := service.strategy.Sign([]byte(signingInput))
+	signature, err := signStrategy(ctx, service.strategy, []byte(signingInput))
 	if err != nil {
 		return "", fmt.Errorf("jwt: sign token: %w", err)
 	}
@@ -496,14 +594,24 @@ func (service *Service) Create(claims any) (string, error) {
 // ValidateSignature verifies the JWT structure, algorithm, and signature
 // without decoding its claims into a destination value.
 func (service *Service) ValidateSignature(token string) error {
-	_, err := service.parseAndValidate(token)
+	return service.ValidateSignatureWithContext(context.Background(), token)
+}
+
+// ValidateSignatureWithContext verifies the JWT signature using ctx plus any
+// service timeout.
+func (service *Service) ValidateSignatureWithContext(ctx context.Context, token string) error {
+	ctx, cancel := service.contextFor(ctx)
+	defer cancel()
+	_, err := service.parseAndValidate(ctx, token)
 	return err
 }
 
 // Read validates the token and unmarshals its claims into destination using a
 // background context and the service-level validators.
 func (service *Service) Read(token string, destination any) error {
-	_, err := service.Decode(context.Background(), token, destination)
+	ctx, cancel := service.contextFor(context.Background())
+	defer cancel()
+	_, err := service.Decode(ctx, token, destination)
 	return err
 }
 
@@ -513,8 +621,10 @@ func (service *Service) Decode(ctx context.Context, token string, destination an
 	if destination == nil {
 		return Token{}, ErrNilDestination
 	}
+	ctx, cancel := service.contextFor(ctx)
+	defer cancel()
 
-	parsedToken, err := service.parseAndValidate(token)
+	parsedToken, err := service.parseAndValidate(ctx, token)
 	if err != nil {
 		return Token{}, err
 	}
@@ -535,7 +645,7 @@ func (service *Service) Decode(ctx context.Context, token string, destination an
 	return parsedToken, nil
 }
 
-func (service *Service) parseAndValidate(token string) (Token, error) {
+func (service *Service) parseAndValidate(ctx context.Context, token string) (Token, error) {
 	if service == nil || service.strategy == nil {
 		return Token{}, ErrNilStrategy
 	}
@@ -570,7 +680,7 @@ func (service *Service) parseAndValidate(token string) (Token, error) {
 	}
 
 	signingInput := []byte(parts[0] + "." + parts[1])
-	if err := service.strategy.Verify(signingInput, signatureBytes); err != nil {
+	if err := verifyStrategy(ctx, service.strategy, signingInput, signatureBytes); err != nil {
 		return Token{}, err
 	}
 	return Token{
@@ -581,11 +691,78 @@ func (service *Service) parseAndValidate(token string) (Token, error) {
 	}, nil
 }
 
+func (service *Service) contextFor(ctx context.Context) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if service == nil || !service.contextTimeoutOn {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, service.contextTimeout)
+}
+
+func signStrategy(ctx context.Context, strategy Strategy, signingInput []byte) ([]byte, error) {
+	if contextAware, ok := strategy.(contextStrategy); ok {
+		return contextAware.SignContext(ctx, signingInput)
+	}
+	return runStrategyWithContext(ctx, func() ([]byte, error) {
+		return strategy.Sign(signingInput)
+	})
+}
+
+func verifyStrategy(ctx context.Context, strategy Strategy, signingInput []byte, signature []byte) error {
+	if contextAware, ok := strategy.(contextStrategy); ok {
+		return contextAware.VerifyContext(ctx, signingInput, signature)
+	}
+	_, err := runStrategyWithContext(ctx, func() (struct{}, error) {
+		return struct{}{}, strategy.Verify(signingInput, signature)
+	})
+	return err
+}
+
+type strategyResult[T any] struct {
+	value T
+	err   error
+}
+
+func runStrategyWithContext[T any](ctx context.Context, fn func() (T, error)) (T, error) {
+	var zero T
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return zero, err
+	}
+
+	done := make(chan strategyResult[T], 1)
+	go func() {
+		value, err := fn()
+		done <- strategyResult[T]{value: value, err: err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return zero, ctx.Err()
+	case result := <-done:
+		return result.value, result.err
+	}
+}
+
 func (strategy *hmacSHA256Strategy) Algorithm() string {
 	return "HS256"
 }
 
 func (strategy *hmacSHA256Strategy) Sign(signingInput []byte) ([]byte, error) {
+	return strategy.SignContext(context.Background(), signingInput)
+}
+
+func (strategy *hmacSHA256Strategy) SignContext(ctx context.Context, signingInput []byte) ([]byte, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if len(strategy.secret) == 0 {
 		return nil, ErrMissingSecret
 	}
@@ -598,7 +775,11 @@ func (strategy *hmacSHA256Strategy) Sign(signingInput []byte) ([]byte, error) {
 }
 
 func (strategy *hmacSHA256Strategy) Verify(signingInput []byte, signature []byte) error {
-	expectedSignature, err := strategy.Sign(signingInput)
+	return strategy.VerifyContext(context.Background(), signingInput, signature)
+}
+
+func (strategy *hmacSHA256Strategy) VerifyContext(ctx context.Context, signingInput []byte, signature []byte) error {
+	expectedSignature, err := strategy.SignContext(ctx, signingInput)
 	if err != nil {
 		return err
 	}
@@ -614,10 +795,14 @@ func (strategy *rsaSHA256Strategy) Algorithm() string {
 }
 
 func (strategy *rsaSHA256Strategy) Sign(signingInput []byte) ([]byte, error) {
+	return strategy.SignContext(context.Background(), signingInput)
+}
+
+func (strategy *rsaSHA256Strategy) SignContext(ctx context.Context, signingInput []byte) ([]byte, error) {
 	if strategy.privateKey == nil {
 		return nil, ErrMissingPrivateKey
 	}
-	signatureB64, err := strategy.signutil.SignPKCS1v15_SHA256(context.Background(), string(signingInput), strategy.privateKey)
+	signatureB64, err := strategy.signutil.Sign_RSA_PKCS1v15_SHA256(ctx, mustMarshalRSAPrivateKey(strategy.privateKey), string(signingInput))
 	if err != nil {
 		return nil, err
 	}
@@ -625,11 +810,15 @@ func (strategy *rsaSHA256Strategy) Sign(signingInput []byte) ([]byte, error) {
 }
 
 func (strategy *rsaSHA256Strategy) Verify(signingInput []byte, signature []byte) error {
+	return strategy.VerifyContext(context.Background(), signingInput, signature)
+}
+
+func (strategy *rsaSHA256Strategy) VerifyContext(ctx context.Context, signingInput []byte, signature []byte) error {
 	if strategy.publicKey == nil {
 		return ErrMissingPublicKey
 	}
-	if err := strategy.signutil.VerifySHA256(context.Background(), string(signingInput), base64.StdEncoding.EncodeToString(signature), strategy.publicKey); err != nil {
-		return ErrInvalidSignature
+	if err := strategy.signutil.Verify_RSA_PKCS1v15_SHA256(ctx, string(signingInput), mustMarshalRSAPublicKey(strategy.publicKey), base64.StdEncoding.EncodeToString(signature)); err != nil {
+		return signatureError(err)
 	}
 	return nil
 }
@@ -639,11 +828,15 @@ func (strategy *rsaPSSSHA256Strategy) Algorithm() string {
 }
 
 func (strategy *rsaPSSSHA256Strategy) Sign(signingInput []byte) ([]byte, error) {
+	return strategy.SignContext(context.Background(), signingInput)
+}
+
+func (strategy *rsaPSSSHA256Strategy) SignContext(ctx context.Context, signingInput []byte) ([]byte, error) {
 	if strategy.privateKey == nil {
 		return nil, ErrMissingPrivateKey
 	}
 
-	signatureB64, err := strategy.signutil.SignRSAPSS(context.Background(), mustMarshalRSAPrivateKey(strategy.privateKey), string(signingInput))
+	signatureB64, err := strategy.signutil.SignRSAPSS(ctx, mustMarshalRSAPrivateKey(strategy.privateKey), string(signingInput))
 	if err != nil {
 		return nil, err
 	}
@@ -651,12 +844,16 @@ func (strategy *rsaPSSSHA256Strategy) Sign(signingInput []byte) ([]byte, error) 
 }
 
 func (strategy *rsaPSSSHA256Strategy) Verify(signingInput []byte, signature []byte) error {
+	return strategy.VerifyContext(context.Background(), signingInput, signature)
+}
+
+func (strategy *rsaPSSSHA256Strategy) VerifyContext(ctx context.Context, signingInput []byte, signature []byte) error {
 	if strategy.publicKey == nil {
 		return ErrMissingPublicKey
 	}
 
-	if err := strategy.signutil.VerifyRSAPSS(context.Background(), mustMarshalRSAPublicKey(strategy.publicKey), string(signingInput), base64.StdEncoding.EncodeToString(signature)); err != nil {
-		return ErrInvalidSignature
+	if err := strategy.signutil.VerifyRSAPSS(ctx, mustMarshalRSAPublicKey(strategy.publicKey), string(signingInput), base64.StdEncoding.EncodeToString(signature)); err != nil {
+		return signatureError(err)
 	}
 	return nil
 }
@@ -666,11 +863,15 @@ func (strategy *ed25519Strategy) Algorithm() string {
 }
 
 func (strategy *ed25519Strategy) Sign(signingInput []byte) ([]byte, error) {
+	return strategy.SignContext(context.Background(), signingInput)
+}
+
+func (strategy *ed25519Strategy) SignContext(ctx context.Context, signingInput []byte) ([]byte, error) {
 	if len(strategy.privateKey) == 0 {
 		return nil, ErrMissingEdDSAPrivateKey
 	}
 
-	signatureB64, err := strategy.signutil.SignEd25519(context.Background(), mustMarshalEd25519PrivateKey(strategy.privateKey), string(signingInput))
+	signatureB64, err := strategy.signutil.SignEd25519(ctx, mustMarshalEd25519PrivateKey(strategy.privateKey), string(signingInput))
 	if err != nil {
 		return nil, err
 	}
@@ -678,14 +879,51 @@ func (strategy *ed25519Strategy) Sign(signingInput []byte) ([]byte, error) {
 }
 
 func (strategy *ed25519Strategy) Verify(signingInput []byte, signature []byte) error {
+	return strategy.VerifyContext(context.Background(), signingInput, signature)
+}
+
+func (strategy *ed25519Strategy) VerifyContext(ctx context.Context, signingInput []byte, signature []byte) error {
 	if len(strategy.publicKey) == 0 {
 		return ErrMissingEdDSAPublicKey
 	}
 
-	if err := strategy.signutil.VerifyEd25519(context.Background(), mustMarshalEd25519PublicKey(strategy.publicKey), string(signingInput), base64.StdEncoding.EncodeToString(signature)); err != nil {
-		return ErrInvalidSignature
+	if err := strategy.signutil.VerifyEd25519(ctx, mustMarshalEd25519PublicKey(strategy.publicKey), string(signingInput), base64.StdEncoding.EncodeToString(signature)); err != nil {
+		return signatureError(err)
 	}
 	return nil
+}
+
+func (strategy *customStrategy) Algorithm() string {
+	return strategy.algorithm
+}
+
+func (strategy *customStrategy) Sign(signingInput []byte) ([]byte, error) {
+	return strategy.SignContext(context.Background(), signingInput)
+}
+
+func (strategy *customStrategy) SignContext(ctx context.Context, signingInput []byte) ([]byte, error) {
+	if strategy.sign == nil {
+		return nil, ErrMissingSignFunc
+	}
+	return strategy.sign(ctx, signingInput)
+}
+
+func (strategy *customStrategy) Verify(signingInput []byte, signature []byte) error {
+	return strategy.VerifyContext(context.Background(), signingInput, signature)
+}
+
+func (strategy *customStrategy) VerifyContext(ctx context.Context, signingInput []byte, signature []byte) error {
+	if strategy.verify == nil {
+		return ErrMissingVerifyFunc
+	}
+	return strategy.verify(ctx, signingInput, signature)
+}
+
+func signatureError(err error) error {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	return ErrInvalidSignature
 }
 
 func encodeSegment(value []byte) string {
