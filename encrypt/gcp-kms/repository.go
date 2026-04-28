@@ -219,9 +219,9 @@ func (repository *symmetricRepository) DecryptAES(ctx context.Context, secretKey
 	return string(response.Plaintext), nil
 }
 
-func (repository *hashRepository) GenerateHMAC(ctx context.Context, secretKey, message string) string {
+func (repository *hashRepository) SingHMAC(ctx context.Context, secretKey, message string) string {
 	if !looksLikeGCPKMSKeyReference(secretKey) {
-		return repository.local.GenerateHMAC(ctx, secretKey, message)
+		return repository.local.SingHMAC(ctx, secretKey, message)
 	}
 
 	client, err := newGCPClient(ctx)
@@ -271,8 +271,16 @@ func (repository *hashRepository) Sha256Hex(ctx context.Context, message string)
 	return repository.local.Sha256Hex(ctx, message)
 }
 
-func (repository *hashRepository) Blake3(ctx context.Context, message string) string {
-	return repository.local.Blake3(ctx, message)
+func (repository *hashRepository) ValidateSha256Hex(ctx context.Context, message, providedHash string) bool {
+	return repository.local.ValidateSha256Hex(ctx, message, providedHash)
+}
+
+func (repository *hashRepository) SingBlake3(ctx context.Context, message string) string {
+	return repository.local.SingBlake3(ctx, message)
+}
+
+func (repository *hashRepository) ValidateBlake3(ctx context.Context, message, providedHash string) bool {
+	return repository.local.ValidateBlake3(ctx, message, providedHash)
 }
 
 func (repository *asymmetricRepository) GenerateRSAKeys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error) {

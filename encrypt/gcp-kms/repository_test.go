@@ -164,13 +164,13 @@ func TestGCPRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	if plaintext, err := repository.DecryptAES(context.Background(), keyName, ciphertext, &additional); err != nil || plaintext != "hello" {
 		t.Fatalf("DecryptAES() = %q, %v", plaintext, err)
 	}
-	if got := repository.GenerateHMAC(context.Background(), viper.GetString(defaultGCPKeyIDKey), "message"); got == "" {
-		t.Fatal("expected GenerateHMAC() to return a value")
+	if got := repository.SingHMAC(context.Background(), viper.GetString(defaultGCPKeyIDKey), "message"); got == "" {
+		t.Fatal("expected SingHMAC() to return a value")
 	}
 	if !repository.ValidateHMAC(context.Background(), viper.GetString(defaultGCPKeyIDKey), "message", base64.StdEncoding.EncodeToString([]byte("mac"))) {
 		t.Fatal("expected ValidateHMAC() to succeed")
 	}
-	if repository.Sha256Hex(context.Background(), "message") == "" || repository.Blake3(context.Background(), "message") == "" {
+	if repository.Sha256Hex(context.Background(), "message") == "" || repository.SingBlake3(context.Background(), "message") == "" {
 		t.Fatal("expected hash helpers to return values")
 	}
 
@@ -405,8 +405,8 @@ func TestGCPRepositoryErrorBranches(t *testing.T) {
 	if _, err := asymmetricRepository.ECC_Decode(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1", "payload"); !errors.Is(err, errGCPECCUnsupported) {
 		t.Fatalf("ECC_Decode() error = %v", err)
 	}
-	if got := hashRepository.GenerateHMAC(context.Background(), viper.GetString(defaultGCPKeyIDKey), "message"); got != "" {
-		t.Fatalf("GenerateHMAC() = %q, want empty string on provider error", got)
+	if got := hashRepository.SingHMAC(context.Background(), viper.GetString(defaultGCPKeyIDKey), "message"); got != "" {
+		t.Fatalf("SingHMAC() = %q, want empty string on provider error", got)
 	}
 	if hashRepository.ValidateHMAC(context.Background(), viper.GetString(defaultGCPKeyIDKey), "message", "%%%") {
 		t.Fatal("expected ValidateHMAC() to fail on invalid MAC")
