@@ -300,8 +300,13 @@ func (repository *asymmetricRepository) GenerateRSAKeys(ctx context.Context, siz
 }
 
 func (repository *asymmetricRepository) GenerateECCKeys(ctx context.Context, curve common.CurveAsymmetricKey) (*models.KeyData, error) {
-	_ = ctx
 	_ = curve
+	if ctx == nil {
+		return nil, errors.New("context is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return nil, errAzureECCUnsupported
 }
 
@@ -371,9 +376,13 @@ func (repository *asymmetricRepository) ECC_Decode(ctx context.Context, privateK
 	return "", errAzureECCUnsupported
 }
 
-func (repository *signatureRepository) GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error) {
-	_ = ctx
-	_ = size
+func (repository *signatureRepository) GenerateEd255Keys(ctx context.Context) (*models.KeyData, error) {
+	if ctx == nil {
+		return nil, errors.New("context is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return nil, errAzureEd25519Unsupported
 }
 
@@ -449,12 +458,12 @@ func (repository *signatureRepository) VerifyRSAPSS(ctx context.Context, publicK
 	return nil
 }
 
-func (repository *signatureRepository) SignPKCS1v15_SHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error) {
-	if privateKey != nil {
-		return repository.local.SignPKCS1v15_SHA256(ctx, data, privateKey)
+func (repository *signatureRepository) Sign_RSA_PKCS1v15_SHA256(ctx context.Context, privateKey, data string) (string, error) {
+	if privateKey != "" && !looksLikeAzureKeyReference(privateKey) {
+		return repository.local.Sign_RSA_PKCS1v15_SHA256(ctx, privateKey, data)
 	}
 
-	reference, err := resolveAzureKeyReference("")
+	reference, err := resolveAzureKeyReference(privateKey)
 	if err != nil {
 		return "", err
 	}
@@ -474,12 +483,12 @@ func (repository *signatureRepository) SignPKCS1v15_SHA256(ctx context.Context, 
 	return base64.StdEncoding.EncodeToString(response.Result), nil
 }
 
-func (repository *signatureRepository) VerifySHA256(ctx context.Context, data, signature string, publicKey *rsa.PublicKey) error {
-	if publicKey != nil {
-		return repository.local.VerifySHA256(ctx, data, signature, publicKey)
+func (repository *signatureRepository) Verify_RSA_PKCS1v15_SHA256(ctx context.Context, data, publicKey string, signature string) error {
+	if publicKey != "" && !looksLikeAzureKeyReference(publicKey) {
+		return repository.local.Verify_RSA_PKCS1v15_SHA256(ctx, data, publicKey, signature)
 	}
 
-	reference, err := resolveAzureKeyReference("")
+	reference, err := resolveAzureKeyReference(publicKey)
 	if err != nil {
 		return err
 	}

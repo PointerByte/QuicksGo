@@ -141,6 +141,16 @@ func WithJWTServiceConfig(input jwtservice.ConfigServiceInput) JWTMiddlewareOpti
 	}
 }
 
+// WithJWTServiceFactory overrides the service constructor used by the
+// middleware. It is useful for custom JWT strategies that are not viper-backed.
+func WithJWTServiceFactory(factory func(jwtservice.ConfigServiceInput) (*jwtservice.Service, error)) JWTMiddlewareOption {
+	return func(config *jwtMiddlewareConfig) {
+		if factory != nil {
+			config.serviceFactory = factory
+		}
+	}
+}
+
 // WithJWTValidator registers an extra validator for the service built by the
 // middleware.
 func WithJWTValidator(validator jwtservice.Validator) JWTMiddlewareOption {

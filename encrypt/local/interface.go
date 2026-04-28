@@ -5,7 +5,6 @@ package local
 
 import (
 	"context"
-	"crypto/rsa"
 
 	"github.com/PointerByte/QuicksGo/encrypt/common"
 	"github.com/PointerByte/QuicksGo/encrypt/models"
@@ -61,7 +60,7 @@ type HashRepository interface {
 type SignatureRepository interface {
 	// GenerateEd255Keys creates an Ed25519 key pair and returns the encoded key
 	// material plus provider metadata.
-	GenerateEd255Keys(ctx context.Context, size common.SizeAsymetrycKey) (*models.KeyData, error)
+	GenerateEd255Keys(ctx context.Context) (*models.KeyData, error)
 	// SignEd25519 signs text using a Base64-encoded Ed25519 private key and
 	// returns the signature in Base64.
 	SignEd25519(ctx context.Context, privateKey, text string) (string, error)
@@ -73,8 +72,8 @@ type SignatureRepository interface {
 	SignRSAPSS(ctx context.Context, privateKey, text string) (string, error)
 	// VerifyRSAPSS validates an RSA-PSS Base64 signature.
 	VerifyRSAPSS(ctx context.Context, publicKey, text, signature string) error
-	// SignPKCS1v15_SHA256 signs data with RSA PKCS#1 v1.5 using SHA-256.
-	SignPKCS1v15_SHA256(ctx context.Context, data string, privateKey *rsa.PrivateKey) (string, error)
-	// VerifySHA256 validates an RSA PKCS#1 v1.5 SHA-256 signature.
-	VerifySHA256(ctx context.Context, data, signature string, publicKey *rsa.PublicKey) error
+	// Sign_RSA_PKCS1v15_SHA256 signs data with RSA PKCS#1 v1.5 using SHA-256.
+	Sign_RSA_PKCS1v15_SHA256(ctx context.Context, privateKey, data string) (string, error)
+	// Verify_RSA_PKCS1v15_SHA256 validates an RSA PKCS#1 v1.5 SHA-256 signature.
+	Verify_RSA_PKCS1v15_SHA256(ctx context.Context, data, publicKey string, signature string) error
 }

@@ -5,7 +5,7 @@ go 1.25.0
 replace github.com/PointerByte/QuicksGo/encrypt => ../encrypt
 
 require (
-	github.com/PointerByte/QuicksGo/encrypt v0.0.6
+	github.com/PointerByte/QuicksGo/encrypt v0.0.7
 	github.com/gin-gonic/gin v1.12.0
 	github.com/spf13/viper v1.21.0
 )

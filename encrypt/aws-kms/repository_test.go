@@ -387,15 +387,15 @@ func TestAsymmetricAndSignatureProviderFlows(t *testing.T) {
 	}
 
 	viper.Set(defaultKMSARNKey, keyData.KeyRef)
-	signature, err = signatureRepository.SignPKCS1v15_SHA256(testContext, "payload", nil)
+	signature, err = signatureRepository.Sign_RSA_PKCS1v15_SHA256(testContext, "", "payload")
 	if err != nil {
-		t.Fatalf("SignPKCS1v15_SHA256() error = %v", err)
+		t.Fatalf("Sign_RSA_PKCS1v15_SHA256() error = %v", err)
 	}
-	if err := signatureRepository.VerifySHA256(testContext, "payload", signature, nil); err != nil {
-		t.Fatalf("VerifySHA256() error = %v", err)
+	if err := signatureRepository.Verify_RSA_PKCS1v15_SHA256(testContext, "payload", "", signature); err != nil {
+		t.Fatalf("Verify_RSA_PKCS1v15_SHA256() error = %v", err)
 	}
 
-	edKeyData, err := signatureRepository.GenerateEd255Keys(testContext, common.Key2048Bits)
+	edKeyData, err := signatureRepository.GenerateEd255Keys(testContext)
 	if err != nil {
 		t.Fatalf("GenerateEd255Keys() error = %v", err)
 	}
@@ -605,7 +605,7 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 		t.Fatal("expected ECC_Decode() provider error")
 	}
 
-	if _, err := signatureRepository.GenerateEd255Keys(testContext, common.Key2048Bits); err == nil {
+	if _, err := signatureRepository.GenerateEd255Keys(testContext); err == nil {
 		t.Fatal("expected GenerateEd255Keys() create error")
 	}
 	if _, err := signatureRepository.SignEd25519(testContext, "", "payload"); err == nil {
@@ -632,14 +632,14 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 	if err := signatureRepository.VerifyRSAPSS(testContext, "", "payload", base64.StdEncoding.EncodeToString([]byte("sig"))); err == nil {
 		t.Fatal("expected VerifyRSAPSS() invalid signature error")
 	}
-	if _, err := signatureRepository.SignPKCS1v15_SHA256(testContext, "payload", nil); err == nil {
-		t.Fatal("expected SignPKCS1v15_SHA256() provider error")
+	if _, err := signatureRepository.Sign_RSA_PKCS1v15_SHA256(testContext, "", "payload"); err == nil {
+		t.Fatal("expected Sign_RSA_PKCS1v15_SHA256() provider error")
 	}
-	if err := signatureRepository.VerifySHA256(testContext, "payload", "%%%", nil); err == nil {
-		t.Fatal("expected VerifySHA256() decode error")
+	if err := signatureRepository.Verify_RSA_PKCS1v15_SHA256(testContext, "payload", "", "%%%"); err == nil {
+		t.Fatal("expected Verify_RSA_PKCS1v15_SHA256() decode error")
 	}
-	if err := signatureRepository.VerifySHA256(testContext, "payload", base64.StdEncoding.EncodeToString([]byte("sig")), nil); err == nil {
-		t.Fatal("expected VerifySHA256() invalid signature error")
+	if err := signatureRepository.Verify_RSA_PKCS1v15_SHA256(testContext, "payload", "", base64.StdEncoding.EncodeToString([]byte("sig"))); err == nil {
+		t.Fatal("expected Verify_RSA_PKCS1v15_SHA256() invalid signature error")
 	}
 
 	privateKey := mustRSAKey(t)
@@ -673,12 +673,12 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 	if err := signatureRepository.VerifyRSAPSS(testContext, publicB64, "payload", signature); err != nil {
 		t.Fatalf("VerifyRSAPSS() local fallback error = %v", err)
 	}
-	signature, err = signatureRepository.SignPKCS1v15_SHA256(testContext, "payload", privateKey)
+	signature, err = signatureRepository.Sign_RSA_PKCS1v15_SHA256(testContext, privateB64, "payload")
 	if err != nil {
-		t.Fatalf("SignPKCS1v15_SHA256() local fallback error = %v", err)
+		t.Fatalf("Sign_RSA_PKCS1v15_SHA256() local fallback error = %v", err)
 	}
-	if err := signatureRepository.VerifySHA256(testContext, "payload", signature, publicKey); err != nil {
-		t.Fatalf("VerifySHA256() local fallback error = %v", err)
+	if err := signatureRepository.Verify_RSA_PKCS1v15_SHA256(testContext, "payload", publicB64, signature); err != nil {
+		t.Fatalf("Verify_RSA_PKCS1v15_SHA256() local fallback error = %v", err)
 	}
 }
 
@@ -728,11 +728,11 @@ func TestAWSKMSOperationsReturnLoadConfigErrors(t *testing.T) {
 	if err := signatureRepository.VerifyRSAPSS(testContext, "arn", "payload", base64.StdEncoding.EncodeToString([]byte("sig"))); err == nil {
 		t.Fatal("expected VerifyRSAPSS() config error")
 	}
-	if _, err := signatureRepository.SignPKCS1v15_SHA256(testContext, "payload", nil); err == nil {
-		t.Fatal("expected SignPKCS1v15_SHA256() config error")
+	if _, err := signatureRepository.Sign_RSA_PKCS1v15_SHA256(testContext, "", "payload"); err == nil {
+		t.Fatal("expected Sign_RSA_PKCS1v15_SHA256() config error")
 	}
-	if err := signatureRepository.VerifySHA256(testContext, "payload", base64.StdEncoding.EncodeToString([]byte("sig")), nil); err == nil {
-		t.Fatal("expected VerifySHA256() config error")
+	if err := signatureRepository.Verify_RSA_PKCS1v15_SHA256(testContext, "payload", "", base64.StdEncoding.EncodeToString([]byte("sig"))); err == nil {
+		t.Fatal("expected Verify_RSA_PKCS1v15_SHA256() config error")
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"testing"
 
 	"github.com/PointerByte/QuicksGo/encrypt/common"
@@ -114,6 +115,40 @@ func TestHashRepository(t *testing.T) {
 	}
 }
 
+func TestRepositoriesRespectCanceledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(testContext)
+	cancel()
+
+	symmetricRepository := NewSymmetricRepository()
+	if _, err := symmetricRepository.GenerateSymetrycKeys(ctx, common.Key128Bits); !errors.Is(err, context.Canceled) {
+		t.Fatalf("GenerateSymetrycKeys() error = %v, want context.Canceled", err)
+	}
+	if _, err := symmetricRepository.EncryptAES(ctx, base64.StdEncoding.EncodeToString(make([]byte, 16)), "payload", nil); !errors.Is(err, context.Canceled) {
+		t.Fatalf("EncryptAES() error = %v, want context.Canceled", err)
+	}
+
+	hashRepository := NewHashRepository()
+	if got := hashRepository.HMAC(ctx, "secret", "message"); got != "" {
+		t.Fatalf("HMAC() = %q, want empty string for canceled context", got)
+	}
+
+	asymmetricRepository := NewAsymmetricRepository()
+	if _, err := asymmetricRepository.GenerateRSAKeys(ctx, common.Key2048Bits); !errors.Is(err, context.Canceled) {
+		t.Fatalf("GenerateRSAKeys() error = %v, want context.Canceled", err)
+	}
+
+	signatureRepository := NewSignatureRepository()
+	if _, err := signatureRepository.GenerateEd255Keys(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("GenerateEd255Keys() error = %v, want context.Canceled", err)
+	}
+
+	timeoutCtx, timeoutCancel := context.WithTimeout(testContext, 0)
+	defer timeoutCancel()
+	if _, err := symmetricRepository.DecryptAES(timeoutCtx, "bad", "bad", nil); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("DecryptAES() error = %v, want context.DeadlineExceeded", err)
+	}
+}
+
 func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 	asymmetricRepository := NewAsymmetricRepository()
 	signatureRepository := NewSignatureRepository()
@@ -183,15 +218,15 @@ func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 		t.Fatalf("VerifyRSAPSS() error = %v", err)
 	}
 
-	pkcs1v15Signature, err := signatureRepository.SignPKCS1v15_SHA256(testContext, "payload", privateKey)
+	pkcs1v15Signature, err := signatureRepository.Sign_RSA_PKCS1v15_SHA256(testContext, mustMarshalPKCS8RSAPrivateKey(t, privateKey), "payload")
 	if err != nil {
-		t.Fatalf("SignPKCS1v15_SHA256() error = %v", err)
+		t.Fatalf("Sign_RSA_PKCS1v15_SHA256() error = %v", err)
 	}
-	if err := signatureRepository.VerifySHA256(testContext, "payload", pkcs1v15Signature, publicKey); err != nil {
-		t.Fatalf("VerifySHA256() error = %v", err)
+	if err := signatureRepository.Verify_RSA_PKCS1v15_SHA256(testContext, "payload", mustMarshalPKIXRSAPublicKey(t, publicKey), pkcs1v15Signature); err != nil {
+		t.Fatalf("Verify_RSA_PKCS1v15_SHA256() error = %v", err)
 	}
 
-	edKeyData, err := signatureRepository.GenerateEd255Keys(testContext, common.Key2048Bits)
+	edKeyData, err := signatureRepository.GenerateEd255Keys(testContext)
 	if err != nil {
 		t.Fatalf("GenerateEd255Keys() error = %v", err)
 	}
@@ -214,8 +249,8 @@ func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 		t.Fatal("expected VerifyRSAPSS() invalid signature error")
 	}
 
-	if err := signatureRepository.VerifySHA256(testContext, "payload", pkcs1v15Signature[:len(pkcs1v15Signature)-2]+"ab", publicKey); err == nil {
-		t.Fatal("expected VerifySHA256() invalid signature error")
+	if err := signatureRepository.Verify_RSA_PKCS1v15_SHA256(testContext, "payload", mustMarshalPKIXRSAPublicKey(t, publicKey), pkcs1v15Signature[:len(pkcs1v15Signature)-2]+"ab"); err == nil {
+		t.Fatal("expected Verify_RSA_PKCS1v15_SHA256() invalid signature error")
 	}
 }
 
@@ -283,14 +318,14 @@ func TestAsymmetricAndSignatureRepositoryErrors(t *testing.T) {
 		t.Fatal("expected VerifyRSAPSS() signature decode error")
 	}
 
-	if _, err := signatureRepository.SignPKCS1v15_SHA256(testContext, "payload", nil); err == nil {
-		t.Fatal("expected SignPKCS1v15_SHA256() nil private key error")
+	if _, err := signatureRepository.Sign_RSA_PKCS1v15_SHA256(testContext, "", "payload"); err == nil {
+		t.Fatal("expected Sign_RSA_PKCS1v15_SHA256() empty private key error")
 	}
-	if err := signatureRepository.VerifySHA256(testContext, "payload", "sig", nil); err == nil {
-		t.Fatal("expected VerifySHA256() nil public key error")
+	if err := signatureRepository.Verify_RSA_PKCS1v15_SHA256(testContext, "payload", "", "sig"); err == nil {
+		t.Fatal("expected Verify_RSA_PKCS1v15_SHA256() empty public key error")
 	}
-	if err := signatureRepository.VerifySHA256(testContext, "payload", "%%%", &mustRSAKey(t).PublicKey); err == nil {
-		t.Fatal("expected VerifySHA256() signature decode error")
+	if err := signatureRepository.Verify_RSA_PKCS1v15_SHA256(testContext, "payload", mustMarshalPKIXRSAPublicKey(t, &mustRSAKey(t).PublicKey), "%%%"); err == nil {
+		t.Fatal("expected Verify_RSA_PKCS1v15_SHA256() signature decode error")
 	}
 }
 

@@ -181,7 +181,7 @@ func TestGCPRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	if plaintext, err := repository.RSA_OAEP_Decode(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/rsa/cryptoKeyVersions/1", base64.StdEncoding.EncodeToString([]byte("cipher"))); err != nil || plaintext != "plain" {
 		t.Fatalf("RSA_OAEP_Decode() = %q, %v", plaintext, err)
 	}
-	if _, err := repository.GenerateEd255Keys(context.Background(), common.Key2048Bits); err != nil {
+	if _, err := repository.GenerateEd255Keys(context.Background()); err != nil {
 		t.Fatalf("GenerateEd255Keys() error = %v", err)
 	}
 	if _, err := repository.GenerateECCKeys(context.Background(), common.CurveP256); !errors.Is(err, errGCPECCUnsupported) {
@@ -201,12 +201,12 @@ func TestGCPRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	if err := repository.VerifyRSAPSS(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/rsa-pss/cryptoKeyVersions/1", "payload", rsaPSSSignature); err != nil {
 		t.Fatalf("VerifyRSAPSS() error = %v", err)
 	}
-	rsaSignature, err := repository.SignPKCS1v15_SHA256(context.Background(), "payload", nil)
+	rsaSignature, err := repository.Sign_RSA_PKCS1v15_SHA256(context.Background(), "", "payload")
 	if err != nil {
-		t.Fatalf("SignPKCS1v15_SHA256() error = %v", err)
+		t.Fatalf("Sign_RSA_PKCS1v15_SHA256() error = %v", err)
 	}
-	if err := repository.VerifySHA256(context.Background(), "payload", rsaSignature, nil); err != nil {
-		t.Fatalf("VerifySHA256() error = %v", err)
+	if err := repository.Verify_RSA_PKCS1v15_SHA256(context.Background(), "payload", "", rsaSignature); err != nil {
+		t.Fatalf("Verify_RSA_PKCS1v15_SHA256() error = %v", err)
 	}
 
 	localRepository := local.NewRepository()
@@ -246,12 +246,12 @@ func TestGCPRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	if err := repository.VerifyRSAPSS(context.Background(), localRSAPublic, "payload", localPSSSignature); err != nil {
 		t.Fatalf("VerifyRSAPSS() local fallback error = %v", err)
 	}
-	localSHA256Signature, err := repository.SignPKCS1v15_SHA256(context.Background(), "payload", privateKey)
+	localSHA256Signature, err := repository.Sign_RSA_PKCS1v15_SHA256(context.Background(), localRSAPrivate, "payload")
 	if err != nil {
-		t.Fatalf("SignPKCS1v15_SHA256() local fallback error = %v", err)
+		t.Fatalf("Sign_RSA_PKCS1v15_SHA256() local fallback error = %v", err)
 	}
-	if err := repository.VerifySHA256(context.Background(), "payload", localSHA256Signature, &privateKey.PublicKey); err != nil {
-		t.Fatalf("VerifySHA256() local fallback error = %v", err)
+	if err := repository.Verify_RSA_PKCS1v15_SHA256(context.Background(), "payload", localRSAPublic, localSHA256Signature); err != nil {
+		t.Fatalf("Verify_RSA_PKCS1v15_SHA256() local fallback error = %v", err)
 	}
 	localEdPrivate := base64.StdEncoding.EncodeToString(edPrivateDER)
 	localEdPublic := base64.StdEncoding.EncodeToString(edPublicDER)
@@ -405,7 +405,7 @@ func TestGCPRepositoryErrorBranches(t *testing.T) {
 	if got := hashRepository.HMAC(context.Background(), viper.GetString(defaultGCPKeyIDKey), "message"); got != "" {
 		t.Fatalf("HMAC() = %q, want empty string on provider error", got)
 	}
-	if _, err := signatureRepository.GenerateEd255Keys(context.Background(), common.Key2048Bits); err == nil {
+	if _, err := signatureRepository.GenerateEd255Keys(context.Background()); err == nil {
 		t.Fatal("expected GenerateEd255Keys() provider error")
 	}
 	if _, err := signatureRepository.SignEd25519(context.Background(), "", "payload"); err == nil {
@@ -432,14 +432,14 @@ func TestGCPRepositoryErrorBranches(t *testing.T) {
 	if err := signatureRepository.VerifyRSAPSS(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/rsa-pss/cryptoKeyVersions/1", "payload", base64.StdEncoding.EncodeToString([]byte("sig"))); err == nil {
 		t.Fatal("expected VerifyRSAPSS() wrong public key error")
 	}
-	if _, err := signatureRepository.SignPKCS1v15_SHA256(context.Background(), "payload", nil); err == nil {
-		t.Fatal("expected SignPKCS1v15_SHA256() provider error")
+	if _, err := signatureRepository.Sign_RSA_PKCS1v15_SHA256(context.Background(), "", "payload"); err == nil {
+		t.Fatal("expected Sign_RSA_PKCS1v15_SHA256() provider error")
 	}
-	if err := signatureRepository.VerifySHA256(context.Background(), "payload", "%%%", nil); err == nil {
-		t.Fatal("expected VerifySHA256() decode error")
+	if err := signatureRepository.Verify_RSA_PKCS1v15_SHA256(context.Background(), "payload", "", "%%%"); err == nil {
+		t.Fatal("expected Verify_RSA_PKCS1v15_SHA256() decode error")
 	}
-	if err := signatureRepository.VerifySHA256(context.Background(), "payload", base64.StdEncoding.EncodeToString([]byte("sig")), nil); err == nil {
-		t.Fatal("expected VerifySHA256() wrong public key error")
+	if err := signatureRepository.Verify_RSA_PKCS1v15_SHA256(context.Background(), "payload", "", base64.StdEncoding.EncodeToString([]byte("sig"))); err == nil {
+		t.Fatal("expected Verify_RSA_PKCS1v15_SHA256() wrong public key error")
 	}
 	if _, err := ensureGCPVersion(context.Background(), fakeGCPClient{
 		createCryptoKeyFn: func(context.Context, *kmspb.CreateCryptoKeyRequest) (*kmspb.CryptoKey, error) { return nil, nil },

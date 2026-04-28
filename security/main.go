@@ -5,8 +5,10 @@ package main
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -24,6 +26,7 @@ import (
 
 // No use in production!
 const demoJWTSecret = "oXPZp-Y9yu2zmfECMU*_"
+const demoCustomJWTSecret = "custom-demo-secret"
 
 const (
 	hmacAlgorithmKey = "jwt.hmac.algorithm"
@@ -63,6 +66,15 @@ const (
 //
 //     Then use that token on /hmac/api/me or /rsa/api/me and the validator
 //     validateActiveSession will reject the request.
+//
+//  7. Request a custom-strategy token:
+//     curl -X POST http://localhost:8080/custom/login ^
+//     -H "Content-Type: application/json" ^
+//     -d "{\"user_id\":\"42\",\"role\":\"admin\"}"
+//
+//  8. Call a custom-strategy protected endpoint:
+//     curl http://localhost:8080/custom/api/me ^
+//     -H "Authorization: Bearer <CUSTOM_TOKEN>"
 type loginRequest struct {
 	UserID string `json:"user_id" binding:"required"`
 	Role   string `json:"role" binding:"required"`
@@ -151,6 +163,7 @@ func newRouter() *gin.Engine {
 	router.GET("/health", healthHandler(""))
 	registerJWTExampleRoutes(router.Group("/hmac"))
 	registerJWTExampleRoutes(router.Group("/rsa"))
+	registerJWTExampleRoutes(router.Group("/custom"))
 	return router
 }
 
@@ -163,6 +176,7 @@ func registerJWTExampleRoutes(group *gin.RouterGroup) {
 	protected := group.Group("/api")
 	protected.Use(middlewares.RequireJWT(
 		middlewares.WithJWTServiceConfig(jwtConfigForExample(exampleName)),
+		middlewares.WithJWTServiceFactory(jwtServiceFactoryForExample(exampleName)),
 		middlewares.WithJWTClaimsFactory(func() any { return &sessionClaims{} }),
 		middlewares.WithJWTValidator(validateActiveSession),
 	))
@@ -172,13 +186,17 @@ func registerJWTExampleRoutes(group *gin.RouterGroup) {
 
 func jwtExampleServiceAndName(basePath string) (*jwtservice.Service, string) {
 	config := jwtConfigForExample(basePath)
-	service, err := jwtservice.NewConfiguredService(config)
+	serviceFactory := jwtServiceFactoryForExample(basePath)
+	service, err := serviceFactory(config)
 	if err != nil {
 		panic(fmt.Sprintf("build jwt service for %s: %v", basePath, err))
 	}
 
 	if strings.Contains(strings.ToLower(basePath), "rsa") {
 		return service, "RSA / RS256"
+	}
+	if strings.Contains(strings.ToLower(basePath), "custom") {
+		return service, "Custom / CUSTOM"
 	}
 	return service, "HMAC / HS256"
 }
@@ -189,10 +207,57 @@ func jwtConfigForExample(basePath string) jwtservice.ConfigServiceInput {
 			Algorithm: "RS256",
 		}
 	}
+	if strings.Contains(strings.ToLower(basePath), "custom") {
+		return jwtservice.ConfigServiceInput{
+			Algorithm: "CUSTOM",
+		}
+	}
 
 	return jwtservice.ConfigServiceInput{
 		Algorithm: "HS256",
 	}
+}
+
+func jwtServiceFactoryForExample(exampleName string) func(jwtservice.ConfigServiceInput) (*jwtservice.Service, error) {
+	if strings.Contains(strings.ToLower(exampleName), "custom") {
+		return newCustomJWTService
+	}
+	return jwtservice.NewConfiguredService
+}
+
+func newCustomJWTService(config jwtservice.ConfigServiceInput) (*jwtservice.Service, error) {
+	options := []jwtservice.Option{
+		jwtservice.WithCustomStrategy("CUSTOM", customJWTSign, customJWTVerify),
+	}
+	if config.Timeout > 0 {
+		options = append(options, jwtservice.WithContextTimeout(config.Timeout))
+	}
+	if config.Validator != nil {
+		options = append(options, jwtservice.WithValidator(config.Validator))
+	}
+	return jwtservice.New(options...)
+}
+
+func customJWTSign(ctx context.Context, signingInput []byte) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	mac := hmac.New(sha256.New, []byte(demoCustomJWTSecret))
+	if _, err := mac.Write(signingInput); err != nil {
+		return nil, err
+	}
+	return mac.Sum(nil), nil
+}
+
+func customJWTVerify(ctx context.Context, signingInput []byte, signature []byte) error {
+	expectedSignature, err := customJWTSign(ctx, signingInput)
+	if err != nil {
+		return err
+	}
+	if !hmac.Equal(signature, expectedSignature) {
+		return jwtservice.ErrInvalidSignature
+	}
+	return nil
 }
 
 func healthHandler(exampleName string) gin.HandlerFunc {
