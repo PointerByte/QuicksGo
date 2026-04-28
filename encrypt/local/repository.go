@@ -125,18 +125,12 @@ func NewHashRepository() HashRepository {
 	return &hashRepository{}
 }
 
-// SingHMAC returns a Base64-encoded HMAC-SHA256 signature.
-func (hashRepository) SingHMAC(ctx context.Context, secretKey, message string) string {
+// HMAC returns a Base64-encoded HMAC-SHA256 signature.
+func (hashRepository) HMAC(ctx context.Context, secretKey, message string) string {
 	_ = ctx
 	h := hmac.New(sha256.New, []byte(secretKey))
 	h.Write([]byte(message))
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
-}
-
-// ValidateHMAC checks whether providedHash matches the HMAC of message.
-func (sr hashRepository) ValidateHMAC(ctx context.Context, secretKey, message, providedHash string) bool {
-	expectedHash := sr.SingHMAC(ctx, secretKey, message)
-	return hmac.Equal([]byte(expectedHash), []byte(providedHash))
 }
 
 // Sha256Hex returns the SHA-256 digest of message encoded in hexadecimal.
@@ -146,23 +140,11 @@ func (hashRepository) Sha256Hex(ctx context.Context, message string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-// ValidateSha256Hex checks whether providedHash matches the SHA-256 digest of message.
-func (sr hashRepository) ValidateSha256Hex(ctx context.Context, message, providedHash string) bool {
-	expectedHash := sr.Sha256Hex(ctx, message)
-	return hmac.Equal([]byte(expectedHash), []byte(providedHash))
-}
-
-// SingBlake3 returns the BLAKE3 digest of message encoded in Base64.
-func (hashRepository) SingBlake3(ctx context.Context, message string) string {
+// Blake3 returns the BLAKE3 digest of message encoded in Base64.
+func (hashRepository) Blake3(ctx context.Context, message string) string {
 	_ = ctx
 	hash := blake3.Sum256([]byte(message))
 	return base64.StdEncoding.EncodeToString(hash[:])
-}
-
-// ValidateBlake3 checks whether providedHash matches the BLAKE3 digest of message.
-func (sr hashRepository) ValidateBlake3(ctx context.Context, message, providedHash string) bool {
-	expectedHash := sr.SingBlake3(ctx, message)
-	return hmac.Equal([]byte(expectedHash), []byte(providedHash))
 }
 
 type asymmetricRepository struct{}

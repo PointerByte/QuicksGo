@@ -97,38 +97,20 @@ func TestSymmetricRepositoryErrors(t *testing.T) {
 func TestHashRepository(t *testing.T) {
 	repository := NewHashRepository()
 
-	got := repository.SingHMAC(testContext, "secret", "message")
+	got := repository.HMAC(testContext, "secret", "message")
 	if got == "" {
-		t.Fatal("SingHMAC() returned empty value")
-	}
-	if !repository.ValidateHMAC(testContext, "secret", "message", got) {
-		t.Fatal("ValidateHMAC() = false, want true")
-	}
-	if repository.ValidateHMAC(testContext, "secret", "message", "bad") {
-		t.Fatal("ValidateHMAC() = true, want false")
+		t.Fatal("HMAC() returned empty value")
 	}
 
 	wantSHA := hex.EncodeToString(mustSHA256Bytes([]byte("message")))
 	if got := repository.Sha256Hex(testContext, "message"); got != wantSHA {
 		t.Fatalf("Sha256Hex() = %q, want %q", got, wantSHA)
 	}
-	if !repository.ValidateSha256Hex(testContext, "message", wantSHA) {
-		t.Fatal("ValidateSha256Hex() = false, want true")
-	}
-	if repository.ValidateSha256Hex(testContext, "message", "bad") {
-		t.Fatal("ValidateSha256Hex() = true, want false")
-	}
 
 	blakeSum := blake3.Sum256([]byte("message"))
 	wantBlake := base64.StdEncoding.EncodeToString(blakeSum[:])
-	if got := repository.SingBlake3(testContext, "message"); got != wantBlake {
-		t.Fatalf("SingBlake3() = %q, want %q", got, wantBlake)
-	}
-	if !repository.ValidateBlake3(testContext, "message", wantBlake) {
-		t.Fatal("ValidateBlake3() = false, want true")
-	}
-	if repository.ValidateBlake3(testContext, "message", "bad") {
-		t.Fatal("ValidateBlake3() = true, want false")
+	if got := repository.Blake3(testContext, "message"); got != wantBlake {
+		t.Fatalf("Blake3() = %q, want %q", got, wantBlake)
 	}
 }
 
