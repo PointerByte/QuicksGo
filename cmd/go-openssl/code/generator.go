@@ -25,37 +25,60 @@ import (
 
 // Options configures the generated certificate, keys, output paths, and algorithm-specific settings.
 type Options struct {
-	Algorithm         string
-	OutputDir         string
-	CommonName        string
-	DNSNames          []string
-	IPAddresses       []string
-	Organization      string
-	ValidForDays      int
-	RSAKeySize        int
-	ECCCurve          string
-	Salt              string
-	CertFileName      string
-	KeyFileName       string
+	// Algorithm selects the key algorithm used to generate the certificate.
+	Algorithm string
+	// OutputDir is the directory where the PEM files are written.
+	OutputDir string
+	// CommonName is the subject common name included in the certificate.
+	CommonName string
+	// DNSNames lists the DNS subject alternative names included in the certificate.
+	DNSNames []string
+	// IPAddresses lists the IP subject alternative names included in the certificate.
+	IPAddresses []string
+	// Organization is the subject organization included in the certificate.
+	Organization string
+	// ValidForDays controls the certificate validity period in days.
+	ValidForDays int
+	// RSAKeySize is the RSA key size in bits when Algorithm is rsa.
+	RSAKeySize int
+	// ECCCurve selects the elliptic curve when Algorithm is ecc.
+	ECCCurve string
+	// Salt mixes additional data into the random source used for generation.
+	Salt string
+	// CertFileName is the certificate PEM file name written inside OutputDir.
+	CertFileName string
+	// KeyFileName is the private key PEM file name written inside OutputDir.
+	KeyFileName string
+	// PublicKeyFileName is the public key PEM file name written inside OutputDir.
 	PublicKeyFileName string
-	IsCA              bool
+	// IsCA marks the generated certificate as a certificate authority.
+	IsCA bool
 }
 
 // Result describes the generated PEM artifacts and the effective generation parameters.
 type Result struct {
-	Algorithm       string
-	OutputDir       string
+	// Algorithm is the normalized algorithm used for generation.
+	Algorithm string
+	// OutputDir is the normalized output directory used for the generated files.
+	OutputDir string
+	// CertificatePath is the path to the generated certificate PEM file.
 	CertificatePath string
-	PrivateKeyPath  string
-	PublicKeyPath   string
+	// PrivateKeyPath is the path to the generated private key PEM file.
+	PrivateKeyPath string
+	// PublicKeyPath is the path to the generated public key PEM file.
+	PublicKeyPath string
 }
 
 // Generator coordinates filesystem writes and cryptographic generation helpers.
 type Generator struct {
-	mkdirAllFn  func(string, os.FileMode) error
+	// mkdirAllFn creates output directories before writing generated files.
+	mkdirAllFn func(string, os.FileMode) error
+	// writeFileFn writes generated PEM files to disk.
 	writeFileFn func(string, []byte, os.FileMode) error
-	nowFn       func() time.Time
-	randReader  io.Reader
+	// nowFn provides the certificate validity start time.
+	nowFn func() time.Time
+	// randReader provides entropy for key and certificate generation.
+	randReader io.Reader
 }
 
 // NewGenerator creates the default certificate generator.
