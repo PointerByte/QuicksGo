@@ -100,52 +100,75 @@ type Option func(*Service) error
 // It uses a Strategy for cryptographic concerns and a validation pipeline for
 // domain-specific checks.
 type Service struct {
-	strategy         Strategy
-	validators       []Validator
-	contextTimeout   time.Duration
+	// strategy signs tokens and verifies token signatures.
+	strategy Strategy
+	// validators run after signature verification and claim decoding.
+	validators []Validator
+	// contextTimeout limits signing, verification, and validation operations.
+	contextTimeout time.Duration
+	// contextTimeoutOn indicates whether contextTimeout should be applied.
 	contextTimeoutOn bool
 }
 
 // Header represents the standard JWT header section.
 type Header struct {
-	Type      string `json:"typ"`
+	// Type identifies the token type, usually "JWT".
+	Type string `json:"typ"`
+	// Algorithm identifies the signing algorithm used by the token.
 	Algorithm string `json:"alg"`
 }
 
 // Token contains the parsed pieces of a validated JWT.
 type Token struct {
-	Raw       string
-	Header    Header
-	Claims    json.RawMessage
+	// Raw is the original compact JWT string.
+	Raw string
+	// Header contains the decoded JWT header.
+	Header Header
+	// Claims contains the decoded JWT claims payload.
+	Claims json.RawMessage
+	// Signature is the encoded JWT signature segment.
 	Signature string
 }
 
 type hmacSHA256Strategy struct {
+	// secret is the shared key used to sign and verify HS256 tokens.
 	secret []byte
 }
 
 type rsaSHA256Strategy struct {
-	signutil   encrypt.SignatureRepository
+	// signutil performs RSA SHA-256 signing and verification.
+	signutil encrypt.SignatureRepository
+	// privateKey signs RS256 tokens.
 	privateKey *rsa.PrivateKey
-	publicKey  *rsa.PublicKey
+	// publicKey verifies RS256 token signatures.
+	publicKey *rsa.PublicKey
 }
 
 type rsaPSSSHA256Strategy struct {
-	signutil   encrypt.SignatureRepository
+	// signutil performs RSA-PSS SHA-256 signing and verification.
+	signutil encrypt.SignatureRepository
+	// privateKey signs PS256 tokens.
 	privateKey *rsa.PrivateKey
-	publicKey  *rsa.PublicKey
+	// publicKey verifies PS256 token signatures.
+	publicKey *rsa.PublicKey
 }
 
 type ed25519Strategy struct {
-	signutil   encrypt.SignatureRepository
+	// signutil performs Ed25519 signing and verification.
+	signutil encrypt.SignatureRepository
+	// privateKey signs EdDSA tokens.
 	privateKey ed25519.PrivateKey
-	publicKey  ed25519.PublicKey
+	// publicKey verifies EdDSA token signatures.
+	publicKey ed25519.PublicKey
 }
 
 type customStrategy struct {
+	// algorithm is the JWT alg header value reported by the strategy.
 	algorithm string
-	sign      SignFunc
-	verify    VerifyFunc
+	// sign creates a signature for the JWT signing input.
+	sign SignFunc
+	// verify validates a signature for the JWT signing input.
+	verify VerifyFunc
 }
 
 // HMACServiceInput configures NewHMACService.
@@ -153,10 +176,14 @@ type customStrategy struct {
 // viper key when Secret is empty.
 // Validator is optional.
 type HMACServiceInput struct {
-	Secret    string
+	// Secret is the HS256 shared key used directly when provided.
+	Secret string
+	// SecretEnv is the viper key used to read the shared key when Secret is empty.
 	SecretEnv string
+	// Validator optionally adds a post-signature validation callback.
 	Validator Validator
-	Timeout   time.Duration
+	// Timeout optionally limits service operations when greater than zero.
+	Timeout time.Duration
 }
 
 // RSAServiceInput configures NewRSAService.
@@ -164,37 +191,58 @@ type HMACServiceInput struct {
 // and are treated as viper keys when the corresponding key is nil.
 // Validator is optional.
 type RSAServiceInput struct {
-	PrivateKey    *rsa.PrivateKey
-	PublicKey     *rsa.PublicKey
+	// PrivateKey signs RS256 tokens when provided.
+	PrivateKey *rsa.PrivateKey
+	// PublicKey verifies RS256 token signatures when provided.
+	PublicKey *rsa.PublicKey
+	// PrivateKeyEnv is the viper key used to read the private key when PrivateKey is nil.
 	PrivateKeyEnv string
-	PublicKeyEnv  string
-	Validator     Validator
-	Timeout       time.Duration
+	// PublicKeyEnv is the viper key used to read the public key when PublicKey is nil.
+	PublicKeyEnv string
+	// Validator optionally adds a post-signature validation callback.
+	Validator Validator
+	// Timeout optionally limits service operations when greater than zero.
+	Timeout time.Duration
 }
 
 // Ed25519ServiceInput configures NewEd25519Service.
 type Ed25519ServiceInput struct {
-	PrivateKey    ed25519.PrivateKey
-	PublicKey     ed25519.PublicKey
+	// PrivateKey signs EdDSA tokens when provided.
+	PrivateKey ed25519.PrivateKey
+	// PublicKey verifies EdDSA token signatures when provided.
+	PublicKey ed25519.PublicKey
+	// PrivateKeyEnv is the viper key used to read the private key when PrivateKey is nil.
 	PrivateKeyEnv string
-	PublicKeyEnv  string
-	Validator     Validator
-	Timeout       time.Duration
+	// PublicKeyEnv is the viper key used to read the public key when PublicKey is nil.
+	PublicKeyEnv string
+	// Validator optionally adds a post-signature validation callback.
+	Validator Validator
+	// Timeout optionally limits service operations when greater than zero.
+	Timeout time.Duration
 }
 
 // ConfigServiceInput configures NewConfiguredService.
 // When Algorithm is empty, the constructor reads it from viper.
 // Validator is optional.
 type ConfigServiceInput struct {
-	Algorithm          string
-	AlgorithmKey       string
-	HMACSecretKey      string
-	RSAPrivateKeyKey   string
-	RSAPublicKeyKey    string
-	EdDSAPrivateKeyKey string
-	EdDSAPublicKeyKey  string
-	Validator          Validator
-	Timeout            time.Duration
+	// Algorithm selects the signing strategy; when empty it is read from viper.
+	Algorithm string
+	// algorithmKey is the viper key used to read Algorithm when Algorithm is empty.
+	algorithmKey string
+	// HMACSecretKey is the viper key used to read the HS256 shared key.
+	HMACSecretKey *string
+	// RSAPrivateKeyKey is the viper key used to read the RSA private key.
+	RSAPrivateKeyKey *string
+	// RSAPublicKeyKey is the viper key used to read the RSA public key.
+	RSAPublicKeyKey *string
+	// EdDSAPrivateKeyKey is the viper key used to read the Ed25519 private key.
+	EdDSAPrivateKeyKey *string
+	// EdDSAPublicKeyKey is the viper key used to read the Ed25519 public key.
+	EdDSAPublicKeyKey *string
+	// Validator optionally adds a post-signature validation callback.
+	Validator Validator
+	// Timeout optionally limits service operations when greater than zero.
+	Timeout time.Duration
 }
 
 // New builds a JWT service from the provided options.
@@ -221,34 +269,34 @@ func New(options ...Option) (*Service, error) {
 func NewConfiguredService(input ConfigServiceInput) (*Service, error) {
 	algorithm := strings.ToUpper(strings.TrimSpace(input.Algorithm))
 	if algorithm == "" {
-		algorithm = strings.ToUpper(strings.TrimSpace(viper.GetString(stringOrDefault(input.AlgorithmKey, DefaultAlgorithmKey))))
+		algorithm = strings.ToUpper(strings.TrimSpace(viper.GetString(stringOrDefault(input.algorithmKey, DefaultAlgorithmKey))))
 	}
 
 	switch algorithm {
 	case "HS256":
 		return NewHMACService(HMACServiceInput{
-			SecretEnv: stringOrDefault(input.HMACSecretKey, DefaultHMACSecretKey),
+			SecretEnv: stringPtrOrDefault(input.HMACSecretKey, DefaultHMACSecretKey),
 			Validator: input.Validator,
 			Timeout:   input.Timeout,
 		})
 	case "RS256":
 		return NewRSAService(RSAServiceInput{
-			PrivateKeyEnv: stringOrDefault(input.RSAPrivateKeyKey, DefaultRSAPrivateKeyKey),
-			PublicKeyEnv:  stringOrDefault(input.RSAPublicKeyKey, DefaultRSAPublicKeyKey),
+			PrivateKeyEnv: stringPtrOrDefault(input.RSAPrivateKeyKey, DefaultRSAPrivateKeyKey),
+			PublicKeyEnv:  stringPtrOrDefault(input.RSAPublicKeyKey, DefaultRSAPublicKeyKey),
 			Validator:     input.Validator,
 			Timeout:       input.Timeout,
 		})
 	case "PS256":
 		return NewRSAPSSService(RSAServiceInput{
-			PrivateKeyEnv: stringOrDefault(input.RSAPrivateKeyKey, DefaultRSAPrivateKeyKey),
-			PublicKeyEnv:  stringOrDefault(input.RSAPublicKeyKey, DefaultRSAPublicKeyKey),
+			PrivateKeyEnv: stringPtrOrDefault(input.RSAPrivateKeyKey, DefaultRSAPrivateKeyKey),
+			PublicKeyEnv:  stringPtrOrDefault(input.RSAPublicKeyKey, DefaultRSAPublicKeyKey),
 			Validator:     input.Validator,
 			Timeout:       input.Timeout,
 		})
 	case "EDDSA":
 		return NewEd25519Service(Ed25519ServiceInput{
-			PrivateKeyEnv: stringOrDefault(input.EdDSAPrivateKeyKey, DefaultEdDSAPrivateKeyKey),
-			PublicKeyEnv:  stringOrDefault(input.EdDSAPublicKeyKey, DefaultEdDSAPublicKeyKey),
+			PrivateKeyEnv: stringPtrOrDefault(input.EdDSAPrivateKeyKey, DefaultEdDSAPrivateKeyKey),
+			PublicKeyEnv:  stringPtrOrDefault(input.EdDSAPublicKeyKey, DefaultEdDSAPublicKeyKey),
 			Validator:     input.Validator,
 			Timeout:       input.Timeout,
 		})
@@ -609,81 +657,85 @@ func (service *Service) ValidateSignatureWithContext(ctx context.Context, token 
 // Read validates the token and unmarshals its claims into destination using a
 // background context and the service-level validators.
 func (service *Service) Read(token string, destination any) error {
-	ctx, cancel := service.contextFor(context.Background())
-	defer cancel()
+	return service.ReadWithContext(context.Background(), token, destination)
+}
+
+// ReadWithContext validates the token and unmarshals its claims into
+// destination using ctx plus any service timeout.
+func (service *Service) ReadWithContext(ctx context.Context, token string, destination any) error {
 	_, err := service.Decode(ctx, token, destination)
 	return err
 }
 
 // Decode validates the token signature, unmarshals its claims into destination,
 // and runs both service-level and per-call validators.
-func (service *Service) Decode(ctx context.Context, token string, destination any, validators ...Validator) (Token, error) {
+func (service *Service) Decode(ctx context.Context, token string, destination any, validators ...Validator) (*Token, error) {
 	if destination == nil {
-		return Token{}, ErrNilDestination
+		return nil, ErrNilDestination
 	}
 	ctx, cancel := service.contextFor(ctx)
 	defer cancel()
 
 	parsedToken, err := service.parseAndValidate(ctx, token)
 	if err != nil {
-		return Token{}, err
+		return nil, err
 	}
 
 	if err := json.Unmarshal(parsedToken.Claims, destination); err != nil {
-		return Token{}, fmt.Errorf("jwt: decode claims: %w", err)
+		return nil, fmt.Errorf("jwt: decode claims: %w", err)
 	}
 
 	allValidators := append(append([]Validator{}, service.validators...), validators...)
 	for _, validator := range allValidators {
 		if validator == nil {
-			return Token{}, ErrMissingValidation
+			return nil, ErrMissingValidation
 		}
-		if err := validator(ctx, parsedToken); err != nil {
-			return Token{}, err
+		if err := validator(ctx, *parsedToken); err != nil {
+			return nil, err
 		}
 	}
 	return parsedToken, nil
 }
 
-func (service *Service) parseAndValidate(ctx context.Context, token string) (Token, error) {
+func (service *Service) parseAndValidate(ctx context.Context, token string) (*Token, error) {
 	if service == nil || service.strategy == nil {
-		return Token{}, ErrNilStrategy
+		return nil, ErrNilStrategy
 	}
 
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
-		return Token{}, ErrInvalidToken
+		return nil, ErrInvalidToken
 	}
 
 	headerBytes, err := decodeSegment(parts[0])
 	if err != nil {
-		return Token{}, fmt.Errorf("jwt: decode header: %w", err)
+		return nil, fmt.Errorf("jwt: decode header: %w", err)
 	}
 
 	var header Header
 	if err := json.Unmarshal(headerBytes, &header); err != nil {
-		return Token{}, fmt.Errorf("jwt: parse header: %w", err)
+		return nil, fmt.Errorf("jwt: parse header: %w", err)
 	}
 
 	if header.Algorithm != service.strategy.Algorithm() {
-		return Token{}, fmt.Errorf("%w: expected %s, got %s", ErrUnexpectedAlg, service.strategy.Algorithm(), header.Algorithm)
+		return nil, fmt.Errorf("%w: expected %s, got %s", ErrUnexpectedAlg, service.strategy.Algorithm(), header.Algorithm)
 	}
 
 	claimsBytes, err := decodeSegment(parts[1])
 	if err != nil {
-		return Token{}, fmt.Errorf("jwt: decode claims: %w", err)
+		return nil, fmt.Errorf("jwt: decode claims: %w", err)
 	}
 
 	signatureBytes, err := decodeSegment(parts[2])
 	if err != nil {
-		return Token{}, fmt.Errorf("jwt: decode signature: %w", err)
+		return nil, fmt.Errorf("jwt: decode signature: %w", err)
 	}
 
 	signingInput := []byte(parts[0] + "." + parts[1])
 	if err := verifyStrategy(ctx, service.strategy, signingInput, signatureBytes); err != nil {
-		return Token{}, err
+		return nil, err
 	}
-	return Token{
+	return &Token{
 		Raw:       token,
 		Header:    header,
 		Claims:    claimsBytes,
@@ -721,8 +773,10 @@ func verifyStrategy(ctx context.Context, strategy Strategy, signingInput []byte,
 }
 
 type strategyResult[T any] struct {
+	// value is the result returned by the strategy operation.
 	value T
-	err   error
+	// err is the error returned by the strategy operation.
+	err error
 }
 
 func runStrategyWithContext[T any](ctx context.Context, fn func() (T, error)) (T, error) {
@@ -939,6 +993,13 @@ func stringOrDefault(value string, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func stringPtrOrDefault(value *string, fallback string) string {
+	if value == nil {
+		return fallback
+	}
+	return stringOrDefault(*value, fallback)
 }
 
 func setJWTConfigValue(key string, value string) {

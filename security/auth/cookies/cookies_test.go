@@ -50,6 +50,12 @@ func TestReadAndDecodeCookieJWT(t *testing.T) {
 		t.Fatalf("expected user id 42, got %s", claims.UserID)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := service.ReadWithContext(ctx, request, &claims); !errors.Is(err, context.Canceled) {
+		t.Fatalf("ReadWithContext() error = %v, want context.Canceled", err)
+	}
+
 	visitedValidator := false
 	parsed, err := service.Decode(context.Background(), request, &claims, func(ctx context.Context, token jwtservice.Token) error {
 		visitedValidator = true
@@ -153,11 +159,12 @@ func TestNewAndOptionsErrors(t *testing.T) {
 
 func TestNewConfiguredServiceSupportsDirectAndViperCookieNames(t *testing.T) {
 	t.Run("direct cookie name", func(t *testing.T) {
+		key := "COOKIE_TEST_SECRET_DIRECT"
 		_, err := NewConfiguredService(ConfigServiceInput{
 			CookieName: "session_token",
 			JWT: jwtservice.ConfigServiceInput{
 				Algorithm:     "HS256",
-				HMACSecretKey: "COOKIE_TEST_SECRET_DIRECT",
+				HMACSecretKey: &key,
 			},
 		})
 		if err == nil {
@@ -169,13 +176,14 @@ func TestNewConfiguredServiceSupportsDirectAndViperCookieNames(t *testing.T) {
 		viper.Reset()
 		defer viper.Reset()
 
-		viper.Set("COOKIE_TEST_SECRET", "configured-secret")
+		key := "COOKIE_TEST_SECRET"
+		viper.Set(key, "configured-secret")
 		viper.Set("COOKIE_TEST_NAME", "session_token")
 		service, err := NewConfiguredService(ConfigServiceInput{
 			CookieNameKey: "COOKIE_TEST_NAME",
 			JWT: jwtservice.ConfigServiceInput{
 				Algorithm:     "HS256",
-				HMACSecretKey: "COOKIE_TEST_SECRET",
+				HMACSecretKey: &key,
 			},
 		})
 		if err != nil {
@@ -191,11 +199,12 @@ func TestNewConfiguredServiceSupportsDirectAndViperCookieNames(t *testing.T) {
 		viper.Reset()
 		defer viper.Reset()
 
-		viper.Set("COOKIE_TEST_SECRET_DEFAULT", "configured-secret")
+		key := "COOKIE_TEST_SECRET_DEFAULT"
+		viper.Set(key, "configured-secret")
 		service, err := NewConfiguredService(ConfigServiceInput{
 			JWT: jwtservice.ConfigServiceInput{
 				Algorithm:     "HS256",
-				HMACSecretKey: "COOKIE_TEST_SECRET_DEFAULT",
+				HMACSecretKey: &key,
 			},
 		})
 		if err != nil {

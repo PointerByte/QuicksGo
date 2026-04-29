@@ -154,16 +154,22 @@ func (service *Service) ValidateRequest(request *http.Request) error {
 // Read validates the token stored in the configured cookie and decodes its
 // claims into destination.
 func (service *Service) Read(request *http.Request, destination any) error {
-	_, err := service.Decode(context.Background(), request, destination)
+	return service.ReadWithContext(context.Background(), request, destination)
+}
+
+// ReadWithContext validates the token stored in the configured cookie and
+// decodes its claims into destination using ctx.
+func (service *Service) ReadWithContext(ctx context.Context, request *http.Request, destination any) error {
+	_, err := service.Decode(ctx, request, destination)
 	return err
 }
 
 // Decode extracts the token from the configured cookie, validates it, decodes
 // its claims into destination, and runs optional validators.
-func (service *Service) Decode(ctx context.Context, request *http.Request, destination any, validators ...jwtservice.Validator) (jwtservice.Token, error) {
+func (service *Service) Decode(ctx context.Context, request *http.Request, destination any, validators ...jwtservice.Validator) (*jwtservice.Token, error) {
 	token, err := service.TokenFromRequest(request)
 	if err != nil {
-		return jwtservice.Token{}, err
+		return nil, err
 	}
 	return service.jwtService.Decode(ctx, token, destination, validators...)
 }
