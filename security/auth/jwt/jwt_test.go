@@ -169,6 +169,10 @@ func TestServiceContextTimeout(t *testing.T) {
 	if _, err := service.CreateWithContext(ctx, testClaims{UserID: "42"}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("CreateWithContext() error = %v, want context.Canceled", err)
 	}
+
+	if err := service.ReadWithContext(ctx, token, &claims); !errors.Is(err, context.Canceled) {
+		t.Fatalf("ReadWithContext() error = %v, want context.Canceled", err)
+	}
 }
 
 func TestDecodeRunsServiceAndInlineValidators(t *testing.T) {

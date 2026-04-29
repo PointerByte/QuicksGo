@@ -80,6 +80,19 @@ Main keys:
 - `jwt.eddsa.private_key`
 - `jwt.eddsa.public_key`
 
+Configured inputs receive the viper key names, not the secret/key values
+themselves. For example, `HMACSecretKey` is a `*string` pointing to the viper
+key that stores the HS256 secret. If you want to pass the secret directly, build
+the service with `jwtservice.New(jwtservice.WithHMACSHA256("secret"))` instead.
+The same key-pointer pattern applies to `RSAPrivateKeyKey`, `RSAPublicKeyKey`,
+`EdDSAPrivateKeyKey`, and `EdDSAPublicKeyKey`.
+
+```go
+func stringPtr(value string) *string {
+	return &value
+}
+```
+
 Example config files in this module:
 
 - [application.yaml](./application.yaml)
@@ -98,7 +111,23 @@ import (
 viper.Set("jwt.algorithm", "HS256")
 viper.Set("jwt.hmac.secret", "my-secret")
 
-service, err := jwtservice.NewConfiguredService(jwtservice.ConfigServiceInput{})
+hmacSecretKey := jwtservice.DefaultHMACSecretKey
+
+service, err := jwtservice.NewConfiguredService(jwtservice.ConfigServiceInput{
+	Algorithm:     "HS256",
+	HMACSecretKey: &hmacSecretKey,
+})
+if err != nil {
+	panic(err)
+}
+```
+
+For a direct secret without `viper`:
+
+```go
+service, err := jwtservice.New(
+	jwtservice.WithHMACSHA256("my-secret"),
+)
 if err != nil {
 	panic(err)
 }
@@ -129,6 +158,51 @@ if err := service.Read(token, &claims); err != nil {
 }
 ```
 
+### Context-aware operations
+
+JWT signing, signature validation, claim decoding, and validators can receive a
+`context.Context`. You can also configure a service-level timeout.
+
+```go
+import (
+	"context"
+	"time"
+
+	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
+)
+
+service, err := jwtservice.New(
+	jwtservice.WithHMACSHA256("my-secret"),
+	jwtservice.WithContextTimeout(2*time.Second),
+	jwtservice.WithValidator(func(ctx context.Context, token jwtservice.Token) error {
+		return nil
+	}),
+)
+if err != nil {
+	panic(err)
+}
+
+ctx := context.Background()
+
+token, err := service.CreateWithContext(ctx, map[string]any{"user_id": "42"})
+if err != nil {
+	panic(err)
+}
+
+var claims map[string]any
+parsedToken, err := service.Decode(ctx, token, &claims, func(ctx context.Context, token jwtservice.Token) error {
+	return nil
+})
+if err != nil {
+	panic(err)
+}
+
+_ = parsedToken
+```
+
+Use `ValidateSignatureWithContext(ctx, token)` when you only need to validate
+the token signature and algorithm without decoding claims.
+
 ### Supported algorithms
 
 - `HS256`
@@ -138,7 +212,10 @@ if err := service.Read(token, &claims); err != nil {
 
 ## JWT middleware for Gin
 
-`RequireJWT` builds the JWT service internally using `viper`.
+`RequireJWT` builds the JWT service internally. Use `WithJWTServiceConfig` to
+pass the configured-service input, `WithJWTClaimsFactory` to decode into a
+typed struct, and `WithJWTValidator` for post-signature checks. Validators run
+with the request context.
 
 ```go
 import (
@@ -148,10 +225,32 @@ import (
 	"github.com/PointerByte/QuicksGo/security/middlewares"
 )
 
+hmacSecretKey := jwtservice.DefaultHMACSecretKey
+
 router.Use(middlewares.RequireJWT(
+	middlewares.WithJWTServiceConfig(jwtservice.ConfigServiceInput{
+		Algorithm:     "HS256",
+		HMACSecretKey: &hmacSecretKey,
+	}),
 	middlewares.WithJWTClaimsFactory(func() any { return &MyClaims{} }),
 	middlewares.WithJWTValidator(func(ctx context.Context, token jwtservice.Token) error {
 		return nil
+	}),
+))
+```
+
+For custom JWT strategies, override the constructor with
+`WithJWTServiceFactory`.
+
+```go
+router.Use(middlewares.RequireJWT(
+	middlewares.WithJWTServiceConfig(jwtservice.ConfigServiceInput{
+		Algorithm: "CUSTOM",
+	}),
+	middlewares.WithJWTServiceFactory(func(input jwtservice.ConfigServiceInput) (*jwtservice.Service, error) {
+		return jwtservice.New(
+			jwtservice.WithCustomStrategy("CUSTOM", signFunc, verifyFunc),
+		)
 	}),
 ))
 ```
@@ -168,6 +267,10 @@ claimsValue, _ := c.Get(middlewares.JWTClaimsContextKey.String())
 claims := claimsValue.(*MyClaims)
 ```
 
+The parsed token is stored under `middlewares.JWTTokenContextKey.String()`.
+Without a claims factory, decoded claims are stored as `map[string]any`.
+You can override both keys with `WithJWTContextKeys`.
+
 ## Cookie auth
 
 The `auth/cookies` package reuses the JWT service and reads the token from an HTTP cookie.
@@ -177,6 +280,7 @@ The `auth/cookies` package reuses the JWT service and reads the token from an HT
 ```go
 import (
 	cookiesauth "github.com/PointerByte/QuicksGo/security/auth/cookies"
+	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
 	"github.com/spf13/viper"
 )
 
@@ -184,7 +288,15 @@ viper.Set("jwt.algorithm", "HS256")
 viper.Set("jwt.hmac.secret", "my-secret")
 viper.Set("jwt.cookie.name", "session_token")
 
-service, err := cookiesauth.NewConfiguredService(cookiesauth.ConfigServiceInput{})
+hmacSecretKey := jwtservice.DefaultHMACSecretKey
+
+service, err := cookiesauth.NewConfiguredService(cookiesauth.ConfigServiceInput{
+	CookieNameKey: cookiesauth.DefaultCookieNameKey,
+	JWT: jwtservice.ConfigServiceInput{
+		Algorithm:     "HS256",
+		HMACSecretKey: &hmacSecretKey,
+	},
+})
 if err != nil {
 	panic(err)
 }
@@ -203,15 +315,51 @@ if err := service.Read(r, &claims); err != nil {
 }
 ```
 
+For request-scoped validation, use `Decode`.
+
+```go
+parsedToken, err := service.Decode(r.Context(), r, &claims, func(ctx context.Context, token jwtservice.Token) error {
+	return nil
+})
+if err != nil {
+	panic(err)
+}
+
+_ = parsedToken
+```
+
 ## Cookie middleware for Gin
 
 ```go
+import (
+	"context"
+
+	cookiesauth "github.com/PointerByte/QuicksGo/security/auth/cookies"
+	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
+	"github.com/PointerByte/QuicksGo/security/middlewares"
+)
+
+hmacSecretKey := jwtservice.DefaultHMACSecretKey
+
 router.Use(middlewares.RequireJWTCookie(
+	middlewares.WithJWTCookieServiceConfig(cookiesauth.ConfigServiceInput{
+		CookieNameKey: cookiesauth.DefaultCookieNameKey,
+		JWT: jwtservice.ConfigServiceInput{
+			Algorithm:     "HS256",
+			HMACSecretKey: &hmacSecretKey,
+		},
+	}),
 	middlewares.WithJWTCookieClaimsFactory(func() any { return &MyClaims{} }),
+	middlewares.WithJWTCookieValidator(func(ctx context.Context, token jwtservice.Token) error {
+		return nil
+	}),
 ))
 ```
 
 By default it reads the cookie configured in `jwt.cookie.name`, or `access_token` when that key is missing.
+Like the bearer middleware, it stores the parsed token and decoded claims in
+Gin context. You can customize the context keys with
+`WithJWTCookieContextKeys`.
 
 ## Direct `encrypt` usage alongside `security`
 
@@ -252,6 +400,9 @@ Example routes:
 - `POST /rsa/login`
 - `GET /rsa/api/me`
 - `GET /rsa/api/admin`
+- `POST /custom/login`
+- `GET /custom/api/me`
+- `GET /custom/api/admin`
 
 ## Tests
 

@@ -185,34 +185,35 @@ func registerJWTExampleRoutes(group *gin.RouterGroup) {
 }
 
 func jwtExampleServiceAndName(basePath string) (*jwtservice.Service, string) {
-	config := jwtConfigForExample(basePath)
-	serviceFactory := jwtServiceFactoryForExample(basePath)
+	lowerBasePath := strings.ToLower(basePath)
+	config := jwtConfigForExample(lowerBasePath)
+	serviceFactory := jwtServiceFactoryForExample(lowerBasePath)
 	service, err := serviceFactory(config)
 	if err != nil {
 		panic(fmt.Sprintf("build jwt service for %s: %v", basePath, err))
 	}
 
-	if strings.Contains(strings.ToLower(basePath), "rsa") {
+	if strings.Contains(lowerBasePath, "rsa") {
 		return service, "RSA / RS256"
 	}
-	if strings.Contains(strings.ToLower(basePath), "custom") {
+	if strings.Contains(lowerBasePath, "custom") {
 		return service, "Custom / CUSTOM"
 	}
 	return service, "HMAC / HS256"
 }
 
 func jwtConfigForExample(basePath string) jwtservice.ConfigServiceInput {
-	if strings.Contains(strings.ToLower(basePath), "rsa") {
+	lowerBasePath := strings.ToLower(basePath)
+	if strings.Contains(lowerBasePath, "rsa") {
 		return jwtservice.ConfigServiceInput{
 			Algorithm: "RS256",
 		}
 	}
-	if strings.Contains(strings.ToLower(basePath), "custom") {
+	if strings.Contains(lowerBasePath, "custom") {
 		return jwtservice.ConfigServiceInput{
 			Algorithm: "CUSTOM",
 		}
 	}
-
 	return jwtservice.ConfigServiceInput{
 		Algorithm: "HS256",
 	}

@@ -30,7 +30,7 @@ func TestRequireJWTCookieAllowsRequestWithValidCookie(t *testing.T) {
 
 	service, err := jwtservice.NewConfiguredService(jwtservice.ConfigServiceInput{
 		Algorithm:     "HS256",
-		HMACSecretKey: "COOKIE_MIDDLEWARE_SECRET",
+		HMACSecretKey: stringPtr("COOKIE_MIDDLEWARE_SECRET"),
 	})
 	if err != nil {
 		t.Fatalf("expected jwt service without error, got %v", err)
@@ -49,7 +49,7 @@ func TestRequireJWTCookieAllowsRequestWithValidCookie(t *testing.T) {
 			CookieNameKey: "COOKIE_MIDDLEWARE_NAME",
 			JWT: jwtservice.ConfigServiceInput{
 				Algorithm:     "HS256",
-				HMACSecretKey: "COOKIE_MIDDLEWARE_SECRET",
+				HMACSecretKey: stringPtr("COOKIE_MIDDLEWARE_SECRET"),
 				Validator: func(ctx context.Context, token jwtservice.Token) error {
 					var claims cookieClaims
 					if err := json.Unmarshal(token.Claims, &claims); err != nil {
@@ -109,7 +109,7 @@ func TestRequireJWTCookieRejectsMissingCookie(t *testing.T) {
 
 	router := gin.New()
 	handlerCalled := false
-	router.Use(RequireJWTCookie())
+	router.Use(RequireJWTCookie(WithJWTCookieServiceConfig(middlewareJWTCookieServiceConfig())))
 	router.GET("/private", func(c *gin.Context) {
 		handlerCalled = true
 		c.Status(http.StatusNoContent)
@@ -143,6 +143,12 @@ func TestRequireJWTCookieRejectsInvalidServiceConfiguration(t *testing.T) {
 	router.Use(RequireJWTCookie(WithJWTCookieUnauthorizedHandler(func(c *gin.Context, err error) {
 		captured = err
 		c.AbortWithStatus(http.StatusTeapot)
+	}), WithJWTCookieServiceConfig(cookiesauth.ConfigServiceInput{
+		CookieName: "session_token",
+		JWT: jwtservice.ConfigServiceInput{
+			Algorithm:     "HS256",
+			HMACSecretKey: stringPtr(jwtservice.DefaultHMACSecretKey),
+		},
 	})))
 	router.GET("/private", func(c *gin.Context) {
 		t.Fatal("handler should not be called")
@@ -168,7 +174,7 @@ func TestRequireJWTCookieWithCustomContextKeys(t *testing.T) {
 
 	service, err := jwtservice.NewConfiguredService(jwtservice.ConfigServiceInput{
 		Algorithm:     "HS256",
-		HMACSecretKey: "COOKIE_MIDDLEWARE_SECRET",
+		HMACSecretKey: stringPtr("COOKIE_MIDDLEWARE_SECRET"),
 	})
 	if err != nil {
 		t.Fatalf("expected jwt service without error, got %v", err)
@@ -180,7 +186,10 @@ func TestRequireJWTCookieWithCustomContextKeys(t *testing.T) {
 	}
 
 	router := gin.New()
-	router.Use(RequireJWTCookie(WithJWTCookieContextKeys(GinContextKey("tokenKey"), GinContextKey("claimsKey"))))
+	router.Use(RequireJWTCookie(
+		WithJWTCookieContextKeys(GinContextKey("tokenKey"), GinContextKey("claimsKey")),
+		WithJWTCookieServiceConfig(middlewareJWTCookieServiceConfig()),
+	))
 	router.GET("/private", func(c *gin.Context) {
 		claimsValue, exists := c.Get(GinContextKey("claimsKey").String())
 		if !exists {
@@ -250,4 +259,18 @@ func configureMiddlewareJWTCookie() {
 	viper.Set("COOKIE_MIDDLEWARE_SECRET", "middleware-secret")
 	viper.Set(cookiesauth.DefaultCookieNameKey, "session_token")
 	viper.Set("COOKIE_MIDDLEWARE_NAME", "session_token")
+}
+
+func middlewareJWTCookieServiceConfig() cookiesauth.ConfigServiceInput {
+	return cookiesauth.ConfigServiceInput{
+		CookieNameKey: "COOKIE_MIDDLEWARE_NAME",
+		JWT: jwtservice.ConfigServiceInput{
+			Algorithm:     "HS256",
+			HMACSecretKey: stringPtr("COOKIE_MIDDLEWARE_SECRET"),
+		},
+	}
+}
+
+func stringPtr(value string) *string {
+	return &value
 }
