@@ -1094,7 +1094,7 @@ Define el formato de fecha utilizado en los logs.
 ### Actualización de dependencias
 
 ```bash
-go get -u ./...
+go get -u=patch ./...
 ```
 
 ### Liberar caché de compilación, test unitarios o gomods
