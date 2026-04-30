@@ -1094,7 +1094,7 @@ Defines the date format used in logs.
 ### Update dependencies
 
 ```bash
-go get -u ./...
+go get -u=patch ./...
 ```
 
 ### Clear build, unit test, and gomod cache
