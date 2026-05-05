@@ -93,8 +93,8 @@ server:
     port: ":50051"
     tls:
       enable: false
-      certFile: ./certs/server.pem
-      keyFile: ./certs/server.pem
+      certFile: ./certs/cert.pem
+      keyFile: ./certs/key.pem
       version: tlsv12
     mtls:
       enable: false
@@ -111,8 +111,8 @@ client:
       insecureSkipVerify: false
     mtls:
       enable: false
-      certFile: ./certs/client.pem
-      keyFile: ./certs/client.pem
+      certFile: ./certs/cert.pem
+      keyFile: ./certs/key.pem
 
 logger:
   dir: logs
@@ -185,8 +185,8 @@ client:
       insecureSkipVerify: false
     mtls:
       enable: false
-      certFile: ./certs/client.pem
-      keyFile: ./certs/client.pem
+      certFile: ./certs/cert.pem
+      keyFile: ./certs/key.pem
 
 logger:
   dir: logs
@@ -270,8 +270,8 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 				},
 				"mtls": map[string]any{
 					"enable":   false,
-					"certFile": "./certs/client.pem",
-					"keyFile":  "./certs/client.pem",
+					"certFile": "./certs/cert.pem",
+					"keyFile":  "./certs/key.pem",
 				},
 			},
 		}
@@ -328,8 +328,8 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 				},
 				"mtls": map[string]any{
 					"enable":   false,
-					"certFile": "./certs/client.pem",
-					"keyFile":  "./certs/client.pem",
+					"certFile": "./certs/cert.pem",
+					"keyFile":  "./certs/key.pem",
 				},
 			},
 		}

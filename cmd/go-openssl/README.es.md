@@ -125,10 +125,11 @@ _, err := goopenssl.GenerateCertificates(goopenssl.Options{
 })
 ```
 
-### Crear un certificado de servicio firmado por una CA
+### Crear certificados de servidor y cliente firmados por una CA
 
-Genera primero la CA, luego pasa su certificado y llave privada con
-`--signed-by` y `--ca-key` al generar el certificado de servicio.
+Para mTLS, genera primero la CA, luego genera los certificados de servidor y
+cliente con `--signed-by` y `--ca-key`. Mantén la llave de la CA en su propio
+archivo para que los siguientes comandos no la sobrescriban.
 
 ```bash
 go-openssl generate \
@@ -136,7 +137,7 @@ go-openssl generate \
   --ecc-curve p521 \
   --ca \
   --dir ./certs/server \
-  --common-name dragon-cmk-ca.chest-max.svc.cluster.local \
+  --common-name internal-ca.example.local \
   --organization "Example Platform" \
   --days 365 \
   --cert-file ca.pem \
@@ -147,8 +148,22 @@ go-openssl generate \
   --algorithm ecc \
   --ecc-curve p521 \
   --dir ./certs/server \
-  --common-name dragon-cmk.chest-max.svc.cluster.local \
-  --dns dragon-cmk.chest-max.svc.cluster.local \
+  --common-name my-api.default.svc.cluster.local \
+  --dns my-api.default.svc.cluster.local \
+  --organization "Example Platform" \
+  --days 365 \
+  --cert-file cert.pem \
+  --key-file key.pem \
+  --public-key-file public.pem \
+  --signed-by ./certs/server/ca.pem \
+  --ca-key ./certs/server/ca-key.pem
+
+go-openssl generate \
+  --algorithm ecc \
+  --ecc-curve p521 \
+  --dir ./certs/client \
+  --common-name my-api-client.default.svc.cluster.local \
+  --dns my-api-client.default.svc.cluster.local \
   --organization "Example Platform" \
   --days 365 \
   --cert-file cert.pem \
@@ -166,7 +181,7 @@ caResult, err := goopenssl.GenerateCertificates(goopenssl.Options{
 	ECCCurve:          "p521",
 	IsCA:              true,
 	OutputDir:         "./certs/server",
-	CommonName:        "dragon-cmk-ca.chest-max.svc.cluster.local",
+	CommonName:        "internal-ca.example.local",
 	Organization:      "Example Platform",
 	ValidForDays:      365,
 	CertFileName:      "ca.pem",
@@ -181,8 +196,26 @@ _, err = goopenssl.GenerateCertificates(goopenssl.Options{
 	Algorithm:         "ecc",
 	ECCCurve:          "p521",
 	OutputDir:         "./certs/server",
-	CommonName:        "dragon-cmk.chest-max.svc.cluster.local",
-	DNSNames:          []string{"dragon-cmk.chest-max.svc.cluster.local"},
+	CommonName:        "my-api.default.svc.cluster.local",
+	DNSNames:          []string{"my-api.default.svc.cluster.local"},
+	Organization:      "Example Platform",
+	ValidForDays:      365,
+	CertFileName:      "cert.pem",
+	KeyFileName:       "key.pem",
+	PublicKeyFileName: "public.pem",
+	SignedBy:          caResult.CertificatePath,
+	CAKeyFile:         caResult.PrivateKeyPath,
+})
+if err != nil {
+	return err
+}
+
+_, err = goopenssl.GenerateCertificates(goopenssl.Options{
+	Algorithm:         "ecc",
+	ECCCurve:          "p521",
+	OutputDir:         "./certs/client",
+	CommonName:        "my-api-client.default.svc.cluster.local",
+	DNSNames:          []string{"my-api-client.default.svc.cluster.local"},
 	Organization:      "Example Platform",
 	ValidForDays:      365,
 	CertFileName:      "cert.pem",
