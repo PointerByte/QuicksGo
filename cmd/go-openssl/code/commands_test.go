@@ -77,7 +77,8 @@ func TestGenerateCommandCobra(t *testing.T) {
 	if generateCmd.Use != "generate" {
 		t.Fatalf("expected use generate, got %q", generateCmd.Use)
 	}
-	if generateCmd.Flag("algorithm") == nil || generateCmd.Flag("dir") == nil || generateCmd.Flag("salt") == nil {
+	if generateCmd.Flag("algorithm") == nil || generateCmd.Flag("dir") == nil || generateCmd.Flag("salt") == nil ||
+		generateCmd.Flag("signed-by") == nil || generateCmd.Flag("ca-key") == nil {
 		t.Fatal("expected certificate flags to be registered")
 	}
 }

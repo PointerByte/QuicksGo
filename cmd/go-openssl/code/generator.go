@@ -51,6 +51,10 @@ type Options struct {
 	KeyFileName string
 	// PublicKeyFileName is the public key PEM file name written inside OutputDir.
 	PublicKeyFileName string
+	// SignedBy is the CA certificate PEM path used to sign the generated certificate.
+	SignedBy string
+	// CAKeyFile is the CA private key PEM path used to sign the generated certificate.
+	CAKeyFile string
 	// IsCA marks the generated certificate as a certificate authority.
 	IsCA bool
 }
@@ -96,7 +100,7 @@ func GenerateCertificates(options Options) (Result, error) {
 	return NewGenerator().Generate(options)
 }
 
-// Generate creates a self-signed certificate together with matching private and public keys.
+// Generate creates a certificate together with matching private and public keys.
 func (generator *Generator) Generate(options Options) (Result, error) {
 	resolvedOptions, err := normalizeOptions(options)
 	if err != nil {
@@ -180,6 +184,8 @@ func normalizeOptions(options Options) (Options, error) {
 	options.CertFileName = strings.TrimSpace(coalesce(options.CertFileName, defaults.CertFileName))
 	options.KeyFileName = strings.TrimSpace(coalesce(options.KeyFileName, defaults.KeyFileName))
 	options.PublicKeyFileName = strings.TrimSpace(coalesce(options.PublicKeyFileName, defaults.PublicKeyFileName))
+	options.SignedBy = strings.TrimSpace(options.SignedBy)
+	options.CAKeyFile = strings.TrimSpace(options.CAKeyFile)
 	options.Salt = strings.TrimSpace(options.Salt)
 
 	if options.ValidForDays <= 0 {
@@ -203,6 +209,9 @@ func normalizeOptions(options Options) (Options, error) {
 	}
 	if options.CertFileName == "" || options.KeyFileName == "" || options.PublicKeyFileName == "" {
 		return Options{}, fmt.Errorf("certificate, key, and public key file names are required")
+	}
+	if (options.SignedBy == "") != (options.CAKeyFile == "") {
+		return Options{}, fmt.Errorf("signed-by and ca-key must be provided together")
 	}
 
 	switch options.Algorithm {
@@ -319,12 +328,81 @@ func (generator *Generator) buildCertificate(randomSource io.Reader, options Opt
 		template.KeyUsage |= x509.KeyUsageCertSign
 	}
 
-	der, err := x509.CreateCertificate(randomSource, template, template, publicKey, privateKey)
+	parent := template
+	signingKey := privateKey
+	if options.SignedBy != "" {
+		caCert, caKey, err := loadSigningCA(options.SignedBy, options.CAKeyFile)
+		if err != nil {
+			return nil, err
+		}
+		parent = caCert
+		signingKey = caKey
+	}
+
+	der, err := x509.CreateCertificate(randomSource, template, parent, publicKey, signingKey)
 	if err != nil {
 		return nil, fmt.Errorf("create certificate: %w", err)
 	}
 
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), nil
+}
+
+func loadSigningCA(certPath string, keyPath string) (*x509.Certificate, any, error) {
+	certificate, err := parseCertificatePEMFile(certPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read signed-by certificate: %w", err)
+	}
+	if !certificate.IsCA {
+		return nil, nil, fmt.Errorf("signed-by certificate is not a CA")
+	}
+
+	privateKey, err := parsePrivateKeyPEMFile(keyPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read ca-key: %w", err)
+	}
+	return certificate, privateKey, nil
+}
+
+func parseCertificatePEMFile(path string) (*x509.Certificate, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(content)
+	if block == nil {
+		return nil, fmt.Errorf("decode certificate PEM: no PEM data found")
+	}
+
+	certificate, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse certificate: %w", err)
+	}
+	return certificate, nil
+}
+
+func parsePrivateKeyPEMFile(path string) (any, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(content)
+	if block == nil {
+		return nil, fmt.Errorf("decode private key PEM: no PEM data found")
+	}
+
+	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err == nil {
+		return privateKey, nil
+	}
+	if privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes); err == nil {
+		return privateKey, nil
+	}
+	if privateKey, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
+		return privateKey, nil
+	}
+	return nil, fmt.Errorf("parse private key: %w", err)
 }
 
 func sanitizeStrings(values []string) []string {

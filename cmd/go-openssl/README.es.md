@@ -39,6 +39,7 @@ El generador permite controlar:
 - el tamaño de llave RSA con `--rsa-bits`
 - la curva ECC con `--ecc-curve`
 - los nombres de archivo con `--cert-file`, `--key-file` y `--public-key-file`
+- firmar con una CA existente usando `--signed-by` y `--ca-key`
 - si el certificado debe ser CA con `--ca`
 - entropía adicional opcional con `--salt`
 
@@ -47,6 +48,10 @@ El comando escribe por defecto dentro del directorio seleccionado:
 - `cert.pem`
 - `key.pem`
 - `public.pem`
+
+Cuando usas `--signed-by`, tambien debes pasar `--ca-key`. El certificado
+generado queda firmado por esa CA, mientras que `key.pem` y `public.pem`
+pertenecen al nuevo certificado.
 
 ### Equivalencia entre CLI y Go
 
@@ -67,6 +72,8 @@ Cada flag de `go-openssl generate` corresponde a un campo en
 | `--cert-file` | `CertFileName` |
 | `--key-file` | `KeyFileName` |
 | `--public-key-file` | `PublicKeyFileName` |
+| `--signed-by` | `SignedBy` |
+| `--ca-key` | `CAKeyFile` |
 | `--ca` | `IsCA` |
 
 Los ejemplos Go de abajo asumen este import:
@@ -115,6 +122,74 @@ _, err := goopenssl.GenerateCertificates(goopenssl.Options{
 	CertFileName:      "CA.pem",
 	KeyFileName:       "CA-key.pem",
 	PublicKeyFileName: "CA-public.pem",
+})
+```
+
+### Crear un certificado de servicio firmado por una CA
+
+Genera primero la CA, luego pasa su certificado y llave privada con
+`--signed-by` y `--ca-key` al generar el certificado de servicio.
+
+```bash
+go-openssl generate \
+  --algorithm ecc \
+  --ecc-curve p521 \
+  --ca \
+  --dir ./certs/server \
+  --common-name dragon-cmk-ca.chest-max.svc.cluster.local \
+  --organization "Example Platform" \
+  --days 365 \
+  --cert-file ca.pem \
+  --key-file ca-key.pem \
+  --public-key-file ca-public.pem
+
+go-openssl generate \
+  --algorithm ecc \
+  --ecc-curve p521 \
+  --dir ./certs/server \
+  --common-name dragon-cmk.chest-max.svc.cluster.local \
+  --dns dragon-cmk.chest-max.svc.cluster.local \
+  --organization "Example Platform" \
+  --days 365 \
+  --cert-file cert.pem \
+  --key-file key.pem \
+  --public-key-file public.pem \
+  --signed-by ./certs/server/ca.pem \
+  --ca-key ./certs/server/ca-key.pem
+```
+
+Codigo Go equivalente:
+
+```go
+caResult, err := goopenssl.GenerateCertificates(goopenssl.Options{
+	Algorithm:         "ecc",
+	ECCCurve:          "p521",
+	IsCA:              true,
+	OutputDir:         "./certs/server",
+	CommonName:        "dragon-cmk-ca.chest-max.svc.cluster.local",
+	Organization:      "Example Platform",
+	ValidForDays:      365,
+	CertFileName:      "ca.pem",
+	KeyFileName:       "ca-key.pem",
+	PublicKeyFileName: "ca-public.pem",
+})
+if err != nil {
+	return err
+}
+
+_, err = goopenssl.GenerateCertificates(goopenssl.Options{
+	Algorithm:         "ecc",
+	ECCCurve:          "p521",
+	OutputDir:         "./certs/server",
+	CommonName:        "dragon-cmk.chest-max.svc.cluster.local",
+	DNSNames:          []string{"dragon-cmk.chest-max.svc.cluster.local"},
+	Organization:      "Example Platform",
+	ValidForDays:      365,
+	CertFileName:      "cert.pem",
+	KeyFileName:       "key.pem",
+	PublicKeyFileName: "public.pem",
+	SignedBy:          caResult.CertificatePath,
+	CAKeyFile:         caResult.PrivateKeyPath,
 })
 ```
 
@@ -201,7 +276,7 @@ RSA es la opcion de mayor compatibilidad:
 ```bash
 go-openssl generate \
   --algorithm rsa \
-  --rsa-bits 4096 \
+  --rsa-bits 2048 \
   --dir ./certs/orders-to-payments-rsa \
   --common-name payments.default.svc \
   --dns payments.default.svc \
@@ -215,7 +290,7 @@ Codigo Go equivalente:
 ```go
 _, err := goopenssl.GenerateCertificates(goopenssl.Options{
 	Algorithm:    "rsa",
-	RSAKeySize:   4096,
+	RSAKeySize:   2048,
 	OutputDir:    "./certs/orders-to-payments-rsa",
 	CommonName:   "payments.default.svc",
 	DNSNames:     []string{"payments.default.svc", "payments.default.svc.cluster.local"},
@@ -262,12 +337,11 @@ necesitas la llave privada y la publica.
 ```bash
 go-openssl generate \
   --algorithm ed25519 \
-  --dir ./certs/jwt-ed25519 \
+  --dir ./certs/jwt \
   --common-name jwt-signing.default.svc \
   --dns jwt-signing.default.svc \
   --organization "Example Security" \
   --days 365 \
-  --cert-file cert.pem \
   --key-file key.pem \
   --public-key-file public.pem
 ```
@@ -277,12 +351,11 @@ Codigo Go equivalente:
 ```go
 _, err := goopenssl.GenerateCertificates(goopenssl.Options{
 	Algorithm:         "ed25519",
-	OutputDir:         "./certs/jwt-ed25519",
+	OutputDir:         "./certs/jwt",
 	CommonName:        "jwt-signing.default.svc",
 	DNSNames:          []string{"jwt-signing.default.svc"},
 	Organization:      "Example Security",
 	ValidForDays:      365,
-	CertFileName:      "cert.pem",
 	KeyFileName:       "key.pem",
 	PublicKeyFileName: "public.pem",
 })
@@ -292,11 +365,11 @@ Si tu configuracion espera valores DER en Base64, convierte los archivos PEM
 con `openssl pkey`:
 
 ```bash
-openssl pkey -in ./certs/jwt-ed25519/key.pem \
+openssl pkey -in ./certs/jwt/key.pem \
   -outform DER \
   | base64 -w 0
 
-openssl pkey -pubin -in ./certs/jwt-ed25519/public.pem \
+openssl pkey -pubin -in ./certs/jwt/public.pem \
   -outform DER \
   | base64 -w 0
 ```

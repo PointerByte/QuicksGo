@@ -36,7 +36,7 @@ func newGenerateCommand(app *App) Command {
 func (command *generateCommand) Cobra() *cobra.Command {
 	cobraCmd := &cobra.Command{
 		Use:   "generate",
-		Short: "Generate a self-signed certificate and key files",
+		Short: "Generate a certificate and key files",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resolvedOptions, err := normalizeOptions(*command.options)
 			if err != nil {
@@ -73,6 +73,8 @@ func (command *generateCommand) Cobra() *cobra.Command {
 	cobraCmd.Flags().StringVar(&command.options.CertFileName, "cert-file", command.options.CertFileName, "Certificate file name")
 	cobraCmd.Flags().StringVar(&command.options.KeyFileName, "key-file", command.options.KeyFileName, "Private key file name")
 	cobraCmd.Flags().StringVar(&command.options.PublicKeyFileName, "public-key-file", command.options.PublicKeyFileName, "Public key file name")
+	cobraCmd.Flags().StringVar(&command.options.SignedBy, "signed-by", command.options.SignedBy, "CA certificate PEM file used to sign the generated certificate")
+	cobraCmd.Flags().StringVar(&command.options.CAKeyFile, "ca-key", command.options.CAKeyFile, "CA private key PEM file used to sign the generated certificate")
 	cobraCmd.Flags().BoolVar(&command.options.IsCA, "ca", command.options.IsCA, "Mark the generated certificate as a certificate authority")
 	return cobraCmd
 }
