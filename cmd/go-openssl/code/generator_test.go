@@ -88,6 +88,62 @@ func TestGenerateCertificatesByAlgorithm(t *testing.T) {
 	}
 }
 
+func TestGenerateCertificatesSignedByCA(t *testing.T) {
+	outputDir := filepath.Join(t.TempDir(), "certs")
+	caResult, err := GenerateCertificates(Options{
+		Algorithm:         algorithmECC,
+		ECCCurve:          curveP521,
+		OutputDir:         outputDir,
+		CommonName:        "dragon-cmk-ca.chest-max.svc.cluster.local",
+		Organization:      "PointerByte",
+		ValidForDays:      365,
+		IsCA:              true,
+		CertFileName:      "ca.pem",
+		KeyFileName:       "ca-key.pem",
+		PublicKeyFileName: "ca-public.pem",
+	})
+	if err != nil {
+		t.Fatalf("GenerateCertificates CA returned error: %v", err)
+	}
+
+	result, err := GenerateCertificates(Options{
+		Algorithm:         algorithmECC,
+		ECCCurve:          curveP521,
+		OutputDir:         outputDir,
+		CommonName:        "dragon-cmk.chest-max.svc.cluster.local",
+		DNSNames:          []string{"dragon-cmk.chest-max.svc.cluster.local"},
+		Organization:      "PointerByte",
+		ValidForDays:      365,
+		CertFileName:      "cert.pem",
+		KeyFileName:       "key.pem",
+		PublicKeyFileName: "public.pem",
+		SignedBy:          caResult.CertificatePath,
+		CAKeyFile:         caResult.PrivateKeyPath,
+	})
+	if err != nil {
+		t.Fatalf("GenerateCertificates signed certificate returned error: %v", err)
+	}
+
+	caCertificate := parseCertificateFile(t, caResult.CertificatePath)
+	certificate := parseCertificateFile(t, result.CertificatePath)
+	if !caCertificate.IsCA {
+		t.Fatal("expected generated CA certificate to be marked as CA")
+	}
+	if certificate.Issuer.CommonName != caCertificate.Subject.CommonName {
+		t.Fatalf("expected issuer %q, got %q", caCertificate.Subject.CommonName, certificate.Issuer.CommonName)
+	}
+	if err := certificate.CheckSignatureFrom(caCertificate); err != nil {
+		t.Fatalf("expected certificate to verify against generated CA, got %v", err)
+	}
+
+	if _, err := os.Stat(result.PrivateKeyPath); err != nil {
+		t.Fatalf("expected private key file to exist, got %v", err)
+	}
+	if _, err := os.Stat(result.PublicKeyPath); err != nil {
+		t.Fatalf("expected public key file to exist, got %v", err)
+	}
+}
+
 func TestGenerateCertificatesErrors(t *testing.T) {
 	if _, err := GenerateCertificates(Options{Algorithm: "dsa", OutputDir: t.TempDir(), CommonName: "localhost"}); err == nil {
 		t.Fatal("expected unsupported algorithm error")
@@ -109,6 +165,14 @@ func TestGenerateCertificatesErrors(t *testing.T) {
 		CommonName: "localhost",
 	}); err == nil {
 		t.Fatal("expected rsa key size error")
+	}
+
+	if _, err := GenerateCertificates(Options{
+		OutputDir:  t.TempDir(),
+		CommonName: "localhost",
+		SignedBy:   "ca.pem",
+	}); err == nil {
+		t.Fatal("expected signed-by without ca-key error")
 	}
 }
 
