@@ -86,6 +86,9 @@ key that stores the HS256 secret. If you want to pass the secret directly, build
 the service with `jwtservice.New(jwtservice.WithHMACSHA256("secret"))` instead.
 The same key-pointer pattern applies to `RSAPrivateKeyKey`, `RSAPublicKeyKey`,
 `EdDSAPrivateKeyKey`, and `EdDSAPublicKeyKey`.
+For RSA and EdDSA, the configured `private_key` and `public_key` values may be
+paths to PEM files, for example `./certs/jwt/key.pem` and
+`./certs/jwt/public.pem`.
 
 ```go
 func stringPtr(value string) *string {

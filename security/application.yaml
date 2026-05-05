@@ -6,8 +6,8 @@ jwt:
     secret: "replace-with-your-hmac-secret"
   rsa:
     algorithm: RS256
-    private_key: "replace-with-base64-pkcs8-private-key"
-    public_key: "replace-with-base64-x509-public-key"
+    private_key: "./certs/jwt/key.pem"
+    public_key: "./certs/jwt/public.pem"
 encrypt:
   aws-kms:
     arn: ""
