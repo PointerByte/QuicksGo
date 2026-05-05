@@ -83,7 +83,7 @@ github.com/PointerByte/QuicksGo/cmd/qgo/code/templates.go:26.10,27.79 1 2
 github.com/PointerByte/QuicksGo/cmd/qgo/code/templates.go:30.2,30.19 1 5
 github.com/PointerByte/QuicksGo/cmd/qgo/code/templates.go:34.67,35.21 1 9
 github.com/PointerByte/QuicksGo/cmd/qgo/code/templates.go:36.22,62.12 1 6
-github.com/PointerByte/QuicksGo/cmd/qgo/code/templates.go:63.23,75.13 1 2
+github.com/PointerByte/QuicksGo/cmd/qgo/code/templates.go:63.23,78.2 1 2
 github.com/PointerByte/QuicksGo/cmd/qgo/code/templates.go:79.10,80.12 1 1
 github.com/PointerByte/QuicksGo/cmd/qgo/code/templates.go:85.70,86.36 1 7
 github.com/PointerByte/QuicksGo/cmd/qgo/code/templates.go:86.36,149.3 1 2
