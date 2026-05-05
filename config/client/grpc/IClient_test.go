@@ -172,11 +172,11 @@ func writeGeneratedCertificateFiles(t *testing.T) generatedCertSet {
 	clientCertPEM, clientKeyPEM := generateSignedCertificate(t, caCert, caKeyPEM, true)
 
 	dir := t.TempDir()
-	serverCertFile := filepath.Join(dir, "server.crt")
-	serverKeyFile := filepath.Join(dir, "server.key")
-	clientCertFile := filepath.Join(dir, "client.crt")
-	clientKeyFile := filepath.Join(dir, "client.key")
-	caCertFile := filepath.Join(dir, "ca.crt")
+	serverCertFile := filepath.Join(dir, "server-cert.pem")
+	serverKeyFile := filepath.Join(dir, "server-key.pem")
+	clientCertFile := filepath.Join(dir, "client-cert.pem")
+	clientKeyFile := filepath.Join(dir, "client-key.pem")
+	caCertFile := filepath.Join(dir, "ca.pem")
 
 	mustWriteFile(t, serverCertFile, serverCertPEM)
 	mustWriteFile(t, serverKeyFile, serverKeyPEM)

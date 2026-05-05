@@ -21,12 +21,12 @@ server:
     port: ":50051"
     tls:
       enable: false
-      certFile: ./certs/server.crt
-      keyFile: ./certs/server.key
+      certFile: ./certs/server.pem
+      keyFile: ./certs/server.pem
       version: tlsv12
     mtls:
       enable: false
-      clientCAFile: ./certs/ca.crt
+      clientCAFile: ./certs/ca.pem
       clientAuth: require_and_verify_client_cert
 
 gin:
@@ -40,14 +40,14 @@ client:
   grpc:
     tls:
       enable: false
-      caFile: ./certs/ca.crt
+      caFile: ./certs/ca.pem
       serverName: localhost
       version: tlsv12
       insecureSkipVerify: false
     mtls:
       enable: false
-      certFile: ./certs/client.crt
-      keyFile: ./certs/client.key
+      certFile: ./certs/client.pem
+      keyFile: ./certs/client.pem
 
 logger:
   dir: logs

@@ -11,8 +11,11 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -631,6 +634,48 @@ func TestNewRSAServiceSupportsDirectKeysEnvAndOptionalValidator(t *testing.T) {
 			t.Fatal("expected validator to run")
 		}
 	})
+
+	t.Run("keys from pem files", func(t *testing.T) {
+		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			t.Fatalf("expected rsa key without error, got %v", err)
+		}
+
+		privateDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
+		if err != nil {
+			t.Fatalf("expected private key marshal without error, got %v", err)
+		}
+
+		publicDER, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+		if err != nil {
+			t.Fatalf("expected public key marshal without error, got %v", err)
+		}
+
+		tempDir := t.TempDir()
+		privatePath := writeTestPEMFile(t, tempDir, "private_key.pem", "PRIVATE KEY", privateDER)
+		publicPath := writeTestPEMFile(t, tempDir, "public_key.pem", "PUBLIC KEY", publicDER)
+
+		viper.Set("JWT_TEST_RSA_PRIVATE_PEM", privatePath)
+		viper.Set("JWT_TEST_RSA_PUBLIC_PEM", publicPath)
+		defer viper.Reset()
+
+		service, err := NewRSAService(RSAServiceInput{
+			PrivateKeyEnv: "JWT_TEST_RSA_PRIVATE_PEM",
+			PublicKeyEnv:  "JWT_TEST_RSA_PUBLIC_PEM",
+		})
+		if err != nil {
+			t.Fatalf("expected service without error, got %v", err)
+		}
+
+		token, err := service.Create(testClaims{UserID: "88", Role: "admin", Active: true})
+		if err != nil {
+			t.Fatalf("expected token without error, got %v", err)
+		}
+
+		if err := service.ValidateSignature(token); err != nil {
+			t.Fatalf("expected valid signature, got %v", err)
+		}
+	})
 }
 
 func TestNewServicesFromEnvErrors(t *testing.T) {
@@ -796,6 +841,17 @@ func TestNewConfiguredServiceUsesViperAlgorithm(t *testing.T) {
 			t.Fatalf("expected ErrUnsupportedAlg, got %v", err)
 		}
 	})
+}
+
+func writeTestPEMFile(t *testing.T, dir, name, blockType string, der []byte) string {
+	t.Helper()
+
+	path := filepath.Join(dir, name)
+	block := pem.EncodeToMemory(&pem.Block{Type: blockType, Bytes: der})
+	if err := os.WriteFile(path, block, 0o600); err != nil {
+		t.Fatalf("expected write PEM file without error, got %v", err)
+	}
+	return path
 }
 
 func TestCreateAndDecodeErrors(t *testing.T) {

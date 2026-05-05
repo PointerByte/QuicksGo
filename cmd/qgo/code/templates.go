@@ -93,26 +93,26 @@ server:
     port: ":50051"
     tls:
       enable: false
-      certFile: ./certs/server.crt
-      keyFile: ./certs/server.key
+      certFile: ./certs/server.pem
+      keyFile: ./certs/server.pem
       version: tlsv12
     mtls:
       enable: false
-      clientCAFile: ./certs/ca.crt
+      clientCAFile: ./certs/ca.pem
       clientAuth: require_and_verify_client_cert
 
 client:
   grpc:
     tls:
       enable: false
-      caFile: ./certs/ca.crt
+      caFile: ./certs/ca.pem
       serverName: localhost
       version: tlsv12
       insecureSkipVerify: false
     mtls:
       enable: false
-      certFile: ./certs/client.crt
-      keyFile: ./certs/client.key
+      certFile: ./certs/client.pem
+      keyFile: ./certs/client.pem
 
 logger:
   dir: logs
@@ -179,14 +179,14 @@ client:
   grpc:
     tls:
       enable: false
-      caFile: ./certs/ca.crt
+      caFile: ./certs/ca.pem
       serverName: localhost
       version: tlsv12
       insecureSkipVerify: false
     mtls:
       enable: false
-      certFile: ./certs/client.crt
-      keyFile: ./certs/client.key
+      certFile: ./certs/client.pem
+      keyFile: ./certs/client.pem
 
 logger:
   dir: logs
@@ -248,13 +248,13 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 				"port": ":50051",
 				"tls": map[string]any{
 					"enable":   false,
-					"certFile": "./certs/server.crt",
-					"keyFile":  "./certs/server.key",
+					"certFile": "./certs/server.pem",
+					"keyFile":  "./certs/server.pem",
 					"version":  "tlsv12",
 				},
 				"mtls": map[string]any{
 					"enable":       false,
-					"clientCAFile": "./certs/ca.crt",
+					"clientCAFile": "./certs/ca.pem",
 					"clientAuth":   "require_and_verify_client_cert",
 				},
 			},
@@ -263,15 +263,15 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 			"grpc": map[string]any{
 				"tls": map[string]any{
 					"enable":             false,
-					"caFile":             "./certs/ca.crt",
+					"caFile":             "./certs/ca.pem",
 					"serverName":         "localhost",
 					"version":            "tlsv12",
 					"insecureSkipVerify": false,
 				},
 				"mtls": map[string]any{
 					"enable":   false,
-					"certFile": "./certs/client.crt",
-					"keyFile":  "./certs/client.key",
+					"certFile": "./certs/client.pem",
+					"keyFile":  "./certs/client.pem",
 				},
 			},
 		}
@@ -321,15 +321,15 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 			"grpc": map[string]any{
 				"tls": map[string]any{
 					"enable":             false,
-					"caFile":             "./certs/ca.crt",
+					"caFile":             "./certs/ca.pem",
 					"serverName":         "localhost",
 					"version":            "tlsv12",
 					"insecureSkipVerify": false,
 				},
 				"mtls": map[string]any{
 					"enable":   false,
-					"certFile": "./certs/client.crt",
-					"keyFile":  "./certs/client.key",
+					"certFile": "./certs/client.pem",
+					"keyFile":  "./certs/client.pem",
 				},
 			},
 		}
@@ -347,12 +347,12 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 				"secret": "change-me-hmac-secret",
 			},
 			"rsa": map[string]any{
-				"private_key": "",
-				"public_key":  "",
+				"private_key": "./certs/jwt/key.pem",
+				"public_key":  "./certs/jwt/public.pem",
 			},
 			"eddsa": map[string]any{
-				"private_key": "",
-				"public_key":  "",
+				"private_key": "./certs/jwt/key.pem",
+				"public_key":  "./certs/jwt/public.pem",
 			},
 		}
 	}

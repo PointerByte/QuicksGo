@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -312,7 +313,7 @@ func NewRSAPSSService(input RSAServiceInput) (*Service, error) {
 	if privateKey == nil {
 		value := viper.GetString(privateKeyConfig)
 		if value != "" {
-			parsedKey, err := utilities.ParseRSAPrivateKeyFromBase64(value)
+			parsedKey, err := parseRSAPrivateKeyFromConfig(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse rsa private key from key %s: %w", privateKeyConfig, err)
 			}
@@ -325,7 +326,7 @@ func NewRSAPSSService(input RSAServiceInput) (*Service, error) {
 	if publicKey == nil {
 		value := viper.GetString(publicKeyConfig)
 		if value != "" {
-			parsedKey, err := utilities.ParseRSAPublicKeyFromBase64(value)
+			parsedKey, err := parseRSAPublicKeyFromConfig(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse rsa public key from key %s: %w", publicKeyConfig, err)
 			}
@@ -350,7 +351,7 @@ func NewEd25519Service(input Ed25519ServiceInput) (*Service, error) {
 	if privateKey == nil {
 		value := viper.GetString(privateKeyConfig)
 		if value != "" {
-			parsedKey, err := utilities.ParseEd25519PrivateKeyFromBase64(value)
+			parsedKey, err := parseEd25519PrivateKeyFromConfig(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse ed25519 private key from key %s: %w", privateKeyConfig, err)
 			}
@@ -363,7 +364,7 @@ func NewEd25519Service(input Ed25519ServiceInput) (*Service, error) {
 	if publicKey == nil {
 		value := viper.GetString(publicKeyConfig)
 		if value != "" {
-			parsedKey, err := utilities.ParseEd25519PublicKeyFromBase64(value)
+			parsedKey, err := parseEd25519PublicKeyFromConfig(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse ed25519 public key from key %s: %w", publicKeyConfig, err)
 			}
@@ -401,15 +402,16 @@ func NewHMACService(input HMACServiceInput) (*Service, error) {
 }
 
 // NewRSAService builds a JWT service for RS256 signatures.
-// Keys can be provided directly or loaded from Base64-encoded viper values
-// containing PKCS#8 private and X.509 public keys.
+// Keys can be provided directly or loaded from viper values. Configured values
+// may point to PEM files containing PKCS#8 private and X.509 public keys, or
+// keep the previous Base64-encoded DER format for compatibility.
 func NewRSAService(input RSAServiceInput) (*Service, error) {
 	privateKey := input.PrivateKey
 	privateKeyConfig := stringOrDefault(input.PrivateKeyEnv, DefaultRSAPrivateKeyKey)
 	if privateKey == nil {
 		value := viper.GetString(privateKeyConfig)
 		if value != "" {
-			parsedKey, err := utilities.ParseRSAPrivateKeyFromBase64(value)
+			parsedKey, err := parseRSAPrivateKeyFromConfig(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse rsa private key from key %s: %w", privateKeyConfig, err)
 			}
@@ -422,7 +424,7 @@ func NewRSAService(input RSAServiceInput) (*Service, error) {
 	if publicKey == nil {
 		value := viper.GetString(publicKeyConfig)
 		if value != "" {
-			parsedKey, err := utilities.ParseRSAPublicKeyFromBase64(value)
+			parsedKey, err := parseRSAPublicKeyFromConfig(value)
 			if err != nil {
 				return nil, fmt.Errorf("jwt: parse rsa public key from key %s: %w", publicKeyConfig, err)
 			}
@@ -986,6 +988,49 @@ func encodeSegment(value []byte) string {
 
 func decodeSegment(value string) ([]byte, error) {
 	return base64.RawURLEncoding.DecodeString(value)
+}
+
+func parseRSAPrivateKeyFromConfig(value string) (*rsa.PrivateKey, error) {
+	if shouldReadPEMFile(value) {
+		return utilities.ParseRSAPrivateKeyFromPEMFile(value)
+	}
+	return utilities.ParseRSAPrivateKeyFromBase64(value)
+}
+
+func parseRSAPublicKeyFromConfig(value string) (*rsa.PublicKey, error) {
+	if shouldReadPEMFile(value) {
+		return utilities.ParseRSAPublicKeyFromPEMFile(value)
+	}
+	return utilities.ParseRSAPublicKeyFromBase64(value)
+}
+
+func parseEd25519PrivateKeyFromConfig(value string) (ed25519.PrivateKey, error) {
+	if shouldReadPEMFile(value) {
+		return utilities.ParseEd25519PrivateKeyFromPEMFile(value)
+	}
+	return utilities.ParseEd25519PrivateKeyFromBase64(value)
+}
+
+func parseEd25519PublicKeyFromConfig(value string) (ed25519.PublicKey, error) {
+	if shouldReadPEMFile(value) {
+		return utilities.ParseEd25519PublicKeyFromPEMFile(value)
+	}
+	return utilities.ParseEd25519PublicKeyFromBase64(value)
+}
+
+func shouldReadPEMFile(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	lowerValue := strings.ToLower(value)
+	if strings.HasSuffix(lowerValue, ".pem") {
+		return true
+	}
+	if _, err := os.Stat(value); err == nil {
+		return true
+	}
+	return false
 }
 
 func stringOrDefault(value string, fallback string) string {

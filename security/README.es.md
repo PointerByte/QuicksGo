@@ -87,6 +87,9 @@ quieres pasar el secreto directamente, crea el servicio con
 `jwtservice.New(jwtservice.WithHMACSHA256("secret"))`.
 El mismo patron de puntero a clave aplica a `RSAPrivateKeyKey`,
 `RSAPublicKeyKey`, `EdDSAPrivateKeyKey` y `EdDSAPublicKeyKey`.
+Para RSA y EdDSA, los valores configurados en `private_key` y `public_key`
+pueden ser rutas a archivos PEM, por ejemplo `./certs/jwt/key.pem` y
+`./certs/jwt/public.pem`.
 
 ```go
 func stringPtr(value string) *string {
