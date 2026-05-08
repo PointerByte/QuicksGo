@@ -201,6 +201,7 @@ Valores soportados para `server.grpc.mtls.clientAuth`:
 
 ### `traces`
 
+- `traces.enable`: habilita la inicializacion de trazas y metricas de OpenTelemetry; cuando es `false`, esos exportadores no se inician
 - `traces.SkipPaths`: paths HTTP excluidos del middleware OpenTelemetry de Gin
 
 ### `jwt`
