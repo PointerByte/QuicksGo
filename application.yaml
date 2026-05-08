@@ -65,8 +65,9 @@ logger:
     compress: true
 
 traces:
+  enable: false
   SkipPaths:
-    - /api/v1/health
+    - /health
 
 jwt:
   enable: true

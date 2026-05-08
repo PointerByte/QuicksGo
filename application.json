@@ -80,8 +80,9 @@
     }
   },
   "traces": {
+    "enable": false,
     "SkipPaths": [
-      "/api/v1/health"
+      "/health"
     ]
   },
   "jwt": {
