@@ -183,8 +183,6 @@ type HMACServiceInput struct {
 	SecretEnv string
 	// Validator optionally adds a post-signature validation callback.
 	Validator Validator
-	// Timeout optionally limits service operations when greater than zero.
-	Timeout time.Duration
 }
 
 // RSAServiceInput configures NewRSAService.
@@ -202,8 +200,6 @@ type RSAServiceInput struct {
 	PublicKeyEnv string
 	// Validator optionally adds a post-signature validation callback.
 	Validator Validator
-	// Timeout optionally limits service operations when greater than zero.
-	Timeout time.Duration
 }
 
 // Ed25519ServiceInput configures NewEd25519Service.
@@ -218,8 +214,6 @@ type Ed25519ServiceInput struct {
 	PublicKeyEnv string
 	// Validator optionally adds a post-signature validation callback.
 	Validator Validator
-	// Timeout optionally limits service operations when greater than zero.
-	Timeout time.Duration
 }
 
 // ConfigServiceInput configures NewConfiguredService.
@@ -242,8 +236,6 @@ type ConfigServiceInput struct {
 	EdDSAPublicKeyKey *string
 	// Validator optionally adds a post-signature validation callback.
 	Validator Validator
-	// Timeout optionally limits service operations when greater than zero.
-	Timeout time.Duration
 }
 
 // New builds a JWT service from the provided options.
@@ -278,28 +270,24 @@ func NewConfiguredService(input ConfigServiceInput) (*Service, error) {
 		return NewHMACService(HMACServiceInput{
 			SecretEnv: stringPtrOrDefault(input.HMACSecretKey, DefaultHMACSecretKey),
 			Validator: input.Validator,
-			Timeout:   input.Timeout,
 		})
 	case "RS256":
 		return NewRSAService(RSAServiceInput{
 			PrivateKeyEnv: stringPtrOrDefault(input.RSAPrivateKeyKey, DefaultRSAPrivateKeyKey),
 			PublicKeyEnv:  stringPtrOrDefault(input.RSAPublicKeyKey, DefaultRSAPublicKeyKey),
 			Validator:     input.Validator,
-			Timeout:       input.Timeout,
 		})
 	case "PS256":
 		return NewRSAPSSService(RSAServiceInput{
 			PrivateKeyEnv: stringPtrOrDefault(input.RSAPrivateKeyKey, DefaultRSAPrivateKeyKey),
 			PublicKeyEnv:  stringPtrOrDefault(input.RSAPublicKeyKey, DefaultRSAPublicKeyKey),
 			Validator:     input.Validator,
-			Timeout:       input.Timeout,
 		})
 	case "EDDSA":
 		return NewEd25519Service(Ed25519ServiceInput{
 			PrivateKeyEnv: stringPtrOrDefault(input.EdDSAPrivateKeyKey, DefaultEdDSAPrivateKeyKey),
 			PublicKeyEnv:  stringPtrOrDefault(input.EdDSAPublicKeyKey, DefaultEdDSAPublicKeyKey),
 			Validator:     input.Validator,
-			Timeout:       input.Timeout,
 		})
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedAlg, algorithm)
@@ -335,9 +323,6 @@ func NewRSAPSSService(input RSAServiceInput) (*Service, error) {
 	}
 
 	options := []Option{WithRSAPSSSHA256(privateKey, publicKey)}
-	if input.Timeout > 0 {
-		options = append(options, WithContextTimeout(input.Timeout))
-	}
 	if input.Validator != nil {
 		options = append(options, WithValidator(input.Validator))
 	}
@@ -373,9 +358,6 @@ func NewEd25519Service(input Ed25519ServiceInput) (*Service, error) {
 	}
 
 	options := []Option{WithEd25519(privateKey, publicKey)}
-	if input.Timeout > 0 {
-		options = append(options, WithContextTimeout(input.Timeout))
-	}
 	if input.Validator != nil {
 		options = append(options, WithValidator(input.Validator))
 	}
@@ -392,9 +374,6 @@ func NewHMACService(input HMACServiceInput) (*Service, error) {
 	}
 
 	options := []Option{WithHMACSHA256(secret)}
-	if input.Timeout > 0 {
-		options = append(options, WithContextTimeout(input.Timeout))
-	}
 	if input.Validator != nil {
 		options = append(options, WithValidator(input.Validator))
 	}
@@ -433,9 +412,6 @@ func NewRSAService(input RSAServiceInput) (*Service, error) {
 	}
 
 	options := []Option{WithRSASHA256(privateKey, publicKey)}
-	if input.Timeout > 0 {
-		options = append(options, WithContextTimeout(input.Timeout))
-	}
 	if input.Validator != nil {
 		options = append(options, WithValidator(input.Validator))
 	}

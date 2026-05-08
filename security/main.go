@@ -230,9 +230,6 @@ func newCustomJWTService(config jwtservice.ConfigServiceInput) (*jwtservice.Serv
 	options := []jwtservice.Option{
 		jwtservice.WithCustomStrategy("CUSTOM", customJWTSign, customJWTVerify),
 	}
-	if config.Timeout > 0 {
-		options = append(options, jwtservice.WithContextTimeout(config.Timeout))
-	}
 	if config.Validator != nil {
 		options = append(options, jwtservice.WithValidator(config.Validator))
 	}
