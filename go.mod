@@ -10,7 +10,7 @@ replace (
 
 require (
 	github.com/PointerByte/QuicksGo/logger v0.0.9
-	github.com/PointerByte/QuicksGo/security v0.0.27
+	github.com/PointerByte/QuicksGo/security v0.0.28
 	github.com/aws/aws-sdk-go-v2 v1.41.7
 	github.com/aws/aws-sdk-go-v2/config v1.32.17
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.74.1
