@@ -4,6 +4,8 @@
 package code
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -12,6 +14,8 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -22,6 +26,23 @@ import (
 	"strings"
 	"time"
 )
+
+const (
+	encryptedPEMBlockType        = "QUICKSGO ENCRYPTED PEM"
+	encryptedPEMVersion          = 1
+	encryptedPEMAlgorithm        = "AES-256-GCM"
+	encryptedKindCertificate     = "certificate"
+	encryptedKindPrivateKey      = "private-key"
+	encryptedKindPublicKey       = "public-key"
+	minimumEncryptionSecretBytes = 32
+)
+
+type encryptedPEMPayload struct {
+	Version    int    `json:"version"`
+	Algorithm  string `json:"algorithm"`
+	Nonce      string `json:"nonce"`
+	Ciphertext string `json:"ciphertext"`
+}
 
 // Options configures the generated certificate, keys, output paths, and algorithm-specific settings.
 type Options struct {
@@ -57,6 +78,12 @@ type Options struct {
 	CAKeyFile string
 	// IsCA marks the generated certificate as a certificate authority.
 	IsCA bool
+	// EncryptSecret encrypts generated PEM files when set. It must be at least 32 bytes.
+	EncryptSecret string
+	// SignedBySecret decrypts an encrypted SignedBy certificate when set.
+	SignedBySecret string
+	// CAKeySecret decrypts an encrypted CAKeyFile private key when set.
+	CAKeySecret string
 }
 
 // Result describes the generated PEM artifacts and the effective generation parameters.
@@ -71,6 +98,8 @@ type Result struct {
 	PrivateKeyPath string
 	// PublicKeyPath is the path to the generated public key PEM file.
 	PublicKeyPath string
+	// Encrypted reports whether the generated PEM files were encrypted.
+	Encrypted bool
 }
 
 // Generator coordinates filesystem writes and cryptographic generation helpers.
@@ -136,12 +165,29 @@ func (generator *Generator) Generate(options Options) (Result, error) {
 		return Result{}, err
 	}
 
+	encrypted := resolvedOptions.EncryptSecret != ""
+	if encrypted {
+		certificatePEM, err = encryptPEM(certificatePEM, resolvedOptions.EncryptSecret, encryptedKindCertificate, randomSource)
+		if err != nil {
+			return Result{}, fmt.Errorf("encrypt certificate file: %w", err)
+		}
+		privateKeyPEM, err = encryptPEM(privateKeyPEM, resolvedOptions.EncryptSecret, encryptedKindPrivateKey, randomSource)
+		if err != nil {
+			return Result{}, fmt.Errorf("encrypt private key file: %w", err)
+		}
+		publicKeyPEM, err = encryptPEM(publicKeyPEM, resolvedOptions.EncryptSecret, encryptedKindPublicKey, randomSource)
+		if err != nil {
+			return Result{}, fmt.Errorf("encrypt public key file: %w", err)
+		}
+	}
+
 	result := Result{
 		Algorithm:       resolvedOptions.Algorithm,
 		OutputDir:       resolvedOptions.OutputDir,
 		CertificatePath: filepath.Join(resolvedOptions.OutputDir, resolvedOptions.CertFileName),
 		PrivateKeyPath:  filepath.Join(resolvedOptions.OutputDir, resolvedOptions.KeyFileName),
 		PublicKeyPath:   filepath.Join(resolvedOptions.OutputDir, resolvedOptions.PublicKeyFileName),
+		Encrypted:       encrypted,
 	}
 
 	if err := generator.writeFileFn(result.CertificatePath, certificatePEM, 0o644); err != nil {
@@ -212,6 +258,27 @@ func normalizeOptions(options Options) (Options, error) {
 	}
 	if (options.SignedBy == "") != (options.CAKeyFile == "") {
 		return Options{}, fmt.Errorf("signed-by and ca-key must be provided together")
+	}
+	if options.EncryptSecret != "" {
+		if err := validateEncryptionSecret(options.EncryptSecret); err != nil {
+			return Options{}, err
+		}
+	}
+	if options.SignedBySecret != "" && options.SignedBy == "" {
+		return Options{}, fmt.Errorf("signed-by-secret requires signed-by")
+	}
+	if options.CAKeySecret != "" && options.CAKeyFile == "" {
+		return Options{}, fmt.Errorf("ca-key-secret requires ca-key")
+	}
+	if options.SignedBySecret != "" {
+		if err := validateEncryptionSecret(options.SignedBySecret); err != nil {
+			return Options{}, fmt.Errorf("signed-by-secret: %w", err)
+		}
+	}
+	if options.CAKeySecret != "" {
+		if err := validateEncryptionSecret(options.CAKeySecret); err != nil {
+			return Options{}, fmt.Errorf("ca-key-secret: %w", err)
+		}
 	}
 
 	switch options.Algorithm {
@@ -331,7 +398,7 @@ func (generator *Generator) buildCertificate(randomSource io.Reader, options Opt
 	parent := template
 	signingKey := privateKey
 	if options.SignedBy != "" {
-		caCert, caKey, err := loadSigningCA(options.SignedBy, options.CAKeyFile)
+		caCert, caKey, err := loadSigningCA(options.SignedBy, options.CAKeyFile, options.SignedBySecret, options.CAKeySecret)
 		if err != nil {
 			return nil, err
 		}
@@ -347,8 +414,8 @@ func (generator *Generator) buildCertificate(randomSource io.Reader, options Opt
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), nil
 }
 
-func loadSigningCA(certPath string, keyPath string) (*x509.Certificate, any, error) {
-	certificate, err := parseCertificatePEMFile(certPath)
+func loadSigningCA(certPath string, keyPath string, certSecret string, keySecret string) (*x509.Certificate, any, error) {
+	certificate, err := readCertificatePEMFile(certPath, certSecret)
 	if err != nil {
 		return nil, nil, fmt.Errorf("read signed-by certificate: %w", err)
 	}
@@ -356,7 +423,7 @@ func loadSigningCA(certPath string, keyPath string) (*x509.Certificate, any, err
 		return nil, nil, fmt.Errorf("signed-by certificate is not a CA")
 	}
 
-	privateKey, err := parsePrivateKeyPEMFile(keyPath)
+	privateKey, err := readPrivateKeyPEMFile(keyPath, keySecret)
 	if err != nil {
 		return nil, nil, fmt.Errorf("read ca-key: %w", err)
 	}
@@ -364,7 +431,15 @@ func loadSigningCA(certPath string, keyPath string) (*x509.Certificate, any, err
 }
 
 func parseCertificatePEMFile(path string) (*x509.Certificate, error) {
+	return readCertificatePEMFile(path, "")
+}
+
+func readCertificatePEMFile(path string, secret string) (*x509.Certificate, error) {
 	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	content, err = DecryptPEM(content, secret)
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +457,15 @@ func parseCertificatePEMFile(path string) (*x509.Certificate, error) {
 }
 
 func parsePrivateKeyPEMFile(path string) (any, error) {
+	return readPrivateKeyPEMFile(path, "")
+}
+
+func readPrivateKeyPEMFile(path string, secret string) (any, error) {
 	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	content, err = DecryptPEM(content, secret)
 	if err != nil {
 		return nil, err
 	}
@@ -403,6 +486,143 @@ func parsePrivateKeyPEMFile(path string) (any, error) {
 		return privateKey, nil
 	}
 	return nil, fmt.Errorf("parse private key: %w", err)
+}
+
+// ReadPEMFile reads a PEM file and decrypts it when it contains a QuicksGo
+// encrypted PEM envelope.
+func ReadPEMFile(path string, secret string) ([]byte, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return DecryptPEM(content, secret)
+}
+
+// ReadCertificateFile reads a plain or encrypted certificate PEM file.
+func ReadCertificateFile(path string, secret string) (*x509.Certificate, error) {
+	return readCertificatePEMFile(path, secret)
+}
+
+// ReadPrivateKeyFile reads a plain or encrypted private key PEM file.
+func ReadPrivateKeyFile(path string, secret string) (any, error) {
+	return readPrivateKeyPEMFile(path, secret)
+}
+
+// ReadPublicKeyFile reads a plain or encrypted public key PEM file.
+func ReadPublicKeyFile(path string, secret string) (any, error) {
+	content, err := ReadPEMFile(path, secret)
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(content)
+	if block == nil {
+		return nil, fmt.Errorf("decode public key PEM: no PEM data found")
+	}
+
+	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse public key: %w", err)
+	}
+	return publicKey, nil
+}
+
+// DecryptPEM returns plain PEM content. Unencrypted PEM content is returned as-is.
+func DecryptPEM(content []byte, secret string) ([]byte, error) {
+	block, _ := pem.Decode(content)
+	if block == nil || block.Type != encryptedPEMBlockType {
+		return content, nil
+	}
+	if err := validateEncryptionSecret(secret); err != nil {
+		return nil, err
+	}
+
+	var payload encryptedPEMPayload
+	if err := json.Unmarshal(block.Bytes, &payload); err != nil {
+		return nil, fmt.Errorf("decode encrypted PEM payload: %w", err)
+	}
+	if payload.Version != encryptedPEMVersion {
+		return nil, fmt.Errorf("unsupported encrypted PEM version %d", payload.Version)
+	}
+	if payload.Algorithm != encryptedPEMAlgorithm {
+		return nil, fmt.Errorf("unsupported encrypted PEM algorithm %q", payload.Algorithm)
+	}
+
+	nonce, err := base64.StdEncoding.DecodeString(payload.Nonce)
+	if err != nil {
+		return nil, fmt.Errorf("decode encrypted PEM nonce: %w", err)
+	}
+	cipherText, err := base64.StdEncoding.DecodeString(payload.Ciphertext)
+	if err != nil {
+		return nil, fmt.Errorf("decode encrypted PEM ciphertext: %w", err)
+	}
+
+	aead, err := newAESGCM(secret)
+	if err != nil {
+		return nil, err
+	}
+	if len(nonce) != aead.NonceSize() {
+		return nil, fmt.Errorf("invalid encrypted PEM nonce size")
+	}
+
+	plainText, err := aead.Open(nil, nonce, cipherText, []byte(block.Headers["Kind"]))
+	if err != nil {
+		return nil, fmt.Errorf("decrypt encrypted PEM: %w", err)
+	}
+	return plainText, nil
+}
+
+func encryptPEM(content []byte, secret string, kind string, randomSource io.Reader) ([]byte, error) {
+	if err := validateEncryptionSecret(secret); err != nil {
+		return nil, err
+	}
+
+	aead, err := newAESGCM(secret)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce := make([]byte, aead.NonceSize())
+	if _, err := io.ReadFull(randomSource, nonce); err != nil {
+		return nil, fmt.Errorf("generate encrypted PEM nonce: %w", err)
+	}
+
+	cipherText := aead.Seal(nil, nonce, content, []byte(kind))
+	payload, err := json.Marshal(encryptedPEMPayload{
+		Version:    encryptedPEMVersion,
+		Algorithm:  encryptedPEMAlgorithm,
+		Nonce:      base64.StdEncoding.EncodeToString(nonce),
+		Ciphertext: base64.StdEncoding.EncodeToString(cipherText),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("encode encrypted PEM payload: %w", err)
+	}
+
+	return pem.EncodeToMemory(&pem.Block{
+		Type:    encryptedPEMBlockType,
+		Headers: map[string]string{"Kind": kind},
+		Bytes:   payload,
+	}), nil
+}
+
+func validateEncryptionSecret(secret string) error {
+	if len([]byte(secret)) < minimumEncryptionSecretBytes {
+		return fmt.Errorf("encryption secret must be at least 256 bits")
+	}
+	return nil
+}
+
+func newAESGCM(secret string) (cipher.AEAD, error) {
+	key := sha256.Sum256([]byte(secret))
+	block, err := aes.NewCipher(key[:])
+	if err != nil {
+		return nil, fmt.Errorf("create AES-256 cipher: %w", err)
+	}
+	aead, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("create AES-GCM: %w", err)
+	}
+	return aead, nil
 }
 
 func sanitizeStrings(values []string) []string {

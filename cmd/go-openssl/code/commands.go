@@ -24,6 +24,13 @@ type generateCommand struct {
 	options *Options
 }
 
+type readCommand struct {
+	app        *App
+	file       string
+	secret     string
+	outputFile string
+}
+
 // newGenerateCommand creates the certificate generation command.
 func newGenerateCommand(app *App) Command {
 	return &generateCommand{
@@ -50,12 +57,13 @@ func (command *generateCommand) Cobra() *cobra.Command {
 
 			_, err = fmt.Fprintf(
 				command.app.streams.Out,
-				"Certificate generated in %s using %s\nCert: %s\nKey: %s\nPublic key: %s\n",
+				"Certificate generated in %s using %s\nCert: %s\nKey: %s\nPublic key: %s\nEncrypted: %t\n",
 				result.OutputDir,
 				strings.ToUpper(result.Algorithm),
 				result.CertificatePath,
 				result.PrivateKeyPath,
 				result.PublicKeyPath,
+				result.Encrypted,
 			)
 			return err
 		},
@@ -76,5 +84,43 @@ func (command *generateCommand) Cobra() *cobra.Command {
 	cobraCmd.Flags().StringVar(&command.options.SignedBy, "signed-by", command.options.SignedBy, "CA certificate PEM file used to sign the generated certificate")
 	cobraCmd.Flags().StringVar(&command.options.CAKeyFile, "ca-key", command.options.CAKeyFile, "CA private key PEM file used to sign the generated certificate")
 	cobraCmd.Flags().BoolVar(&command.options.IsCA, "ca", command.options.IsCA, "Mark the generated certificate as a certificate authority")
+	cobraCmd.Flags().StringVar(&command.options.EncryptSecret, "encrypt-secret", command.options.EncryptSecret, "Secret used to encrypt generated PEM files; must be at least 256 bits")
+	cobraCmd.Flags().StringVar(&command.options.SignedBySecret, "signed-by-secret", command.options.SignedBySecret, "Secret used to read an encrypted signed-by certificate")
+	cobraCmd.Flags().StringVar(&command.options.CAKeySecret, "ca-key-secret", command.options.CAKeySecret, "Secret used to read an encrypted CA private key")
+	return cobraCmd
+}
+
+// newReadCommand creates the encrypted PEM read command.
+func newReadCommand(app *App) Command {
+	return &readCommand{
+		app: app,
+	}
+}
+
+// Cobra creates the executable Cobra command that reads plain or encrypted PEM files.
+func (command *readCommand) Cobra() *cobra.Command {
+	cobraCmd := &cobra.Command{
+		Use:   "read",
+		Short: "Read a plain or encrypted PEM file",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if strings.TrimSpace(command.file) == "" {
+				return fmt.Errorf("file is required")
+			}
+
+			content, err := ReadPEMFile(command.file, command.secret)
+			if err != nil {
+				return err
+			}
+			if strings.TrimSpace(command.outputFile) != "" {
+				return command.app.generator.writeFileFn(command.outputFile, content, 0o600)
+			}
+			_, err = command.app.streams.Out.Write(content)
+			return err
+		},
+	}
+
+	cobraCmd.Flags().StringVarP(&command.file, "file", "f", command.file, "Plain or encrypted PEM file to read")
+	cobraCmd.Flags().StringVarP(&command.secret, "secret", "s", command.secret, "Secret used to decrypt encrypted PEM files")
+	cobraCmd.Flags().StringVarP(&command.outputFile, "out", "o", command.outputFile, "Optional output file for the decrypted PEM")
 	return cobraCmd
 }

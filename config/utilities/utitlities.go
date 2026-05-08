@@ -14,12 +14,18 @@ import (
 var readInConfig = viper.ReadInConfig
 
 func LoadEnv(prefixPath string) error {
+	var configFile, configType string
 	// Prefer application.yml and fall back to application.json.
-	configFile := filepath.Join(prefixPath, "application.json")
-	configType := "json"
-	if _, err := os.Stat(filepath.Join(prefixPath, "application.yml")); err == nil {
-		configFile = filepath.Join(prefixPath, "application.yml")
+	dir := filepath.Join(prefixPath, "application.yml")
+	if _, err := os.Stat(dir); err == nil {
+		configFile = dir
 		configType = "yml"
+	} else if _, err := os.Stat(filepath.Join(prefixPath, "application.yaml")); err == nil {
+		configFile = filepath.Join(prefixPath, "application.yaml")
+		configType = "yaml"
+	} else {
+		configFile = filepath.Join(prefixPath, "application.json")
+		configType = "json"
 	}
 
 	viper.SetConfigFile(configFile)

@@ -28,6 +28,19 @@ Generar un certificado Ed25519:
 go-openssl generate --algorithm ed25519 --dir ./certs
 ```
 
+Generar archivos PEM cifrados. El secreto debe tener al menos 256 bits, es
+decir, 32 bytes o mas:
+
+```bash
+go-openssl generate --algorithm rsa --dir ./certs --encrypt-secret "12345678901234567890123456789012"
+```
+
+Leer un certificado o llave cifrada como PEM plano:
+
+```bash
+go-openssl read --file ./certs/cert.pem --secret "12345678901234567890123456789012"
+```
+
 El generador permite controlar:
 
 - el algoritmo: `rsa`, `ecc` o `ed25519`
@@ -40,8 +53,10 @@ El generador permite controlar:
 - la curva ECC con `--ecc-curve`
 - los nombres de archivo con `--cert-file`, `--key-file` y `--public-key-file`
 - firmar con una CA existente usando `--signed-by` y `--ca-key`
+- leer una CA firmante cifrada usando `--signed-by-secret` y `--ca-key-secret`
 - si el certificado debe ser CA con `--ca`
 - entropía adicional opcional con `--salt`
+- cifrar los PEM generados con `--encrypt-secret`
 
 El comando escribe por defecto dentro del directorio seleccionado:
 
@@ -52,6 +67,12 @@ El comando escribe por defecto dentro del directorio seleccionado:
 Cuando usas `--signed-by`, tambien debes pasar `--ca-key`. El certificado
 generado queda firmado por esa CA, mientras que `key.pem` y `public.pem`
 pertenecen al nuevo certificado.
+
+Cuando usas `--encrypt-secret`, `cert.pem`, `key.pem` y `public.pem` se escriben
+como envoltorios `QUICKSGO ENCRYPTED PEM` usando AES-256-GCM. Usa
+`go-openssl read`, `goopenssl.ReadPEMFile`, `goopenssl.ReadCertificateFile`,
+`goopenssl.ReadPrivateKeyFile` o `goopenssl.ReadPublicKeyFile` con el mismo
+secreto para recuperar el contenido PEM original.
 
 ### Equivalencia entre CLI y Go
 
@@ -75,6 +96,18 @@ Cada flag de `go-openssl generate` corresponde a un campo en
 | `--signed-by` | `SignedBy` |
 | `--ca-key` | `CAKeyFile` |
 | `--ca` | `IsCA` |
+| `--encrypt-secret` | `EncryptSecret` |
+| `--signed-by-secret` | `SignedBySecret` |
+| `--ca-key-secret` | `CAKeySecret` |
+
+`go-openssl read` es un helper para leer o descifrar y corresponde a las
+funciones de lectura exportadas:
+
+| Flag CLI | Equivalente Go |
+| --- | --- |
+| `--file` | primer argumento de `ReadPEMFile`, `ReadCertificateFile`, `ReadPrivateKeyFile` o `ReadPublicKeyFile` |
+| `--secret` | segundo argumento de la funcion de lectura |
+| `--out` | escribir los bytes devueltos al archivo destino |
 
 Los ejemplos Go de abajo asumen este import:
 
@@ -223,6 +256,104 @@ _, err = goopenssl.GenerateCertificates(goopenssl.Options{
 	PublicKeyFileName: "public.pem",
 	SignedBy:          caResult.CertificatePath,
 	CAKeyFile:         caResult.PrivateKeyPath,
+})
+```
+
+### Crear y leer certificados cifrados
+
+Usa `--encrypt-secret` para cifrar todos los PEM generados. El mismo secreto es
+necesario para leerlos despues. El secreto debe tener al menos 32 bytes.
+
+```bash
+go-openssl generate \
+  --algorithm rsa \
+  --rsa-bits 4096 \
+  --dir ./certs/encrypted \
+  --common-name my-api.default.svc.cluster.local \
+  --dns my-api.default.svc.cluster.local \
+  --organization "Example Platform" \
+  --days 365 \
+  --encrypt-secret "12345678901234567890123456789012"
+```
+
+Leer el certificado cifrado hacia stdout:
+
+```bash
+go-openssl read \
+  --file ./certs/encrypted/cert.pem \
+  --secret "12345678901234567890123456789012"
+```
+
+Escribir el PEM descifrado en otro archivo:
+
+```bash
+go-openssl read \
+  --file ./certs/encrypted/key.pem \
+  --secret "12345678901234567890123456789012" \
+  --out ./certs/encrypted/key.decrypted.pem
+```
+
+Codigo Go equivalente:
+
+```go
+result, err := goopenssl.GenerateCertificates(goopenssl.Options{
+	Algorithm:     "rsa",
+	RSAKeySize:    4096,
+	OutputDir:     "./certs/encrypted",
+	CommonName:    "my-api.default.svc.cluster.local",
+	DNSNames:      []string{"my-api.default.svc.cluster.local"},
+	Organization:  "Example Platform",
+	ValidForDays:  365,
+	EncryptSecret: "12345678901234567890123456789012",
+})
+if err != nil {
+	return err
+}
+
+certPEM, err := goopenssl.ReadPEMFile(result.CertificatePath, "12345678901234567890123456789012")
+if err != nil {
+	return err
+}
+_ = certPEM
+
+certificate, err := goopenssl.ReadCertificateFile(result.CertificatePath, "12345678901234567890123456789012")
+if err != nil {
+	return err
+}
+_ = certificate
+```
+
+Si una CA fue generada cifrada, pasa los secretos de lectura al usarla para
+firmar un certificado nuevo.
+
+CLI:
+
+```bash
+go-openssl generate \
+  --algorithm ecc \
+  --ecc-curve p384 \
+  --dir ./certs/service \
+  --common-name service.default.svc.cluster.local \
+  --dns service.default.svc.cluster.local \
+  --signed-by ./certs/ca/ca.pem \
+  --ca-key ./certs/ca/ca-key.pem \
+  --signed-by-secret "12345678901234567890123456789012" \
+  --ca-key-secret "12345678901234567890123456789012"
+```
+
+Codigo Go equivalente:
+
+```go
+_, err = goopenssl.GenerateCertificates(goopenssl.Options{
+	Algorithm:      "ecc",
+	ECCCurve:       "p384",
+	OutputDir:      "./certs/service",
+	CommonName:     "service.default.svc.cluster.local",
+	DNSNames:       []string{"service.default.svc.cluster.local"},
+	SignedBy:       "./certs/ca/ca.pem",
+	CAKeyFile:      "./certs/ca/ca-key.pem",
+	SignedBySecret: "12345678901234567890123456789012",
+	CAKeySecret:    "12345678901234567890123456789012",
 })
 ```
 

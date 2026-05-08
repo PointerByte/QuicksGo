@@ -174,7 +174,13 @@ func (su *Config) Serve() error {
 	if su.mocks != nil {
 		return su.mocks.Serve()
 	}
-	if err := loadEnv("."); err != nil {
+
+	dir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	if err := loadEnv(dir); err != nil {
 		return err
 	}
 	if err := su.ensureServer(); err != nil {
@@ -208,8 +214,7 @@ func (su *Config) Serve() error {
 		waitForShutdownSignalFn(server)
 	})
 
-	err := server.Serve(listener)
-	if err != nil {
+	if err := server.Serve(listener); err != nil {
 		logServerErrorFn(fmt.Errorf("gRPC server stopped with error: %w", err))
 		return err
 	}
