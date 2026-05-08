@@ -2,6 +2,7 @@
 **/logs
 **/coverage.html
 **/.gocache
+**/.idea
 .codex
 coverage_report.txt
 coverage.out.total

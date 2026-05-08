@@ -78,8 +78,17 @@ func TestGenerateCommandCobra(t *testing.T) {
 		t.Fatalf("expected use generate, got %q", generateCmd.Use)
 	}
 	if generateCmd.Flag("algorithm") == nil || generateCmd.Flag("dir") == nil || generateCmd.Flag("salt") == nil ||
-		generateCmd.Flag("signed-by") == nil || generateCmd.Flag("ca-key") == nil {
+		generateCmd.Flag("signed-by") == nil || generateCmd.Flag("ca-key") == nil ||
+		generateCmd.Flag("encrypt-secret") == nil || generateCmd.Flag("ca-key-secret") == nil {
 		t.Fatal("expected certificate flags to be registered")
+	}
+
+	readCmd := newReadCommand(app).Cobra()
+	if readCmd.Use != "read" {
+		t.Fatalf("expected use read, got %q", readCmd.Use)
+	}
+	if readCmd.Flag("file") == nil || readCmd.Flag("secret") == nil || readCmd.Flag("out") == nil {
+		t.Fatal("expected read flags to be registered")
 	}
 }
 
@@ -109,5 +118,40 @@ func TestGenerateCommandRunE(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), "Certificate generated in") {
 		t.Fatalf("expected success output, got %q", output.String())
+	}
+}
+
+func TestReadCommandRunE(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "certs")
+	result, err := GenerateCertificates(Options{
+		OutputDir:     dir,
+		CommonName:    "localhost",
+		EncryptSecret: testEncryptionSecret,
+	})
+	if err != nil {
+		t.Fatalf("GenerateCertificates returned error: %v", err)
+	}
+
+	output := &bytes.Buffer{}
+	app := &App{
+		streams: IOStreams{
+			In:  strings.NewReader(""),
+			Out: output,
+			Err: &bytes.Buffer{},
+		},
+		generator: NewGenerator(),
+	}
+
+	cmd := app.rootCommand()
+	cmd.SetArgs([]string{
+		"read",
+		"--file", result.CertificatePath,
+		"--secret", testEncryptionSecret,
+	})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("expected read command execution without error, got %v", err)
+	}
+	if !strings.Contains(output.String(), "BEGIN CERTIFICATE") {
+		t.Fatalf("expected decrypted certificate output, got %q", output.String())
 	}
 }

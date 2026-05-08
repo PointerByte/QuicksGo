@@ -11,8 +11,11 @@ import (
 	"encoding/pem"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+const testEncryptionSecret = "12345678901234567890123456789012"
 
 func TestGenerateCertificatesByAlgorithm(t *testing.T) {
 	tests := []struct {
@@ -144,6 +147,112 @@ func TestGenerateCertificatesSignedByCA(t *testing.T) {
 	}
 }
 
+func TestGenerateEncryptedCertificates(t *testing.T) {
+	outputDir := filepath.Join(t.TempDir(), "certs")
+	result, err := GenerateCertificates(Options{
+		Algorithm:     algorithmRSA,
+		OutputDir:     outputDir,
+		CommonName:    "localhost",
+		ValidForDays:  10,
+		EncryptSecret: testEncryptionSecret,
+	})
+	if err != nil {
+		t.Fatalf("GenerateCertificates encrypted returned error: %v", err)
+	}
+	if !result.Encrypted {
+		t.Fatal("expected encrypted result")
+	}
+
+	rawContent, err := os.ReadFile(result.CertificatePath)
+	if err != nil {
+		t.Fatalf("expected encrypted certificate file, got %v", err)
+	}
+	block, _ := pem.Decode(rawContent)
+	if block == nil || block.Type != encryptedPEMBlockType {
+		t.Fatalf("expected encrypted PEM block, got %#v", block)
+	}
+
+	certificatePEM, err := ReadPEMFile(result.CertificatePath, testEncryptionSecret)
+	if err != nil {
+		t.Fatalf("ReadPEMFile certificate returned error: %v", err)
+	}
+	certificate := parseCertificateContent(t, certificatePEM)
+	if certificate.Subject.CommonName != "localhost" {
+		t.Fatalf("expected common name localhost, got %q", certificate.Subject.CommonName)
+	}
+	if certificate, err := ReadCertificateFile(result.CertificatePath, testEncryptionSecret); err != nil || certificate.Subject.CommonName != "localhost" {
+		t.Fatalf("expected ReadCertificateFile to return localhost certificate, cert=%v err=%v", certificate, err)
+	}
+
+	privateKeyPEM, err := ReadPEMFile(result.PrivateKeyPath, testEncryptionSecret)
+	if err != nil {
+		t.Fatalf("ReadPEMFile private key returned error: %v", err)
+	}
+	if _, ok := parsePrivateKeyContent(t, privateKeyPEM).(*rsa.PrivateKey); !ok {
+		t.Fatal("expected decrypted RSA private key")
+	}
+	if _, err := ReadPrivateKeyFile(result.PrivateKeyPath, testEncryptionSecret); err != nil {
+		t.Fatalf("ReadPrivateKeyFile returned error: %v", err)
+	}
+	if _, err := ReadPublicKeyFile(result.PublicKeyPath, testEncryptionSecret); err != nil {
+		t.Fatalf("ReadPublicKeyFile returned error: %v", err)
+	}
+
+	if _, err := ReadPEMFile(result.CertificatePath, "short"); err == nil {
+		t.Fatal("expected short secret error")
+	}
+	if _, err := ReadPEMFile(result.CertificatePath, strings.Repeat("x", 32)); err == nil {
+		t.Fatal("expected wrong secret error")
+	}
+}
+
+func TestGenerateCertificatesSignedByEncryptedCA(t *testing.T) {
+	outputDir := filepath.Join(t.TempDir(), "certs")
+	caResult, err := GenerateCertificates(Options{
+		Algorithm:         algorithmECC,
+		ECCCurve:          curveP384,
+		OutputDir:         outputDir,
+		CommonName:        "encrypted-ca.local",
+		ValidForDays:      365,
+		IsCA:              true,
+		CertFileName:      "ca.pem",
+		KeyFileName:       "ca-key.pem",
+		PublicKeyFileName: "ca-public.pem",
+		EncryptSecret:     testEncryptionSecret,
+	})
+	if err != nil {
+		t.Fatalf("GenerateCertificates encrypted CA returned error: %v", err)
+	}
+
+	result, err := GenerateCertificates(Options{
+		Algorithm:         algorithmECC,
+		ECCCurve:          curveP384,
+		OutputDir:         outputDir,
+		CommonName:        "service.local",
+		ValidForDays:      365,
+		CertFileName:      "cert.pem",
+		KeyFileName:       "key.pem",
+		PublicKeyFileName: "public.pem",
+		SignedBy:          caResult.CertificatePath,
+		CAKeyFile:         caResult.PrivateKeyPath,
+		SignedBySecret:    testEncryptionSecret,
+		CAKeySecret:       testEncryptionSecret,
+	})
+	if err != nil {
+		t.Fatalf("GenerateCertificates signed by encrypted CA returned error: %v", err)
+	}
+
+	caPEM, err := ReadPEMFile(caResult.CertificatePath, testEncryptionSecret)
+	if err != nil {
+		t.Fatalf("ReadPEMFile CA returned error: %v", err)
+	}
+	caCertificate := parseCertificateContent(t, caPEM)
+	certificate := parseCertificateFile(t, result.CertificatePath)
+	if err := certificate.CheckSignatureFrom(caCertificate); err != nil {
+		t.Fatalf("expected certificate to verify against encrypted CA, got %v", err)
+	}
+}
+
 func TestGenerateCertificatesErrors(t *testing.T) {
 	if _, err := GenerateCertificates(Options{Algorithm: "dsa", OutputDir: t.TempDir(), CommonName: "localhost"}); err == nil {
 		t.Fatal("expected unsupported algorithm error")
@@ -174,6 +283,14 @@ func TestGenerateCertificatesErrors(t *testing.T) {
 	}); err == nil {
 		t.Fatal("expected signed-by without ca-key error")
 	}
+
+	if _, err := GenerateCertificates(Options{
+		OutputDir:     t.TempDir(),
+		CommonName:    "localhost",
+		EncryptSecret: "short",
+	}); err == nil {
+		t.Fatal("expected short encryption secret error")
+	}
 }
 
 func parseCertificateFile(t *testing.T, path string) *x509.Certificate {
@@ -185,6 +302,19 @@ func parseCertificateFile(t *testing.T, path string) *x509.Certificate {
 	}
 
 	block, _ := pem.Decode(content)
+	return parseCertificateBlock(t, block)
+}
+
+func parseCertificateContent(t *testing.T, content []byte) *x509.Certificate {
+	t.Helper()
+
+	block, _ := pem.Decode(content)
+	return parseCertificateBlock(t, block)
+}
+
+func parseCertificateBlock(t *testing.T, block *pem.Block) *x509.Certificate {
+	t.Helper()
+
 	if block == nil {
 		t.Fatal("expected certificate PEM block")
 	}
@@ -205,6 +335,19 @@ func parsePrivateKeyFile(t *testing.T, path string) any {
 	}
 
 	block, _ := pem.Decode(content)
+	return parsePrivateKeyBlock(t, block)
+}
+
+func parsePrivateKeyContent(t *testing.T, content []byte) any {
+	t.Helper()
+
+	block, _ := pem.Decode(content)
+	return parsePrivateKeyBlock(t, block)
+}
+
+func parsePrivateKeyBlock(t *testing.T, block *pem.Block) any {
+	t.Helper()
+
 	if block == nil {
 		t.Fatal("expected private key PEM block")
 	}

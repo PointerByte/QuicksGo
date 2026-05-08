@@ -54,5 +54,6 @@ func (app *App) rootCommand() *cobra.Command {
 		SilenceErrors: true,
 	}
 	root.AddCommand(newGenerateCommand(app).Cobra())
+	root.AddCommand(newReadCommand(app).Cobra())
 	return root
 }

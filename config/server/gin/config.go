@@ -34,12 +34,10 @@ var quit chan os.Signal
 func init() {
 	quit = make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-	mode := viper.GetString("server.gin.mode")
-	gin.SetMode(mode)
 }
 
 func loadConfigDefaultGin() {
-	viper.SetDefault("server.gin.mode", gin.ReleaseMode)
+	gin.SetMode(viper.GetString("server.gin.mode"))
 	viper.SetDefault("server.gin.UseH2C", true)
 	viper.SetDefault("server.gin.rate.Limit", 1000)
 	viper.SetDefault("server.gin.rate.burst", 2000)
@@ -180,7 +178,12 @@ func resolveTLSAutoConfig() {
 // creates the route groups declared in configuration.
 func CreateApp(optionsJWT ...middlewares.JWTMiddlewareOption) (*http.Server, error) {
 	// Load default config.
-	if err := loadConfig("."); err != nil {
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := loadConfig(dir); err != nil {
 		return nil, err
 	}
 
@@ -206,7 +209,7 @@ func CreateApp(optionsJWT ...middlewares.JWTMiddlewareOption) (*http.Server, err
 
 	// Create API route groups.
 	routes := make(map[string]*gin.RouterGroup)
-	groups := viper.GetStringSlice("server.groups")
+	groups := viper.GetStringSlice("server.gin.groups")
 	for _, g := range groups {
 		routes[g] = engine.Group(g)
 		routes[g].GET("/refresh", refresh())

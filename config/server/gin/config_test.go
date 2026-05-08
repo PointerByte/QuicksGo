@@ -118,10 +118,11 @@ func newLoggerProviderNoop(context.Context, string) (*sdklog.LoggerProvider, err
 
 func TestLoadConfigDefaultGin(t *testing.T) {
 	resetServerTestState(t)
+	viper.Set("server.gin.mode", gin.ReleaseMode)
 
 	loadConfigDefaultGin()
 
-	if got := viper.GetString("server.gin.mode"); got != gin.ReleaseMode {
+	if got := gin.Mode(); got != gin.ReleaseMode {
 		t.Fatalf("expected release mode, got %q", got)
 	}
 	if !viper.GetBool("server.gin.UseH2C") {
@@ -288,7 +289,7 @@ func TestCreateApp(t *testing.T) {
 			viper.Set("logger.dir", "logs")
 			viper.Set("server.port", ":8080")
 			viper.Set("server.gin.port", ":8080")
-			viper.Set("server.groups", []string{"/api/v1"})
+			viper.Set("server.gin.groups", []string{"/api/v1"})
 			viper.Set("server.gin.UseH2C", true)
 			viper.Set("jwt.enable", false)
 			viper.Set("app.name", "svc")
@@ -332,7 +333,7 @@ func TestCreateApp(t *testing.T) {
 			viper.Set("logger.dir", "logs")
 			viper.Set("server.port", ":8443")
 			viper.Set("server.gin.port", ":8443")
-			viper.Set("server.groups", []string{"/api/v1"})
+			viper.Set("server.gin.groups", []string{"/api/v1"})
 			viper.Set("gin.autotls.enable", false)
 			return nil
 		}
@@ -357,7 +358,7 @@ func TestCreateApp(t *testing.T) {
 			viper.Set("logger.dir", "logs")
 			viper.Set("server.port", ":8080")
 			viper.Set("server.gin.port", ":8080")
-			viper.Set("server.groups", []string{"/api/v1"})
+			viper.Set("server.gin.groups", []string{"/api/v1"})
 			viper.Set("server.gin.UseH2C", true)
 			viper.Set("jwt.enable", true)
 			viper.Set("jwt.transport", "cookie")

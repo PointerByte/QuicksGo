@@ -130,6 +130,7 @@ logger:
     compress: true
 
 traces:
+  enable: false
   SkipPaths:
     - /health
 
@@ -140,11 +141,11 @@ jwt:
   hmac:
     secret: change-me-hmac-secret
   rsa:
-    private_key: ""
-    public_key: ""
+    private_key: ./certs/jwt/public.pem
+    public_key: ./certs/jwt/key.pem
   eddsa:
-    private_key: ""
-    public_key: ""
+    private_key: ./certs/jwt/public.pem
+    public_key: ./certs/jwt/key.pem
 `, appName)
 	}
 
@@ -165,7 +166,7 @@ server:
     LoggerWithConfig:
       enabled: true
       SkipPaths:
-        - /api/v1/health
+        - /health
       SkipQueryString: false
 
 gin:
@@ -204,8 +205,9 @@ logger:
     compress: true
 
 traces:
+  enable: false
   SkipPaths:
-    - /api/v1/health
+    - /health
 
 jwt:
   enable: false
@@ -276,9 +278,9 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 			},
 		}
 		data["traces"] = map[string]any{
+			"enable": false,
 			"SkipPaths": []string{
 				"/health",
-				"/refresh",
 			},
 		}
 		data["jwt"] = map[string]any{
@@ -303,7 +305,7 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 				"LoggerWithConfig": map[string]any{
 					"enabled": true,
 					"SkipPaths": []string{
-						"/api/v1/health",
+						"/health",
 					},
 					"SkipQueryString": false,
 				},
@@ -334,9 +336,9 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 			},
 		}
 		data["traces"] = map[string]any{
+			"enable": false,
 			"SkipPaths": []string{
-				"/api/v1/health",
-				"/api/v1/refresh",
+				"/health",
 			},
 		}
 		data["jwt"] = map[string]any{
