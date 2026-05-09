@@ -76,8 +76,8 @@ jwt:
   hmac:
     secret: change-me-hmac-secret
   rsa:
-    private_key: ""
-    public_key: ""
+    private_key: ./certs/jwt/key.pem
+    public_key: ./certs/jwt/public.pem
   eddsa:
-    private_key: ""
-    public_key: ""
+    private_key: ./certs/jwt/key.pem
+    public_key: ./certs/jwt/public.pem
