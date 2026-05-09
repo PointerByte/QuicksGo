@@ -120,6 +120,46 @@ func TestRunWorkersIgnoresSecondStartAndStopResetsState(t *testing.T) {
 	}
 }
 
+func TestRestartWorkersStopsCurrentLoopAndStartsNewOne(t *testing.T) {
+	resetWorkerState(t, 1)
+
+	RunWorkers()
+	firstStop := stopSignal
+	if firstStop == nil {
+		t.Fatal("expected stop signal to be initialized")
+	}
+
+	RestartWorkers()
+
+	secondStop := stopSignal
+	if secondStop == nil {
+		t.Fatal("expected stop signal to be initialized after restart")
+	}
+	if secondStop == firstStop {
+		t.Fatal("expected restart to create a new stop signal")
+	}
+	if !flagRunning.Load() {
+		t.Fatal("expected workers to be running after restart")
+	}
+
+	select {
+	case <-firstStop:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("expected restart to stop the previous worker loop")
+	}
+
+	taskStarted := make(chan struct{})
+	AddTask(func() {
+		close(taskStarted)
+	})
+
+	select {
+	case <-taskStarted:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("expected restarted worker loop to execute queued task")
+	}
+}
+
 func TestRunWorkersProcessesMultipleTasks(t *testing.T) {
 	resetWorkerState(t, 3)
 
