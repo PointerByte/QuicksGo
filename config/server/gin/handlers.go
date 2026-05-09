@@ -12,9 +12,9 @@ import (
 	"time"
 
 	clientHttp "github.com/PointerByte/QuicksGo/config/client/http"
-	"github.com/PointerByte/QuicksGo/config/utilities/jobs"
 	"github.com/PointerByte/QuicksGo/logger/builder"
 	"github.com/PointerByte/QuicksGo/logger/middlewares"
+	"github.com/PointerByte/QuicksGo/tools/jobs"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 )

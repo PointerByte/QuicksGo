@@ -17,11 +17,11 @@ import (
 	"time"
 
 	"github.com/PointerByte/QuicksGo/config/utilities"
-	"github.com/PointerByte/QuicksGo/config/utilities/jobs"
 	"github.com/PointerByte/QuicksGo/config/utilities/traces"
 	"github.com/PointerByte/QuicksGo/logger/builder"
 	middlewaresLogger "github.com/PointerByte/QuicksGo/logger/middlewares"
 	"github.com/PointerByte/QuicksGo/security/middlewares"
+	"github.com/PointerByte/QuicksGo/tools/jobs"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"

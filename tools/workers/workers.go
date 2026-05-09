@@ -43,6 +43,12 @@ func StopWorkers() {
 	flagRunning.Store(false)
 }
 
+// RestartWorkers stops the current worker loop and starts it again.
+func RestartWorkers() {
+	StopWorkers()
+	RunWorkers()
+}
+
 // RunWorkers starts a managed worker loop for the given task if one is not already running.
 // Each started task still respects the configured worker pool limit.
 func RunWorkers() {
@@ -60,11 +66,11 @@ func RunWorkers() {
 	go func(stop <-chan struct{}) {
 		defer func() {
 			stateMu.Lock()
-			if stopSignal != nil {
+			if stopSignal == stop {
 				stopSignal = nil
+				flagRunning.Store(false)
 			}
 			stateMu.Unlock()
-			flagRunning.Store(false)
 		}()
 
 		for {
