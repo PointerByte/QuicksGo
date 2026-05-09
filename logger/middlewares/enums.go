@@ -8,7 +8,6 @@ type keyContex string
 const (
 	traceIDKey      keyContex = "traceID"
 	detailsKey      keyContex = "details"
-	servicesKey     keyContex = "services"
 	disableBodyKey  keyContex = "disableBodyKey"
 	requestBodyKey  keyContex = "requestBody"
 	responseBodyKey keyContex = "responseBody"
