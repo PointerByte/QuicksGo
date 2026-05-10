@@ -161,12 +161,39 @@ Valores soportados para `server.grpc.mtls.clientAuth`:
 - `verify_client_cert_if_given`
 - `require_and_verify_client_cert`
 
-### `gin.autotls`
+### `server.gin.autotls`
 
-- `gin.autotls.enable`: habilita gestion automatica de certificados con `autocert`
-- `gin.autotls.domain`: dominio permitido para certificados administrados
-- `gin.autotls.dirCache`: directorio local de cache para `autocert`
-- `gin.autotls.version`: version minima TLS para auto TLS
+- `server.gin.autotls.enable`: habilita gestion automatica de certificados con `autocert`
+- `server.gin.autotls.domain`: dominio permitido para certificados administrados
+- `server.gin.autotls.dirCache`: directorio local de cache para `autocert`
+- `server.gin.autotls.version`: version minima TLS para auto TLS
+
+### `server.gin.tls`
+
+- `server.gin.tls.enable`: habilita TLS en el servidor Gin
+- `server.gin.tls.certFile`: ruta del certificado del servidor
+- `server.gin.tls.keyFile`: ruta de la llave privada del servidor
+- `server.gin.tls.version`: version minima TLS como `tlsv12` o `tlsv13`
+
+### `server.gin.mtls`
+
+- `server.gin.mtls.enable`: habilita validacion mTLS en el servidor Gin
+- `server.gin.mtls.clientCAFile`: archivo CA para validar certificados cliente
+- `server.gin.mtls.clientAuth`: politica de certificados cliente
+
+### `client.http.tls`
+
+- `client.http.tls.enable`: habilita TLS en el cliente HTTP saliente
+- `client.http.tls.caFile`: bundle CA usado para validar el certificado remoto
+- `client.http.tls.serverName`: nombre esperado opcional durante la validacion del certificado
+- `client.http.tls.version`: version minima TLS para el transporte cliente
+- `client.http.tls.insecureSkipVerify`: desactiva la validacion de certificados y solo deberia usarse en desarrollo controlado
+
+### `client.http.mtls`
+
+- `client.http.mtls.enable`: habilita mTLS en el cliente HTTP saliente
+- `client.http.mtls.certFile`: ruta del certificado cliente
+- `client.http.mtls.keyFile`: ruta de la llave privada cliente
 
 ### `client.grpc.tls`
 

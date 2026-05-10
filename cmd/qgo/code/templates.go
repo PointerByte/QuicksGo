@@ -93,8 +93,8 @@ server:
     port: ":50051"
     tls:
       enable: false
-      certFile: ./certs/cert.pem
-      keyFile: ./certs/key.pem
+      certFile: ./certs/server/cert.pem
+      keyFile: ./certs/server/key.pem
       version: tlsv12
     mtls:
       enable: false
@@ -105,14 +105,13 @@ client:
   grpc:
     tls:
       enable: false
-      caFile: ./certs/ca.pem
-      serverName: localhost
+      caFile: ./certs/client/ca.pem
       version: tlsv12
       insecureSkipVerify: false
     mtls:
       enable: false
-      certFile: ./certs/cert.pem
-      keyFile: ./certs/key.pem
+      certFile: ./certs/client/cert.pem
+      keyFile: ./certs/client/key.pem
 
 logger:
   dir: logs
@@ -141,11 +140,11 @@ jwt:
   hmac:
     secret: change-me-hmac-secret
   rsa:
-    private_key: ./certs/jwt/public.pem
-    public_key: ./certs/jwt/key.pem
+    private_key: ./certs/jwt/key.pem
+    public_key: ./certs/jwt/public.pem
   eddsa:
-    private_key: ./certs/jwt/public.pem
-    public_key: ./certs/jwt/key.pem
+    private_key: ./certs/jwt/key.pem
+    public_key: ./certs/jwt/public.pem
 `, appName)
 	}
 
@@ -166,28 +165,45 @@ server:
     LoggerWithConfig:
       enabled: true
       SkipPaths:
-        - /health
+        - /api/v1/health
       SkipQueryString: false
-
-gin:
-  autotls:
-    enable: false
-    domain: api.example.com
-    dirCache: ./certs
-    version: tlsv13
-
-client:
-  grpc:
+    autotls:
+      enable: false
+      domain: api.example.com
+      dirCache: ./certs
+      version: tlsv12
     tls:
       enable: false
-      caFile: ./certs/ca.pem
-      serverName: localhost
+      certFile: ./certs/server/cert.pem
+      keyFile: ./certs/server/key.pem
+      version: tlsv12
+    mtls:
+      enable: false
+      clientCAFile: ./certs/server/ca.pem
+      clientAuth: require_and_verify_client_cert
+
+client:
+  http:
+    timeout: 5s
+    tls:
+      enable: false
+      caFile: ./certs/client/ca.pem
       version: tlsv12
       insecureSkipVerify: false
     mtls:
       enable: false
-      certFile: ./certs/cert.pem
-      keyFile: ./certs/key.pem
+      certFile: ./certs/client/cert.pem
+      keyFile: ./certs/client/key.pem
+  grpc:
+    tls:
+      enable: false
+      caFile: ./certs/client/ca.pem
+      version: tlsv12
+      insecureSkipVerify: false
+    mtls:
+      enable: false
+      certFile: ./certs/client/cert.pem
+      keyFile: ./certs/client/key.pem
 
 logger:
   dir: logs
@@ -250,8 +266,8 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 				"port": ":50051",
 				"tls": map[string]any{
 					"enable":   false,
-					"certFile": "./certs/server.pem",
-					"keyFile":  "./certs/server.pem",
+					"certFile": "./certs/server/cert.pem",
+					"keyFile":  "./certs/server/key.pem",
 					"version":  "tlsv12",
 				},
 				"mtls": map[string]any{
@@ -265,15 +281,14 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 			"grpc": map[string]any{
 				"tls": map[string]any{
 					"enable":             false,
-					"caFile":             "./certs/ca.pem",
-					"serverName":         "localhost",
+					"caFile":             "./certs/client/ca.pem",
 					"version":            "tlsv12",
 					"insecureSkipVerify": false,
 				},
 				"mtls": map[string]any{
 					"enable":   false,
-					"certFile": "./certs/cert.pem",
-					"keyFile":  "./certs/key.pem",
+					"certFile": "./certs/client/cert.pem",
+					"keyFile":  "./certs/client/key.pem",
 				},
 			},
 		}
@@ -305,33 +320,55 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 				"LoggerWithConfig": map[string]any{
 					"enabled": true,
 					"SkipPaths": []string{
-						"/health",
+						"/api/v1/health",
 					},
 					"SkipQueryString": false,
 				},
-			},
-		}
-		data["gin"] = map[string]any{
-			"autotls": map[string]any{
-				"enable":   false,
-				"domain":   "api.example.com",
-				"dirCache": "./certs",
-				"version":  "tlsv13",
+				"autotls": map[string]any{
+					"enable":   false,
+					"domain":   "api.example.com",
+					"dirCache": "./certs",
+					"version":  "tlsv12",
+				},
+				"tls": map[string]any{
+					"enable":   false,
+					"certFile": "./certs/server/cert.pem",
+					"keyFile":  "./certs/server/key.pem",
+					"version":  "tlsv12",
+				},
+				"mtls": map[string]any{
+					"enable":       false,
+					"clientCAFile": "./certs/server/ca.pem",
+					"clientAuth":   "require_and_verify_client_cert",
+				},
 			},
 		}
 		data["client"] = map[string]any{
-			"grpc": map[string]any{
+			"http": map[string]any{
+				"timeout": "5s",
 				"tls": map[string]any{
 					"enable":             false,
-					"caFile":             "./certs/ca.pem",
-					"serverName":         "localhost",
+					"caFile":             "./certs/client/ca.pem",
 					"version":            "tlsv12",
 					"insecureSkipVerify": false,
 				},
 				"mtls": map[string]any{
 					"enable":   false,
-					"certFile": "./certs/cert.pem",
-					"keyFile":  "./certs/key.pem",
+					"certFile": "./certs/client/cert.pem",
+					"keyFile":  "./certs/client/key.pem",
+				},
+			},
+			"grpc": map[string]any{
+				"tls": map[string]any{
+					"enable":             false,
+					"caFile":             "./certs/client/ca.pem",
+					"version":            "tlsv12",
+					"insecureSkipVerify": false,
+				},
+				"mtls": map[string]any{
+					"enable":   false,
+					"certFile": "./certs/client/cert.pem",
+					"keyFile":  "./certs/client/key.pem",
 				},
 			},
 		}
