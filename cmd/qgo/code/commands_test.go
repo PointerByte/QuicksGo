@@ -343,8 +343,15 @@ func TestTemplateBranches(t *testing.T) {
 	if !strings.Contains(buildApplicationYAML(serviceTypeGRPC, "grpc-app"), "port: \":50051\"") {
 		t.Fatal("expected grpc yaml template")
 	}
-	if !strings.Contains(buildApplicationYAML(serviceTypeGin, "gin-app"), "transport: header") {
+	ginYAML := buildApplicationYAML(serviceTypeGin, "gin-app")
+	if !strings.Contains(ginYAML, "transport: header") {
 		t.Fatal("expected gin yaml template")
+	}
+	if !strings.Contains(ginYAML, "client:\n  http:") {
+		t.Fatal("expected gin yaml template to include client.http")
+	}
+	if !strings.Contains(ginYAML, "certFile: ./certs/server/cert.pem") {
+		t.Fatal("expected gin yaml template to include server gin tls cert path")
 	}
 
 	grpcJSON, err := buildApplicationJSON(serviceTypeGRPC, "grpc-app")
@@ -355,6 +362,12 @@ func TestTemplateBranches(t *testing.T) {
 	ginJSON, err := buildApplicationJSON(serviceTypeGin, "gin-app")
 	if err != nil || !strings.Contains(ginJSON, "\"transport\": \"header\"") {
 		t.Fatalf("expected gin json template, got err=%v", err)
+	}
+	if !strings.Contains(ginJSON, "\"http\"") {
+		t.Fatal("expected gin json template to include client.http")
+	}
+	if strings.Contains(ginJSON, "\"gin\": {\n    \"autotls\"") {
+		t.Fatal("expected gin json template not to use top-level gin.autotls")
 	}
 
 	if _, err := buildProjectFiles(serviceTypeGin, scaffoldOptions{appName: "svc", configFormat: "xml"}); err == nil {

@@ -62,6 +62,7 @@ type IRest interface {
 
 type Rest struct {
 	restClient  *http.Client
+	initErr     error
 	hdr         atomic.Value // stores http.Header (immutable after a Store operation)
 	ctx         atomic.Value // stores context.Context
 	withContext atomic.Bool
@@ -74,12 +75,35 @@ type Rest struct {
 // The timeOut parameter defines the maximum duration for each request.
 // The tr parameter allows injecting a custom HTTP transport.
 func NewIRest(timeout time.Duration, tr *http.Transport) IRest {
+	restClient, err := newRestClient(timeout, tr)
 	s := &Rest{
-		restClient: NewRestClient(timeout, tr),
+		restClient: restClient,
+		initErr:    err,
 		req:        &http.Request{},
 	}
 	s.hdr.Store(http.Header{}) // Init value imutable
 	return s
+}
+
+// NewConfiguredIRest creates a REST wrapper and returns TLS/mTLS configuration
+// errors while resolving client.http settings.
+func NewConfiguredIRest(timeout time.Duration, tr *http.Transport) (IRest, error) {
+	restClient, err := newRestClient(timeout, tr)
+	if err != nil {
+		return nil, err
+	}
+	s := &Rest{
+		restClient: restClient,
+		req:        &http.Request{},
+	}
+	s.hdr.Store(http.Header{})
+	return s, nil
+}
+
+// NewIRestFromConfig creates a REST wrapper using client.http.timeout and
+// TLS/mTLS settings from Viper.
+func NewIRestFromConfig() (IRest, error) {
+	return NewConfiguredIRest(clientHTTPTimeout(), nil)
 }
 
 func (sr *Rest) SetRequest(req *http.Request) {
@@ -97,6 +121,10 @@ func (sr *Rest) cloneRequest(req *http.Request) *http.Request {
 }
 
 func (sr *Rest) doRequest(object any) (*http.Response, error) {
+	if sr.initErr != nil {
+		return nil, sr.initErr
+	}
+
 	sr.mux.Lock()
 	defer sr.mux.Unlock()
 

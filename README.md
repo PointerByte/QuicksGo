@@ -161,12 +161,39 @@ Supported `server.grpc.mtls.clientAuth` values:
 - `verify_client_cert_if_given`
 - `require_and_verify_client_cert`
 
-### `gin.autotls`
+### `server.gin.autotls`
 
-- `gin.autotls.enable`: enables automatic certificate management through `autocert`
-- `gin.autotls.domain`: allowed domain for managed certificates
-- `gin.autotls.dirCache`: local cache directory for `autocert`
-- `gin.autotls.version`: minimum TLS version for auto TLS
+- `server.gin.autotls.enable`: enables automatic certificate management through `autocert`
+- `server.gin.autotls.domain`: allowed domain for managed certificates
+- `server.gin.autotls.dirCache`: local cache directory for `autocert`
+- `server.gin.autotls.version`: minimum TLS version for auto TLS
+
+### `server.gin.tls`
+
+- `server.gin.tls.enable`: enables TLS on the Gin server
+- `server.gin.tls.certFile`: server certificate path
+- `server.gin.tls.keyFile`: server private key path
+- `server.gin.tls.version`: minimum TLS version such as `tlsv12` or `tlsv13`
+
+### `server.gin.mtls`
+
+- `server.gin.mtls.enable`: enables mTLS validation on the Gin server
+- `server.gin.mtls.clientCAFile`: CA file used to validate client certificates
+- `server.gin.mtls.clientAuth`: client certificate policy
+
+### `client.http.tls`
+
+- `client.http.tls.enable`: enables TLS on the outbound HTTP client
+- `client.http.tls.caFile`: CA bundle used to validate the remote server certificate
+- `client.http.tls.serverName`: optional expected server name during certificate validation
+- `client.http.tls.version`: minimum TLS version for the client transport
+- `client.http.tls.insecureSkipVerify`: disables certificate validation and should be used only in controlled development scenarios
+
+### `client.http.mtls`
+
+- `client.http.mtls.enable`: enables mTLS on the outbound HTTP client
+- `client.http.mtls.certFile`: client certificate path
+- `client.http.mtls.keyFile`: client private key path
 
 ### `client.grpc.tls`
 

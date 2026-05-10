@@ -6,7 +6,9 @@ package gin
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -33,7 +35,11 @@ func resetServerTestState(t *testing.T) {
 	origInitOtel := initOtel
 	origSleepFn := sleepFn
 	origListenAndServeFn := listenAndServeFn
+	origListenAndServeTLSFn := listenAndServeTLSFn
 	origShutdownServerFn := shutdownServerFn
+	origLoadX509KeyPairFn := loadX509KeyPairFn
+	origReadFileFn := readFileFn
+	origNewCertPoolFn := newCertPoolFn
 	origBuilderNewFn := builderNewFn
 	origStartJobsFn := startJobsFn
 	origStopFn := stopFn
@@ -58,7 +64,11 @@ func resetServerTestState(t *testing.T) {
 	initOtel = tracesInitNoop
 	sleepFn = time.Sleep
 	listenAndServeFn = func(srv *http.Server) error { return srv.ListenAndServe() }
+	listenAndServeTLSFn = func(srv *http.Server) error { return srv.ListenAndServeTLS("", "") }
 	shutdownServerFn = func(srv *http.Server, ctx context.Context) error { return srv.Shutdown(ctx) }
+	loadX509KeyPairFn = tls.LoadX509KeyPair
+	readFileFn = os.ReadFile
+	newCertPoolFn = x509.NewCertPool
 	builderNewFn = builder.New
 	startJobsFn = func() {}
 	stopFn = Stop
@@ -75,7 +85,11 @@ func resetServerTestState(t *testing.T) {
 		initOtel = origInitOtel
 		sleepFn = origSleepFn
 		listenAndServeFn = origListenAndServeFn
+		listenAndServeTLSFn = origListenAndServeTLSFn
 		shutdownServerFn = origShutdownServerFn
+		loadX509KeyPairFn = origLoadX509KeyPairFn
+		readFileFn = origReadFileFn
+		newCertPoolFn = origNewCertPoolFn
 		builderNewFn = origBuilderNewFn
 		startJobsFn = origStartJobsFn
 		stopFn = origStopFn
@@ -334,7 +348,7 @@ func TestCreateApp(t *testing.T) {
 			viper.Set("server.port", ":8443")
 			viper.Set("server.gin.port", ":8443")
 			viper.Set("server.gin.groups", []string{"/api/v1"})
-			viper.Set("gin.autotls.enable", false)
+			viper.Set("server.gin.autotls.enable", false)
 			return nil
 		}
 		initLogger = newLoggerProviderNoop
@@ -436,10 +450,10 @@ func TestTLSConfigurationHelpers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run("enableAutoTLS "+tt.name, func(t *testing.T) {
 			resetServerTestState(t)
-			viper.Set("gin.autotls.enable", tt.enabled)
-			viper.Set("gin.autotls.version", tt.version)
-			viper.Set("gin.autotls.domain", "example.com")
-			viper.Set("gin.autotls.dirCache", t.TempDir())
+			viper.Set("server.gin.autotls.enable", tt.enabled)
+			viper.Set("server.gin.autotls.version", tt.version)
+			viper.Set("server.gin.autotls.domain", "example.com")
+			viper.Set("server.gin.autotls.dirCache", t.TempDir())
 
 			resolveTLSAutoConfig()
 
@@ -460,6 +474,105 @@ func TestTLSConfigurationHelpers(t *testing.T) {
 				t.Fatalf("expected MinVersion %d, got %d", tt.wantMinTLS, tlsConfig.MinVersion)
 			}
 		})
+	}
+
+	t.Run("resolve tls disabled", func(t *testing.T) {
+		resetServerTestState(t)
+
+		if err := resolveTLSConfig(); err != nil {
+			t.Fatalf("resolveTLSConfig() error = %v", err)
+		}
+		if tlsConfig != nil {
+			t.Fatalf("tlsConfig = %#v, want nil", tlsConfig)
+		}
+	})
+
+	t.Run("resolve tls requires cert and key", func(t *testing.T) {
+		resetServerTestState(t)
+		viper.Set("server.gin.tls.enable", true)
+
+		err := resolveTLSConfig()
+		if err == nil || err.Error() != "server.gin.tls.certFile and server.gin.tls.keyFile are required" {
+			t.Fatalf("resolveTLSConfig() error = %v", err)
+		}
+	})
+
+	t.Run("resolve tls from config", func(t *testing.T) {
+		resetServerTestState(t)
+		loadX509KeyPairFn = func(certFile, keyFile string) (tls.Certificate, error) {
+			if certFile != "server-cert.pem" || keyFile != "server-key.pem" {
+				t.Fatalf("loadX509KeyPairFn(%q, %q)", certFile, keyFile)
+			}
+			return tls.Certificate{Certificate: [][]byte{{1}}}, nil
+		}
+		viper.Set("server.gin.tls.enable", true)
+		viper.Set("server.gin.tls.certFile", "server-cert.pem")
+		viper.Set("server.gin.tls.keyFile", "server-key.pem")
+		viper.Set("server.gin.tls.version", "tlsv13")
+
+		if err := resolveTLSConfig(); err != nil {
+			t.Fatalf("resolveTLSConfig() error = %v", err)
+		}
+		if tlsConfig == nil {
+			t.Fatal("tlsConfig = nil, want configured TLS")
+		}
+		if tlsConfig.MinVersion != tls.VersionTLS13 {
+			t.Fatalf("MinVersion = %v, want %v", tlsConfig.MinVersion, tls.VersionTLS13)
+		}
+		if len(tlsConfig.Certificates) != 1 {
+			t.Fatalf("Certificates len = %d, want 1", len(tlsConfig.Certificates))
+		}
+	})
+
+	t.Run("resolve mtls requires ca", func(t *testing.T) {
+		resetServerTestState(t)
+		tlsConfig = &tls.Config{}
+		viper.Set("server.gin.mtls.enable", true)
+
+		err := resolvemTLSConfig()
+		if err == nil || err.Error() != "server.gin.mtls.clientCAFile is required" {
+			t.Fatalf("resolvemTLSConfig() error = %v", err)
+		}
+	})
+
+	t.Run("resolve mtls from config", func(t *testing.T) {
+		resetServerTestState(t)
+		ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		defer ts.Close()
+		caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ts.Certificate().Raw})
+
+		tlsConfig = &tls.Config{}
+		readFileFn = func(path string) ([]byte, error) {
+			if path != "ca.pem" {
+				t.Fatalf("readFileFn(%q)", path)
+			}
+			return caPEM, nil
+		}
+		viper.Set("server.gin.mtls.enable", true)
+		viper.Set("server.gin.mtls.clientCAFile", "ca.pem")
+		viper.Set("server.gin.mtls.clientAuth", "verify_client_cert_if_given")
+
+		if err := resolvemTLSConfig(); err != nil {
+			t.Fatalf("resolvemTLSConfig() error = %v", err)
+		}
+		if tlsConfig.ClientCAs == nil {
+			t.Fatal("ClientCAs = nil, want populated pool")
+		}
+		if tlsConfig.ClientAuth != tls.VerifyClientCertIfGiven {
+			t.Fatalf("ClientAuth = %v, want %v", tlsConfig.ClientAuth, tls.VerifyClientCertIfGiven)
+		}
+	})
+
+	if got := parseTLSVersion("tlsv10"); got != tls.VersionTLS10 {
+		t.Fatalf("parseTLSVersion(tlsv10) = %v, want %v", got, tls.VersionTLS10)
+	}
+	if got := parseTLSVersion("unknown"); got != tls.VersionTLS12 {
+		t.Fatalf("parseTLSVersion(unknown) = %v, want %v", got, tls.VersionTLS12)
+	}
+	if got := parseClientAuth("request_client_cert"); got != tls.RequestClientCert {
+		t.Fatalf("parseClientAuth(request_client_cert) = %v, want %v", got, tls.RequestClientCert)
 	}
 }
 
@@ -506,13 +619,18 @@ func TestStartAndShutdown(t *testing.T) {
 		}
 	})
 
-	t.Run("start with tls listens twice in current implementation", func(t *testing.T) {
+	t.Run("start with tls uses tls listener", func(t *testing.T) {
 		resetServerTestState(t)
 		var listenCalls int32
+		var listenTLSCalls int32
 
 		runAsyncFn = func(fn func()) { fn() }
 		listenAndServeFn = func(*http.Server) error {
 			atomic.AddInt32(&listenCalls, 1)
+			return http.ErrServerClosed
+		}
+		listenAndServeTLSFn = func(*http.Server) error {
+			atomic.AddInt32(&listenTLSCalls, 1)
 			return http.ErrServerClosed
 		}
 		startJobsFn = func() {}
@@ -521,8 +639,11 @@ func TestStartAndShutdown(t *testing.T) {
 
 		Start(&http.Server{TLSConfig: &tls.Config{}})
 
-		if atomic.LoadInt32(&listenCalls) != 2 {
-			t.Fatalf("expected 2 listen calls for tls branch, got %d", listenCalls)
+		if atomic.LoadInt32(&listenTLSCalls) != 1 {
+			t.Fatalf("expected 1 tls listen call, got %d", listenTLSCalls)
+		}
+		if atomic.LoadInt32(&listenCalls) != 0 {
+			t.Fatalf("expected 0 plain listen calls, got %d", listenCalls)
 		}
 	})
 

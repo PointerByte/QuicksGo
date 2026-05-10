@@ -6,6 +6,7 @@ package gin
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net/http"
@@ -48,9 +49,15 @@ var sleepFn = time.Sleep
 var listenAndServeFn = func(srv *http.Server) error {
 	return srv.ListenAndServe()
 }
+var listenAndServeTLSFn = func(srv *http.Server) error {
+	return srv.ListenAndServeTLS("", "")
+}
 var shutdownServerFn = func(srv *http.Server, ctx context.Context) error {
 	return srv.Shutdown(ctx)
 }
+var loadX509KeyPairFn = tls.LoadX509KeyPair
+var readFileFn = os.ReadFile
+var newCertPoolFn = x509.NewCertPool
 var builderNewFn = builder.New
 var startJobsFn = jobs.StartJobs
 var stopFn = Stop
@@ -143,19 +150,19 @@ func SetTLSsConfig(config *tls.Config) {
 }
 
 // resolveTLSAutoConfig configures a TLS setup backed by autocert when the related
-// `gin.autotls.*` settings are enabled.
+// `server.gin.autotls.*` settings are enabled.
 func resolveTLSAutoConfig() {
-	if !viper.GetBool("gin.autotls.enable") {
+	if !viper.GetBool("server.gin.autotls.enable") {
 		return
 	}
 
 	m := &autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(viper.GetString("gin.autotls.domain")),
-		Cache:      autocert.DirCache(viper.GetString("gin.autotls.dirCache")),
+		HostPolicy: autocert.HostWhitelist(viper.GetString("server.gin.autotls.domain")),
+		Cache:      autocert.DirCache(viper.GetString("server.gin.autotls.dirCache")),
 	}
 	var versionTLS uint16
-	switch viper.GetString("gin.autotls.version") {
+	switch viper.GetString("server.gin.autotls.version") {
 	case "tlsv10":
 		versionTLS = tls.VersionTLS10
 	case "tlsv11":
@@ -168,6 +175,93 @@ func resolveTLSAutoConfig() {
 	tlsConfig = &tls.Config{
 		GetCertificate: m.GetCertificate,
 		MinVersion:     versionTLS,
+	}
+}
+
+func resolveTLSConfig() error {
+	tlsEnabled := viper.GetBool("server.gin.tls.enable")
+	mtlsEnabled := viper.GetBool("server.gin.mtls.enable")
+	if !tlsEnabled && !mtlsEnabled {
+		return nil
+	}
+
+	if tlsConfig != nil && !tlsEnabled {
+		if tlsConfig.MinVersion == 0 {
+			tlsConfig.MinVersion = parseTLSVersion(viper.GetString("server.gin.tls.version"))
+		}
+		return nil
+	}
+
+	certFile := strings.TrimSpace(viper.GetString("server.gin.tls.certFile"))
+	keyFile := strings.TrimSpace(viper.GetString("server.gin.tls.keyFile"))
+	if certFile == "" || keyFile == "" {
+		return fmt.Errorf("server.gin.tls.certFile and server.gin.tls.keyFile are required")
+	}
+
+	certificate, err := loadX509KeyPairFn(certFile, keyFile)
+	if err != nil {
+		return fmt.Errorf("problem loading gin server tls certificate: %w", err)
+	}
+
+	tlsConfig = &tls.Config{
+		Certificates: []tls.Certificate{certificate},
+		MinVersion:   parseTLSVersion(viper.GetString("server.gin.tls.version")),
+	}
+	return nil
+}
+
+func resolvemTLSConfig() error {
+	if !viper.GetBool("server.gin.mtls.enable") {
+		return nil
+	}
+	if tlsConfig == nil {
+		return fmt.Errorf("server.gin.tls.enable or a custom TLS config is required when server.gin.mtls.enable is true")
+	}
+
+	clientCAFile := strings.TrimSpace(viper.GetString("server.gin.mtls.clientCAFile"))
+	if clientCAFile == "" {
+		return fmt.Errorf("server.gin.mtls.clientCAFile is required")
+	}
+
+	caPEM, err := readFileFn(clientCAFile)
+	if err != nil {
+		return fmt.Errorf("problem reading gin client ca file: %w", err)
+	}
+
+	pool := newCertPoolFn()
+	if !pool.AppendCertsFromPEM(caPEM) {
+		return fmt.Errorf("problem parsing gin client ca file")
+	}
+	tlsConfig.ClientCAs = pool
+	tlsConfig.ClientAuth = parseClientAuth(viper.GetString("server.gin.mtls.clientAuth"))
+	return nil
+}
+
+func parseTLSVersion(raw string) uint16 {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "tlsv10":
+		return tls.VersionTLS10
+	case "tlsv11":
+		return tls.VersionTLS11
+	case "tlsv13":
+		return tls.VersionTLS13
+	default:
+		return tls.VersionTLS12
+	}
+}
+
+func parseClientAuth(raw string) tls.ClientAuthType {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "requestclientcert", "request_client_cert":
+		return tls.RequestClientCert
+	case "requireanyclientcert", "require_any_client_cert":
+		return tls.RequireAnyClientCert
+	case "verifyclientcertifgiven", "verify_client_cert_if_given":
+		return tls.VerifyClientCertIfGiven
+	case "noclientcert", "no_client_cert":
+		return tls.NoClientCert
+	default:
+		return tls.RequireAndVerifyClientCert
 	}
 }
 
@@ -217,6 +311,12 @@ func CreateApp(optionsJWT ...middlewares.JWTMiddlewareOption) (*http.Server, err
 	}
 	setRoute(routes)
 	resolveTLSAutoConfig()
+	if err := resolveTLSConfig(); err != nil {
+		return nil, err
+	}
+	if err := resolvemTLSConfig(); err != nil {
+		return nil, err
+	}
 	return &http.Server{
 		Addr:      viper.GetString("server.gin.port"),
 		Handler:   engine,
@@ -247,9 +347,10 @@ func Start(srv *http.Server) {
 	// Start server.
 	runAsyncFn(func() {
 		if srv.TLSConfig != nil {
-			if err := listenAndServeFn(srv); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			if err := listenAndServeTLSFn(srv); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				panic(err)
 			}
+			return
 		}
 		if err := listenAndServeFn(srv); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			panic(err)

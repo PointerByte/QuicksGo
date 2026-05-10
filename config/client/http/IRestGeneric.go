@@ -81,6 +81,24 @@ func NewGenericRest(timeout time.Duration, tr *http.Transport) IRestGeneric {
 	}
 }
 
+// NewConfiguredGenericRest creates a generic REST client and returns TLS/mTLS
+// configuration errors while resolving client.http settings.
+func NewConfiguredGenericRest(timeout time.Duration, tr *http.Transport) (IRestGeneric, error) {
+	rest, err := NewConfiguredIRest(timeout, tr)
+	if err != nil {
+		return nil, err
+	}
+	return &RestGeneric{
+		newIRest: rest,
+	}, nil
+}
+
+// NewGenericRestFromConfig creates a generic REST client using
+// client.http.timeout and TLS/mTLS settings from Viper.
+func NewGenericRestFromConfig() (IRestGeneric, error) {
+	return NewConfiguredGenericRest(clientHTTPTimeout(), nil)
+}
+
 type handlerTrace func(process *formatter.Service)
 
 func traceClient(ctx context.Context, system, process string, disableTraceBody bool) (*formatter.Service, handlerTrace) {
@@ -180,9 +198,17 @@ func (gr *RestGeneric) PostGeneric(ctx context.Context, input RequestGeneric) er
 
 	resp, err := gr.newIRest.Post(pathEncode, binding.MIMEJSON, bytes.NewReader(req), input.Response)
 	if err != nil {
-		return fmt.Errorf("error consuming the service status[%d] error[%s]", resp.StatusCode, err.Error())
+		return formatHTTPClientError(resp, err)
 	}
 	return gr.buildService(process, input.Request, input.Response, resp)
+}
+
+func formatHTTPClientError(resp *http.Response, err error) error {
+	statusCode := 0
+	if resp != nil {
+		statusCode = resp.StatusCode
+	}
+	return fmt.Errorf("error consuming the service status[%d] error[%s]", statusCode, err.Error())
 }
 
 func buildURL(input RequestGeneric) (string, error) {
@@ -232,7 +258,7 @@ func (gr *RestGeneric) GetGeneric(ctx context.Context, input RequestGeneric) err
 
 	resp, err := gr.newIRest.Get(pathEncode, binding.MIMEJSON, input.Response)
 	if err != nil {
-		return fmt.Errorf("error consuming the service status[%d] error[%s]", resp.StatusCode, err.Error())
+		return formatHTTPClientError(resp, err)
 	}
 	return gr.buildService(process, input.Request, input.Response, resp)
 }
@@ -269,7 +295,7 @@ func (gr *RestGeneric) PutGeneric(ctx context.Context, input RequestGeneric) err
 
 	resp, err := gr.newIRest.Put(pathEncode, binding.MIMEJSON, bytes.NewReader(req), input.Response)
 	if err != nil {
-		return fmt.Errorf("error consuming the service status[%d] error[%s]", resp.StatusCode, err.Error())
+		return formatHTTPClientError(resp, err)
 	}
 	return gr.buildService(process, input.Request, input.Response, resp)
 }
@@ -306,7 +332,7 @@ func (gr *RestGeneric) PatchGeneric(ctx context.Context, input RequestGeneric) e
 
 	resp, err := gr.newIRest.Patch(pathEncode, binding.MIMEJSON, bytes.NewReader(req), input.Response)
 	if err != nil {
-		return fmt.Errorf("error consuming the service status[%d] error[%s]", resp.StatusCode, err.Error())
+		return formatHTTPClientError(resp, err)
 	}
 	return gr.buildService(process, input.Request, input.Response, resp)
 }
@@ -344,7 +370,7 @@ func (gr *RestGeneric) OptionGeneric(ctx context.Context, input RequestGeneric) 
 
 	resp, err := gr.newIRest.Option(pathEncode, binding.MIMEJSON, bytes.NewReader(req), input.Response)
 	if err != nil {
-		return fmt.Errorf("error consuming the service status[%d] error[%s]", resp.StatusCode, err.Error())
+		return formatHTTPClientError(resp, err)
 	}
 	return gr.buildService(process, input.Request, input.Response, resp)
 }
