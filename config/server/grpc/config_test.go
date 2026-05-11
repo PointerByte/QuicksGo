@@ -472,6 +472,60 @@ func TestSubUnitaryServeUnaryFlowWithBufconn(t *testing.T) {
 	}
 }
 
+func TestSubUnitaryServeUnaryFlowWithCustomInterceptor(t *testing.T) {
+	resetServerGRPCTestState(t)
+	listener := bufconn.Listen(1024 * 1024)
+	interceptorCalled := false
+	srv := NewIConfig(nil, nil, WithUnaryInterceptors(func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		interceptorCalled = true
+		return handler(ctx, req)
+	}))
+	srv.SetListener(listener)
+	if err := srv.Register(func(r grpc.ServiceRegistrar) {
+		pb.RegisterGreeterServer(r, greeterService{})
+	}); err != nil {
+		t.Fatalf("Register() failed: %v", err)
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- srv.Serve()
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	conn, err := grpc.NewClient("passthrough:///bufnet",
+		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+			return listener.Dial()
+		}),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Fatalf("grpc.NewClient() failed: %v", err)
+	}
+	defer conn.Close()
+
+	client := pb.NewGreeterClient(conn)
+	if _, err := client.SayHello(ctx, &pb.HelloRequest{Name: "Manuel"}); err != nil {
+		t.Fatalf("SayHello() failed: %v", err)
+	}
+	if !interceptorCalled {
+		t.Fatal("expected custom unary interceptor to be called")
+	}
+
+	srv.GracefulStop()
+
+	select {
+	case serveErr := <-errCh:
+		if serveErr != nil {
+			t.Fatalf("Serve() returned error: %v", serveErr)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve() did not stop after GracefulStop()")
+	}
+}
+
 func TestSubUnitaryServeLogsServeError(t *testing.T) {
 	resetServerGRPCTestState(t)
 
