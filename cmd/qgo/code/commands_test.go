@@ -347,6 +347,9 @@ func TestTemplateBranches(t *testing.T) {
 	if !strings.Contains(ginYAML, "transport: header") {
 		t.Fatal("expected gin yaml template")
 	}
+	if !strings.Contains(ginYAML, "private_key: ./certs/jwt/ed25519-key.pem") {
+		t.Fatal("expected gin yaml template to include Ed25519 jwt key path")
+	}
 	if !strings.Contains(ginYAML, "client:\n  http:") {
 		t.Fatal("expected gin yaml template to include client.http")
 	}
@@ -362,6 +365,9 @@ func TestTemplateBranches(t *testing.T) {
 	ginJSON, err := buildApplicationJSON(serviceTypeGin, "gin-app")
 	if err != nil || !strings.Contains(ginJSON, "\"transport\": \"header\"") {
 		t.Fatalf("expected gin json template, got err=%v", err)
+	}
+	if !strings.Contains(ginJSON, "\"private_key\": \"./certs/jwt/ed25519-key.pem\"") {
+		t.Fatal("expected gin json template to include Ed25519 jwt key path")
 	}
 	if !strings.Contains(ginJSON, "\"http\"") {
 		t.Fatal("expected gin json template to include client.http")

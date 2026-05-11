@@ -832,6 +832,52 @@ func TestNewConfiguredServiceUsesViperAlgorithm(t *testing.T) {
 		}
 	})
 
+	t.Run("infers eddsa from configured keys", func(t *testing.T) {
+		publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			t.Fatalf("expected ed25519 key without error, got %v", err)
+		}
+
+		privateDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
+		if err != nil {
+			t.Fatalf("expected private key marshal without error, got %v", err)
+		}
+
+		publicDER, err := x509.MarshalPKIXPublicKey(publicKey)
+		if err != nil {
+			t.Fatalf("expected public key marshal without error, got %v", err)
+		}
+
+		viper.Set(DefaultEdDSAPrivateKeyKey, base64.StdEncoding.EncodeToString(privateDER))
+		viper.Set(DefaultEdDSAPublicKeyKey, base64.StdEncoding.EncodeToString(publicDER))
+		defer viper.Reset()
+
+		service, err := NewConfiguredService(ConfigServiceInput{})
+		if err != nil {
+			t.Fatalf("expected service without error, got %v", err)
+		}
+
+		token, err := service.Create(testClaims{UserID: "5", Role: "admin", Active: true})
+		if err != nil {
+			t.Fatalf("expected token without error, got %v", err)
+		}
+
+		if err := service.ValidateSignature(token); err != nil {
+			t.Fatalf("expected valid signature, got %v", err)
+		}
+	})
+
+	t.Run("requires algorithm when multiple strategies are configured", func(t *testing.T) {
+		viper.Set(DefaultHMACSecretKey, "configured-secret")
+		viper.Set(DefaultEdDSAPrivateKeyKey, "private")
+		defer viper.Reset()
+
+		_, err := NewConfiguredService(ConfigServiceInput{})
+		if !errors.Is(err, ErrMissingAlgorithm) {
+			t.Fatalf("expected ErrMissingAlgorithm, got %v", err)
+		}
+	})
+
 	t.Run("unsupported algorithm", func(t *testing.T) {
 		viper.Set(DefaultAlgorithmKey, "ES256")
 		defer viper.Reset()

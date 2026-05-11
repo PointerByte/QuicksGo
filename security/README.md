@@ -42,14 +42,8 @@ This module does not load `application.yaml`, `application.yml`, or
 ```yaml
 jwt:
   enable: true
-  algorithm: HS256
   cookie:
     name: access_token
-  hmac:
-    secret: change-me
-  rsa:
-    private_key: ./certs/jwt/key.pem
-    public_key: ./certs/jwt/public.pem
   eddsa:
     private_key: ./certs/jwt/ed25519-key.pem
     public_key: ./certs/jwt/ed25519-public.pem
@@ -58,13 +52,21 @@ jwt:
 Main keys:
 
 - `jwt.enable`: when explicitly set to `false`, Gin JWT middleware lets requests pass through
-- `jwt.algorithm`: `HS256`, `RS256`, `PS256`, or `EdDSA`
+- `jwt.algorithm`: `HS256`, `RS256`, `PS256`, or `EdDSA`; optional when only one strategy is configured
 - `jwt.cookie.name`: cookie name used by cookie-based auth; defaults to `access_token`
 - `jwt.hmac.secret`: shared secret for `HS256`
 - `jwt.rsa.private_key`: RSA private key value or PEM file path
 - `jwt.rsa.public_key`: RSA public key value or PEM file path
 - `jwt.eddsa.private_key`: Ed25519 private key value or PEM file path
 - `jwt.eddsa.public_key`: Ed25519 public key value or PEM file path
+
+Configure one strategy per service. If more than one strategy exists under
+`jwt`, set `jwt.algorithm` to resolve the ambiguity.
+
+The `application.yaml` and `application.json` files in this module are complete
+examples: they include `hmac`, `rsa`, and `eddsa` to document the available
+options. Because multiple strategies are configured, they also include
+`jwt.algorithm`.
 
 Configured service inputs receive viper key names, not raw secret values. For
 example, `HMACSecretKey` points to the viper key that stores the HS256 secret.
@@ -79,6 +81,21 @@ Example files:
 ## JWT Service
 
 ### Configured From Viper
+
+With one configured strategy, `NewConfiguredService` can infer the algorithm:
+
+```go
+viper.Set("jwt.eddsa.private_key", "./certs/jwt/ed25519-key.pem")
+viper.Set("jwt.eddsa.public_key", "./certs/jwt/ed25519-public.pem")
+
+service, err := jwtservice.NewConfiguredService(jwtservice.ConfigServiceInput{})
+if err != nil {
+	panic(err)
+}
+```
+
+If you configure multiple strategies, set `jwt.algorithm` or pass it in
+`ConfigServiceInput`:
 
 ```go
 package main
