@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/PointerByte/QuicksGo/logger/formatter"
-	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
+	"github.com/PointerByte/GoForge/logger/formatter"
+	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"

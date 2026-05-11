@@ -1,131 +1,120 @@
-# QuicksGo Security
+# GoForge Security
 
-`security` provides JWT services and Gin middlewares for token-based authentication. It is designed to work with `viper` configuration and uses `github.com/PointerByte/QuicksGo/encrypt` as its standalone cryptographic dependency.
+`security` provides JWT services and Gin middleware for token-based
+authentication. It uses `viper` for configured services and depends on
+`github.com/PointerByte/GoForge/encrypt` for cryptographic helpers.
 
 ## Installation
 
 ```bash
-go get github.com/PointerByte/QuicksGo/security
+go get github.com/PointerByte/GoForge/security
 ```
 
-If you also need direct access to cryptographic primitives, add:
+If your application also needs direct cryptographic operations, add:
 
 ```bash
-go get github.com/PointerByte/QuicksGo/encrypt
+go get github.com/PointerByte/GoForge/encrypt
 ```
 
-## What this module includes
+## Packages
 
-- JWT creation, validation, and claim decoding
-- Cookie-based JWT auth
-- Gin middlewares for JWT and cookie auth
-- Security headers middleware
-- Example app showing HMAC and RSA flows
+- `auth/jwt`: JWT creation, signature validation, claim decoding, and signing strategies
+- `auth/cookies`: JWT validation from HTTP cookies
+- `middlewares`: Gin middleware for bearer tokens, cookie tokens, and security headers
 
-## Package layout
+## Capabilities
 
-- `auth/jwt`: JWT services and signing strategy configuration
-- `auth/cookies`: JWT-from-cookie service
-- `middlewares`: Gin middleware helpers
+- create JWTs from arbitrary claims
+- validate compact JWT signatures and algorithms
+- decode claims into `map[string]any` or typed structs
+- add service-level and per-call validators
+- use request contexts and service-level timeouts
+- protect Gin routes through bearer or cookie JWT middleware
+- apply common HTTP security headers
+- plug in custom signing strategies
 
-## Relationship with `encrypt`
+## Configuration
 
-`encrypt` is now a separate module. `security` depends on it internally for cryptographic operations, but the public import path is no longer `github.com/PointerByte/QuicksGo/security/encrypt`.
+This module does not load `application.yaml`, `application.yml`, or
+`application.json` automatically. Load configuration into `viper` before using
+`NewConfiguredService`, `RequireJWT`, or `RequireJWTCookie`.
 
-Use these module paths instead:
-
-- `github.com/PointerByte/QuicksGo/security`
-- `github.com/PointerByte/QuicksGo/encrypt`
-
-## Configuration with Viper
-
-JWT and cookie-auth services resolve configuration through `viper`.
-
-This module does not automatically load `application.yaml`, `application.yml`, or `application.json`. Your application must load configuration into `viper` before creating a configured service or using `RequireJWT` / `RequireJWTCookie`.
-
-Example loading YAML:
-
-```go
-import "github.com/spf13/viper"
-
-func loadConfig() error {
-	viper.SetConfigName("application")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	return viper.ReadInConfig()
-}
-```
-
-Example loading JSON:
-
-```go
-import "github.com/spf13/viper"
-
-func loadConfig() error {
-	viper.SetConfigName("application")
-	viper.SetConfigType("json")
-	viper.AddConfigPath(".")
-	return viper.ReadInConfig()
-}
+```yaml
+jwt:
+  enable: true
+  algorithm: HS256
+  cookie:
+    name: access_token
+  hmac:
+    secret: change-me
+  rsa:
+    private_key: ./certs/jwt/key.pem
+    public_key: ./certs/jwt/public.pem
+  eddsa:
+    private_key: ./certs/jwt/ed25519-key.pem
+    public_key: ./certs/jwt/ed25519-public.pem
 ```
 
 Main keys:
 
-- `jwt.enable`
-- `jwt.algorithm`
-- `jwt.cookie.name`
-- `jwt.hmac.secret`
-- `jwt.rsa.private_key`
-- `jwt.rsa.public_key`
-- `jwt.eddsa.private_key`
-- `jwt.eddsa.public_key`
+- `jwt.enable`: when explicitly set to `false`, Gin JWT middleware lets requests pass through
+- `jwt.algorithm`: `HS256`, `RS256`, `PS256`, or `EdDSA`
+- `jwt.cookie.name`: cookie name used by cookie-based auth; defaults to `access_token`
+- `jwt.hmac.secret`: shared secret for `HS256`
+- `jwt.rsa.private_key`: RSA private key value or PEM file path
+- `jwt.rsa.public_key`: RSA public key value or PEM file path
+- `jwt.eddsa.private_key`: Ed25519 private key value or PEM file path
+- `jwt.eddsa.public_key`: Ed25519 public key value or PEM file path
 
-Configured inputs receive the viper key names, not the secret/key values
-themselves. For example, `HMACSecretKey` is a `*string` pointing to the viper
-key that stores the HS256 secret. If you want to pass the secret directly, build
-the service with `jwtservice.New(jwtservice.WithHMACSHA256("secret"))` instead.
-The same key-pointer pattern applies to `RSAPrivateKeyKey`, `RSAPublicKeyKey`,
-`EdDSAPrivateKeyKey`, and `EdDSAPublicKeyKey`.
-For RSA and EdDSA, the configured `private_key` and `public_key` values may be
-paths to PEM files, for example `./certs/jwt/key.pem` and
-`./certs/jwt/public.pem`.
+Configured service inputs receive viper key names, not raw secret values. For
+example, `HMACSecretKey` points to the viper key that stores the HS256 secret.
+Use `jwtservice.New(jwtservice.WithHMACSHA256("secret"))` when you want to pass
+a secret directly.
 
-```go
-func stringPtr(value string) *string {
-	return &value
-}
-```
-
-Example config files in this module:
+Example files:
 
 - [application.yaml](./application.yaml)
 - [application.json](./application.json)
 
-## JWT usage
+## JWT Service
 
-### Build a configured service
+### Configured From Viper
 
 ```go
+package main
+
 import (
-	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
+	jwtservice "github.com/PointerByte/GoForge/security/auth/jwt"
 	"github.com/spf13/viper"
 )
 
-viper.Set("jwt.algorithm", "HS256")
-viper.Set("jwt.hmac.secret", "my-secret")
+func main() {
+	viper.Set("jwt.algorithm", "HS256")
+	viper.Set("jwt.hmac.secret", "my-secret")
 
-hmacSecretKey := jwtservice.DefaultHMACSecretKey
+	hmacSecretKey := jwtservice.DefaultHMACSecretKey
 
-service, err := jwtservice.NewConfiguredService(jwtservice.ConfigServiceInput{
-	Algorithm:     "HS256",
-	HMACSecretKey: &hmacSecretKey,
-})
-if err != nil {
-	panic(err)
+	service, err := jwtservice.NewConfiguredService(jwtservice.ConfigServiceInput{
+		Algorithm:     "HS256",
+		HMACSecretKey: &hmacSecretKey,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	token, err := service.Create(map[string]any{"user_id": "42"})
+	if err != nil {
+		panic(err)
+	}
+
+	var claims map[string]any
+	if err := service.Read(token, &claims); err != nil {
+		panic(err)
+	}
 }
 ```
 
-For a direct secret without `viper`:
+### Direct Secret
 
 ```go
 service, err := jwtservice.New(
@@ -136,44 +125,9 @@ if err != nil {
 }
 ```
 
-### Create a token
+### Context And Validators
 
 ```go
-token, err := service.Create(map[string]any{
-	"user_id": "42",
-	"role":    "admin",
-})
-if err != nil {
-	panic(err)
-}
-```
-
-### Read typed claims
-
-```go
-var claims struct {
-	UserID string `json:"user_id"`
-	Role   string `json:"role"`
-}
-
-if err := service.Read(token, &claims); err != nil {
-	panic(err)
-}
-```
-
-### Context-aware operations
-
-JWT signing, signature validation, claim decoding, and validators can receive a
-`context.Context`. You can also configure a service-level timeout.
-
-```go
-import (
-	"context"
-	"time"
-
-	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
-)
-
 service, err := jwtservice.New(
 	jwtservice.WithHMACSHA256("my-secret"),
 	jwtservice.WithContextTimeout(2*time.Second),
@@ -192,10 +146,11 @@ if err != nil {
 	panic(err)
 }
 
-var claims map[string]any
-parsedToken, err := service.Decode(ctx, token, &claims, func(ctx context.Context, token jwtservice.Token) error {
-	return nil
-})
+var claims struct {
+	UserID string `json:"user_id"`
+}
+
+parsedToken, err := service.Decode(ctx, token, &claims)
 if err != nil {
 	panic(err)
 }
@@ -203,93 +158,82 @@ if err != nil {
 _ = parsedToken
 ```
 
-Use `ValidateSignatureWithContext(ctx, token)` when you only need to validate
-the token signature and algorithm without decoding claims.
+Use `ValidateSignatureWithContext(ctx, token)` when you only need to verify the
+JWT structure, algorithm, and signature without decoding claims.
 
-### Supported algorithms
+## Supported Algorithms
 
-- `HS256`
-- `RS256`
-- `PS256`
-- `EdDSA`
+- `HS256`: HMAC-SHA256
+- `RS256`: RSA SHA-256
+- `PS256`: RSA-PSS SHA-256
+- `EdDSA`: Ed25519
 
-## JWT middleware for Gin
+RSA and Ed25519 configured keys may be PEM file paths or supported encoded key
+values.
 
-`RequireJWT` builds the JWT service internally. Use `WithJWTServiceConfig` to
-pass the configured-service input, `WithJWTClaimsFactory` to decode into a
-typed struct, and `WithJWTValidator` for post-signature checks. Validators run
-with the request context.
+## Bearer Middleware For Gin
+
+`RequireJWT` reads a bearer token from the `Authorization` header, validates it,
+and stores the parsed token and claims in Gin context.
 
 ```go
+package main
+
 import (
 	"context"
 
-	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
-	"github.com/PointerByte/QuicksGo/security/middlewares"
+	jwtservice "github.com/PointerByte/GoForge/security/auth/jwt"
+	"github.com/PointerByte/GoForge/security/middlewares"
+	"github.com/gin-gonic/gin"
 )
 
-hmacSecretKey := jwtservice.DefaultHMACSecretKey
-
-router.Use(middlewares.RequireJWT(
-	middlewares.WithJWTServiceConfig(jwtservice.ConfigServiceInput{
-		Algorithm:     "HS256",
-		HMACSecretKey: &hmacSecretKey,
-	}),
-	middlewares.WithJWTClaimsFactory(func() any { return &MyClaims{} }),
-	middlewares.WithJWTValidator(func(ctx context.Context, token jwtservice.Token) error {
-		return nil
-	}),
-))
-```
-
-For custom JWT strategies, override the constructor with
-`WithJWTServiceFactory`.
-
-```go
-router.Use(middlewares.RequireJWT(
-	middlewares.WithJWTServiceConfig(jwtservice.ConfigServiceInput{
-		Algorithm: "CUSTOM",
-	}),
-	middlewares.WithJWTServiceFactory(func(input jwtservice.ConfigServiceInput) (*jwtservice.Service, error) {
-		return jwtservice.New(
-			jwtservice.WithCustomStrategy("CUSTOM", signFunc, verifyFunc),
-		)
-	}),
-))
-```
-
-### Read claims from Gin context
-
-```go
 type MyClaims struct {
 	UserID string `json:"user_id"`
 	Role   string `json:"role"`
 }
 
-claimsValue, _ := c.Get(middlewares.JWTClaimsContextKey.String())
+func main() {
+	router := gin.New()
+	hmacSecretKey := jwtservice.DefaultHMACSecretKey
+
+	router.Use(middlewares.RequireJWT(
+		middlewares.WithJWTServiceConfig(jwtservice.ConfigServiceInput{
+			Algorithm:     "HS256",
+			HMACSecretKey: &hmacSecretKey,
+		}),
+		middlewares.WithJWTClaimsFactory(func() any { return &MyClaims{} }),
+		middlewares.WithJWTValidator(func(ctx context.Context, token jwtservice.Token) error {
+			return nil
+		}),
+	))
+}
+```
+
+Read values from Gin context:
+
+```go
+claimsValue, ok := c.Get(middlewares.JWTClaimsContextKey.String())
+if !ok {
+	return
+}
+
 claims := claimsValue.(*MyClaims)
+_ = claims
 ```
 
 The parsed token is stored under `middlewares.JWTTokenContextKey.String()`.
 Without a claims factory, decoded claims are stored as `map[string]any`.
-You can override both keys with `WithJWTContextKeys`.
+Customize context keys with `WithJWTContextKeys`.
 
-## Cookie auth
+## Cookie Auth
 
-The `auth/cookies` package reuses the JWT service and reads the token from an HTTP cookie.
-
-### Build a configured cookie service
+The `auth/cookies` package validates JWTs stored in an HTTP cookie.
 
 ```go
 import (
-	cookiesauth "github.com/PointerByte/QuicksGo/security/auth/cookies"
-	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
-	"github.com/spf13/viper"
+	cookiesauth "github.com/PointerByte/GoForge/security/auth/cookies"
+	jwtservice "github.com/PointerByte/GoForge/security/auth/jwt"
 )
-
-viper.Set("jwt.algorithm", "HS256")
-viper.Set("jwt.hmac.secret", "my-secret")
-viper.Set("jwt.cookie.name", "session_token")
 
 hmacSecretKey := jwtservice.DefaultHMACSecretKey
 
@@ -303,47 +247,16 @@ service, err := cookiesauth.NewConfiguredService(cookiesauth.ConfigServiceInput{
 if err != nil {
 	panic(err)
 }
-```
 
-### Read claims from a request cookie
-
-```go
-var claims struct {
-	UserID string `json:"user_id"`
-	Role   string `json:"role"`
-}
-
-if err := service.Read(r, &claims); err != nil {
+var claims map[string]any
+if err := service.Read(request, &claims); err != nil {
 	panic(err)
 }
 ```
 
-For request-scoped validation, use `Decode`.
+Gin cookie middleware:
 
 ```go
-parsedToken, err := service.Decode(r.Context(), r, &claims, func(ctx context.Context, token jwtservice.Token) error {
-	return nil
-})
-if err != nil {
-	panic(err)
-}
-
-_ = parsedToken
-```
-
-## Cookie middleware for Gin
-
-```go
-import (
-	"context"
-
-	cookiesauth "github.com/PointerByte/QuicksGo/security/auth/cookies"
-	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
-	"github.com/PointerByte/QuicksGo/security/middlewares"
-)
-
-hmacSecretKey := jwtservice.DefaultHMACSecretKey
-
 router.Use(middlewares.RequireJWTCookie(
 	middlewares.WithJWTCookieServiceConfig(cookiesauth.ConfigServiceInput{
 		CookieNameKey: cookiesauth.DefaultCookieNameKey,
@@ -353,42 +266,52 @@ router.Use(middlewares.RequireJWTCookie(
 		},
 	}),
 	middlewares.WithJWTCookieClaimsFactory(func() any { return &MyClaims{} }),
-	middlewares.WithJWTCookieValidator(func(ctx context.Context, token jwtservice.Token) error {
-		return nil
-	}),
 ))
 ```
 
-By default it reads the cookie configured in `jwt.cookie.name`, or `access_token` when that key is missing.
-Like the bearer middleware, it stores the parsed token and decoded claims in
-Gin context. You can customize the context keys with
-`WithJWTCookieContextKeys`.
+It reads `jwt.cookie.name` from viper and falls back to `access_token`.
 
-## Direct `encrypt` usage alongside `security`
+## Custom Strategies
 
-If your application uses `security` and also needs explicit crypto operations, import `encrypt` directly:
+Use `WithCustomStrategy` directly or override middleware service creation with
+`WithJWTServiceFactory`.
 
 ```go
-import (
-	"context"
-
-	"github.com/PointerByte/QuicksGo/encrypt"
-	"github.com/PointerByte/QuicksGo/encrypt/local"
+service, err := jwtservice.New(
+	jwtservice.WithCustomStrategy("CUSTOM", signFunc, verifyFunc),
 )
+if err != nil {
+	panic(err)
+}
 
-ctx := context.Background()
-repository := encrypt.NewRepository(local.NewRepository())
-
-_, _ = ctx, repository
+_ = service
 ```
 
-See the `encrypt` module README for backend-specific details.
+## Security Headers
 
-## Runnable example
+`middlewares.SecurityHeaders()` adds common response headers such as
+`X-Frame-Options`, `Content-Security-Policy`, `Strict-Transport-Security`,
+`Referrer-Policy`, `X-Content-Type-Options`, and `Permissions-Policy`.
 
-This module includes a runnable example in [main.go](./main.go).
+```go
+router.Use(middlewares.SecurityHeaders())
+```
 
-Run it from the `security` directory:
+## Relationship With `encrypt`
+
+`encrypt` is a separate module. `security` uses it internally, but the public
+crypto import path is:
+
+```go
+github.com/PointerByte/GoForge/encrypt
+```
+
+Use `encrypt` directly when your application needs AES, hashing, RSA/ECC, KMS,
+or signature helpers outside JWT auth.
+
+## Runnable Example
+
+This module includes an example app in [main.go](./main.go).
 
 ```bash
 go run .
@@ -413,24 +336,5 @@ From the `security` module directory:
 
 ```bash
 go test ./...
-```
-
-With coverage:
-
-```bash
-go test -cover -covermode=atomic -coverprofile="coverage.out" ./...
-```
-
-## Useful commands
-
-Update dependencies:
-
-```bash
-go get -u=patch ./...
-```
-
-Clear build, test, and module cache:
-
-```bash
-go clean -cache -testcache -modcache
+go test -cover -covermode=atomic -coverprofile=coverage.out ./...
 ```

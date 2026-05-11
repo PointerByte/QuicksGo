@@ -39,7 +39,7 @@ func buildMainTemplate(serviceType string, appName string) string {
 import (
 	"log"
 
-	serverGin "github.com/PointerByte/QuicksGo/config/server/gin"
+	serverGin "github.com/PointerByte/GoForge/config/server/gin"
 	"github.com/gin-gonic/gin"
 )
 
@@ -53,7 +53,7 @@ func main() {
 	api.GET("/hello", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"app":     "%s",
-			"message": "hello from QuicksGo Gin",
+			"message": "hello from GoForge Gin",
 		})
 	})
 
@@ -66,7 +66,7 @@ func main() {
 import (
 	"log"
 
-	serverGRPC "github.com/PointerByte/QuicksGo/config/server/grpc"
+	serverGRPC "github.com/PointerByte/GoForge/config/server/grpc"
 )
 
 func main() {

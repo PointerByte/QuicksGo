@@ -11,9 +11,9 @@ import (
 	"fmt"
 	"strings"
 
-	serverGin "github.com/PointerByte/QuicksGo/config/server/gin"
-	"github.com/PointerByte/QuicksGo/logger/builder"
-	"github.com/PointerByte/QuicksGo/logger/formatter"
+	serverGin "github.com/PointerByte/GoForge/config/server/gin"
+	"github.com/PointerByte/GoForge/logger/builder"
+	"github.com/PointerByte/GoForge/logger/formatter"
 	"github.com/spf13/viper"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

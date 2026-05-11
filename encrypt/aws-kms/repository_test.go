@@ -14,9 +14,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/PointerByte/QuicksGo/encrypt/common"
-	"github.com/PointerByte/QuicksGo/encrypt/local"
-	"github.com/PointerByte/QuicksGo/encrypt/utilities"
+	"github.com/PointerByte/GoForge/encrypt/common"
+	"github.com/PointerByte/GoForge/encrypt/local"
+	"github.com/PointerByte/GoForge/encrypt/utilities"
 	sdkaws "github.com/aws/aws-sdk-go-v2/aws"
 	kms "github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"

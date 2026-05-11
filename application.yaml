@@ -1,5 +1,5 @@
 app:
-  name: quicksgo-service
+  name: GoForge-service
   version: 0.0.1
 
 server:

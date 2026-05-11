@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/PointerByte/QuicksGo/encrypt/common"
-	"github.com/PointerByte/QuicksGo/encrypt/models"
-	"github.com/PointerByte/QuicksGo/encrypt/utilities"
+	"github.com/PointerByte/GoForge/encrypt/common"
+	"github.com/PointerByte/GoForge/encrypt/models"
+	"github.com/PointerByte/GoForge/encrypt/utilities"
 	"github.com/zeebo/blake3"
 )
 

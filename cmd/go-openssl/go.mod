@@ -1,4 +1,4 @@
-module github.com/PointerByte/QuicksGo/cmd/go-openssl
+module github.com/PointerByte/GoForge/cmd/go-openssl
 
 go 1.25.0
 

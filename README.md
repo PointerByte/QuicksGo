@@ -1,286 +1,207 @@
-# QuicksGo
+# GoForge
 
-QuicksGo is a modular framework for bootstrapping Go services with a shared approach to configuration, transport, observability, and security.
+GoForge is a modular Go toolkit for bootstrapping service-oriented
+applications with shared conventions for configuration, HTTP and gRPC
+transport, logging, OpenTelemetry, JWT security, background jobs, and small
+runtime utilities.
 
-It helps you assemble applications faster with:
+The repository is organized as a Go workspace. The root module contains the
+service bootstrap packages under `config` and `tools`; `logger`, `security`,
+`encrypt`, and the CLIs are separate modules that can also be consumed on their
+own.
 
-- Gin HTTP servers
-- gRPC servers
-- HTTP and gRPC clients
-- structured logging
-- OpenTelemetry tracing
-- JWT and security middleware
-- `viper`-based configuration loading
-- simple in-process background jobs
+Spanish documentation is available in [README.es.md](./README.es.md).
 
-## Main modules
+## What It Includes
 
-- [config](/e:/Proyects/Practices/QuicksGo/config): server and client bootstrap, configuration loading, tracing, and jobs
-- [logger](/e:/Proyects/Practices/QuicksGo/logger/README.md): structured logging plus HTTP and gRPC middleware
-- [security](/e:/Proyects/Practices/QuicksGo/security/README.md): JWT, security middleware, and cryptographic helpers
-- [cmd/qgo](/e:/Proyects/Practices/QuicksGo/cmd/qgo/README.md): CLI for scaffolding new Gin and gRPC services
+- Gin HTTP server bootstrap with common middleware
+- gRPC server bootstrap with unary and stream interceptors
+- HTTP and gRPC clients with tracing hooks
+- structured logging through the `logger` module
+- OpenTelemetry traces, metrics, and instrumentation helpers
+- JWT middleware through the `security` module
+- local and cloud-backed cryptographic helpers through `encrypt`
+- fixed-interval background jobs and simple worker utilities
+- ECS and Kubernetes helpers for refresh fan-out host discovery
+- CLIs for service scaffolding and certificate generation
 
-## How the pieces fit together
+## Modules
 
-A typical QuicksGo application flow looks like this:
-
-1. `config/utilities.LoadEnv` loads `application.yml` or `application.json` into `viper`
-2. `config` initializes `logger`
-3. `config` initializes OpenTelemetry tracing
-4. `config/server/gin` or `config/server/grpc` starts the server
-5. `security` consumes the same shared `viper` configuration
-6. `config/client/http` and `config/client/grpc` reuse tracing and logging for outbound calls
+- [root module](./go.mod): `github.com/PointerByte/GoForge`
+- [logger](./logger/README.md): structured logging plus HTTP and gRPC middleware
+- [security](./security/README.md): JWT services and Gin security middleware
+- [encrypt](./encrypt/README.md): symmetric crypto, hashing, RSA, signatures, and KMS-oriented backends
+- [cmd/qgo](./cmd/qgo/README.md): CLI for scaffolding Gin and gRPC services
+- [cmd/go-openssl](./cmd/go-openssl/README.md): CLI for generating and reading PEM certificates and keys
 
 ## Installation
 
 Install the root module:
 
 ```bash
-go get github.com/PointerByte/QuicksGo
+go get github.com/PointerByte/GoForge
 ```
 
-Or install only the module you need:
+Or install only the modules you need:
 
 ```bash
-go get github.com/PointerByte/QuicksGo/config
-go get github.com/PointerByte/QuicksGo/logger
-go get github.com/PointerByte/QuicksGo/security
+go get github.com/PointerByte/GoForge/logger
+go get github.com/PointerByte/GoForge/security
+go get github.com/PointerByte/GoForge/encrypt
 ```
 
-## Configuration model
+Install the CLIs:
 
-The complete framework templates are available at:
+```bash
+go install github.com/PointerByte/GoForge/cmd/qgo@latest
+go install github.com/PointerByte/GoForge/cmd/go-openssl@latest
+```
 
-- [config/application.yml](/e:/Proyects/Practices/QuicksGo/config/application.yml)
-- [config/application.json](/e:/Proyects/Practices/QuicksGo/config/application.json)
+## Configuration
 
-Supported load priority:
+`config/utilities.LoadEnv(prefixPath)` loads configuration into `viper` from
+the provided directory. It checks these files in order:
 
 1. `application.yml`
-2. `application.json`
-3. `.env`
-4. `.env.local`
-5. environment variables
+2. `application.yaml`
+3. `application.json`
+
+After the application file is read, it merges `.env` and `.env.local` from the
+current working directory and enables environment variables. Environment
+overrides are generated from the existing configuration key path.
+
+Examples:
+
+- `app.name` -> `APP_NAME`
+- `server.gin.port` -> `SERVER_GIN_PORT`
+- `server.gin.groups` -> `SERVER_GIN_GROUPS`
+- `server.grpc.port` -> `SERVER_GRPC_PORT`
+- `client.http.timeout` -> `CLIENT_HTTP_TIMEOUT`
+- `client.grpc.tls.serverName` -> `CLIENT_GRPC_TLS_SERVERNAME`
+- `jwt.hmac.secret` -> `JWT_HMAC_SECRET`
 
 YAML is the recommended format for new applications.
 
-### Example YAML
+### Minimal YAML
 
 ```yaml
 app:
-  name: quicksgo-server
+  name: GoForge-service
   version: 0.0.1
 
 server:
-  groups:
-    - /api/v1
+  modeTest: false
   gin:
     port: ":8080"
     mode: release
+    groups:
+      - /api/v1
     UseH2C: true
     rate:
       limit: 1000
       burst: 2000
+    LoggerWithConfig:
+      enabled: true
+      SkipPaths:
+        - /api/v1/health
+      SkipQueryString: false
   grpc:
     port: ":50051"
+
+client:
+  http:
+    timeout: 5s
 
 logger:
   dir: logs
   level: info
+  formatter: json
+  formatDate: "2006-01-02T15:04:05.000"
+  ignoredHeaders:
+    - Authorization
+    - Cookie
+
+traces:
+  enable: false
+  SkipPaths:
+    - /api/v1/health
 
 jwt:
-  enable: true
-  transport: cookie
-  cookie:
-    name: session_token
+  enable: false
+  transport: header
   algorithm: HS256
   hmac:
     secret: change-me
 ```
 
-### Environment variable mapping
+## Main Configuration Keys
 
-Overrides are generated from the key path. Examples:
+### Application
 
-- `app.name` -> `APP_NAME`
-- `server.port` -> `SERVER_PORT`
-- `server.gin.port` -> `SERVER_GIN_PORT`
-- `server.grpc.port` -> `SERVER_GRPC_PORT`
-- `client.grpc.tls.serverName` -> `CLIENT_GRPC_TLS_SERVERNAME`
-- `jwt.hmac.secret` -> `JWT_HMAC_SECRET`
+- `app.name`: service name used by health endpoints and OpenTelemetry resource metadata
+- `app.version`: service version reported by health endpoints and telemetry metadata
+- `server.modeTest`: disables runtime behaviors such as background job execution during tests
 
-## Configuration reference
-
-The example templates include the keys most commonly used across `config`, `logger`, and `security`.
-
-### `app`
-
-- `app.name`: service name used by health endpoints, logger metadata, and OTEL resource naming
-- `app.version`: service version reported by health endpoints and OTEL metadata
-
-### `server`
-
-- `server.groups`: Gin route groups created automatically by `config/server/gin`
-- `server.modeTest`: helper flag used in tests to simplify runtime behavior
-
-### `server.gin`
+### Gin Server
 
 - `server.gin.port`: HTTP listen address
-- `server.gin.mode`: Gin mode such as `debug`, `release`, or `test`
+- `server.gin.mode`: Gin mode, for example `debug`, `release`, or `test`
+- `server.gin.groups`: route groups created by `config/server/gin`
 - `server.gin.UseH2C`: enables HTTP/2 cleartext support
-- `server.gin.rate.limit`: built-in rate limiter request rate
+- `server.gin.rate.limit`: request rate for the built-in limiter; `0` disables it
 - `server.gin.rate.burst`: burst size for the limiter
+- `server.gin.LoggerWithConfig.enabled`: enables structured HTTP request logs
+- `server.gin.LoggerWithConfig.SkipPaths`: paths skipped by the request logger
+- `server.gin.LoggerWithConfig.SkipQueryString`: hides query strings in logged paths
 
-### `server.gin.LoggerWithConfig`
+Gin also supports `server.gin.autotls.*`, `server.gin.tls.*`, and
+`server.gin.mtls.*` settings for automatic TLS, explicit TLS, and mTLS.
 
-- `server.gin.LoggerWithConfig.enabled`: enables the structured HTTP request logger
-- `server.gin.LoggerWithConfig.SkipPaths`: routes skipped by the logger middleware
-- `server.gin.LoggerWithConfig.SkipQueryString`: hides the query string from the logged path
+Supported TLS versions are `tlsv10`, `tlsv11`, `tlsv12`, and `tlsv13`.
+Supported client-auth values include `no_client_cert`, `request_client_cert`,
+`require_any_client_cert`, `verify_client_cert_if_given`, and
+`require_and_verify_client_cert`.
 
-### `server.grpc`
+### gRPC Server
 
 - `server.grpc.port`: gRPC listen address
-
-### `server.grpc.tls`
-
 - `server.grpc.tls.enable`: enables TLS on the gRPC server
 - `server.grpc.tls.certFile`: server certificate path
 - `server.grpc.tls.keyFile`: server private key path
-- `server.grpc.tls.version`: minimum TLS version such as `tlsv12` or `tlsv13`
-
-### `server.grpc.mtls`
-
-- `server.grpc.mtls.enable`: enables mTLS validation on the gRPC server
+- `server.grpc.tls.version`: minimum TLS version
+- `server.grpc.mtls.enable`: enables mTLS validation
 - `server.grpc.mtls.clientCAFile`: CA file used to validate client certificates
 - `server.grpc.mtls.clientAuth`: client certificate policy
 
-Supported `server.grpc.mtls.clientAuth` values:
+### Clients
 
-- `request_client_cert`
-- `require_any_client_cert`
-- `verify_client_cert_if_given`
-- `require_and_verify_client_cert`
+- `client.http.timeout`: default timeout for configured HTTP clients
+- `client.http.tls.*`: outbound HTTP TLS settings
+- `client.http.mtls.*`: outbound HTTP mTLS client certificate settings
+- `client.grpc.tls.*`: outbound gRPC TLS settings
+- `client.grpc.mtls.*`: outbound gRPC mTLS client certificate settings
 
-### `server.gin.autotls`
+### Logger, Traces, and JWT
 
-- `server.gin.autotls.enable`: enables automatic certificate management through `autocert`
-- `server.gin.autotls.domain`: allowed domain for managed certificates
-- `server.gin.autotls.dirCache`: local cache directory for `autocert`
-- `server.gin.autotls.version`: minimum TLS version for auto TLS
-
-### `server.gin.tls`
-
-- `server.gin.tls.enable`: enables TLS on the Gin server
-- `server.gin.tls.certFile`: server certificate path
-- `server.gin.tls.keyFile`: server private key path
-- `server.gin.tls.version`: minimum TLS version such as `tlsv12` or `tlsv13`
-
-### `server.gin.mtls`
-
-- `server.gin.mtls.enable`: enables mTLS validation on the Gin server
-- `server.gin.mtls.clientCAFile`: CA file used to validate client certificates
-- `server.gin.mtls.clientAuth`: client certificate policy
-
-### `client.http.tls`
-
-- `client.http.tls.enable`: enables TLS on the outbound HTTP client
-- `client.http.tls.caFile`: CA bundle used to validate the remote server certificate
-- `client.http.tls.serverName`: optional expected server name during certificate validation
-- `client.http.tls.version`: minimum TLS version for the client transport
-- `client.http.tls.insecureSkipVerify`: disables certificate validation and should be used only in controlled development scenarios
-
-### `client.http.mtls`
-
-- `client.http.mtls.enable`: enables mTLS on the outbound HTTP client
-- `client.http.mtls.certFile`: client certificate path
-- `client.http.mtls.keyFile`: client private key path
-
-### `client.grpc.tls`
-
-- `client.grpc.tls.enable`: enables TLS on the outbound gRPC client
-- `client.grpc.tls.caFile`: CA bundle used to validate the remote server certificate
-- `client.grpc.tls.serverName`: expected server name during certificate validation
-- `client.grpc.tls.version`: minimum TLS version for the client transport
-- `client.grpc.tls.insecureSkipVerify`: disables certificate validation and should be used only in controlled development scenarios
-
-### `client.grpc.mtls`
-
-- `client.grpc.mtls.enable`: enables mTLS on the outbound gRPC client
-- `client.grpc.mtls.certFile`: client certificate path
-- `client.grpc.mtls.keyFile`: client private key path
-
-### `logger`
-
-- `logger.dir`: directory used to create the log file
-- `logger.modeTest`: disables logger output during tests
+- `logger.dir`: directory for log files
 - `logger.level`: minimum log level such as `debug`, `info`, `warn`, or `error`
-- `logger.ignoredHeaders`: headers that must not appear in structured logs
-- `logger.formatter`: output format such as `json` or `text`
-- `logger.formatDate`: timestamp format used by the formatter
-
-### `logger.rotate`
-
-- `logger.rotate.enable`: enables file rotation through `lumberjack`
-- `logger.rotate.maxSize`: maximum log file size in MB before rotation
-- `logger.rotate.maxBackups`: maximum number of rotated files to keep
-- `logger.rotate.maxAge`: maximum age in days for rotated files
-- `logger.rotate.compress`: compresses rotated files when enabled
-
-### `traces`
-
-- `traces.enable`: enables OpenTelemetry traces and metrics initialization; when `false`, those exporters are not started
-- `traces.SkipPaths`: HTTP paths excluded from Gin OpenTelemetry middleware
-
-### `jwt`
-
-- `jwt.enable`: enables or disables JWT middleware enforcement
-- `jwt.transport`: JWT source used by Gin middleware. Supported values: `header` and `cookie`
+- `logger.ignoredHeaders`: headers removed from structured logs
+- `logger.formatter`: output format, usually `json` or `text`
+- `logger.rotate.*`: file rotation settings
+- `traces.enable`: enables OpenTelemetry initialization
+- `traces.SkipPaths`: HTTP paths skipped by Gin OpenTelemetry middleware
+- `jwt.enable`: enables JWT middleware enforcement
+- `jwt.transport`: token source, usually `header` or `cookie`
+- `jwt.cookie.name`: cookie name when `jwt.transport` is `cookie`
 - `jwt.algorithm`: signing algorithm such as `HS256`, `RS256`, `PS256`, or `EdDSA`
+- `jwt.hmac.secret`, `jwt.rsa.*`, `jwt.eddsa.*`: signing key configuration
 
-### `jwt.cookie`
+## HTTP Server
 
-- `jwt.cookie.name`: cookie name used when `jwt.transport` is `cookie`
-
-### `jwt.hmac`
-
-- `jwt.hmac.secret`: shared secret used by HMAC-based JWT algorithms
-
-### `jwt.rsa`
-
-- `jwt.rsa.private_key`: RSA private key in string form for signing
-- `jwt.rsa.public_key`: RSA public key in string form for verification
-
-### `jwt.eddsa`
-
-- `jwt.eddsa.private_key`: Ed25519 private key in string form for signing
-- `jwt.eddsa.public_key`: Ed25519 public key in string form for verification
-
-## Observability
-
-Services bootstrapped with QuicksGo are already prepared for OpenTelemetry-based observability.
-
-That includes:
-
-- traces
-- logs
-- metrics
-
-QuicksGo is also compatible with the OpenTelemetry Go Auto Instrumentation SDK when your deployment strategy needs automatic instrumentation on top of the framework setup.
-
-## HTTP server
-
-`config/server/gin.CreateApp()`:
-
-- loads configuration
-- initializes logger
-- initializes OpenTelemetry
-- creates the `gin.Engine`
-- registers shared middleware
-- applies JWT middleware when configured
-- creates groups from `server.groups`
-- registers `/health` and `/refresh` for each group
-
-Basic usage:
+`config/server/gin.CreateApp()` loads configuration, initializes the logger and
+OpenTelemetry, creates the shared `gin.Engine`, registers common middleware,
+creates route groups from `server.gin.groups`, and registers `/health` and
+`/refresh` under each group.
 
 ```go
 package main
@@ -288,9 +209,8 @@ package main
 import (
 	"log"
 
+	serverGin "github.com/PointerByte/GoForge/config/server/gin"
 	"github.com/gin-gonic/gin"
-
-	serverGin "github.com/PointerByte/QuicksGo/config/server/gin"
 )
 
 func main() {
@@ -308,29 +228,15 @@ func main() {
 }
 ```
 
-### Gin refresh endpoint
+`GET /refresh` restarts registered package-level jobs, runs callbacks
+registered with `SetFunctionsRefresh(...)`, and can fan out to peers registered
+with `SetHostsRefresh(...)`.
 
-Each route group created from `server.groups` also gets a `GET /refresh` endpoint.
+## gRPC Server
 
-It is intended for:
-
-- reloading cache or in-memory state
-- restarting background jobs across instances
-- propagating refresh events to peers registered with `SetHostsRefresh(...)`
-
-If you need local refresh logic before fan-out, register callbacks with `SetFunctionsRefresh(...)`.
-
-## gRPC server
-
-`config/server/grpc`:
-
-- loads configuration when `Serve()` runs
-- resolves `server.grpc.port` from `viper`
-- integrates logger and trace interceptors
-- supports TLS and mTLS
-- listens to shutdown signals and performs `GracefulStop()`
-
-Basic usage:
+`config/server/grpc` loads configuration in `Serve()`, resolves
+`server.grpc.port`, attaches logging and OpenTelemetry interceptors, supports
+TLS and mTLS, and performs graceful shutdown on process signals.
 
 ```go
 package main
@@ -339,8 +245,8 @@ import (
 	"context"
 	"log"
 
-	pb "github.com/PointerByte/QuicksGo/config/proto"
-	serverGRPC "github.com/PointerByte/QuicksGo/config/server/grpc"
+	pb "github.com/PointerByte/GoForge/config/proto"
+	serverGRPC "github.com/PointerByte/GoForge/config/server/grpc"
 	"google.golang.org/grpc"
 )
 
@@ -348,21 +254,20 @@ type greeterServer struct {
 	pb.UnimplementedGreeterServer
 }
 
-func (s greeterServer) SayHello(_ context.Context, req *pb.HelloRequest) (*pb.HelloReply, error) {
+func (greeterServer) SayHello(_ context.Context, req *pb.HelloRequest) (*pb.HelloReply, error) {
 	return &pb.HelloReply{Message: "hello " + req.GetName()}, nil
 }
 
-func (s greeterServer) CreateChat(stream grpc.ClientStreamingServer[pb.ChatMessage, pb.ChatSummary]) error {
+func (greeterServer) CreateChat(stream grpc.ClientStreamingServer[pb.ChatMessage, pb.ChatSummary]) error {
 	return nil
 }
 
-func (s greeterServer) StreamAlerts(stream grpc.BidiStreamingServer[pb.AlertMessage, pb.AlertMessage]) error {
+func (greeterServer) StreamAlerts(stream grpc.BidiStreamingServer[pb.AlertMessage, pb.AlertMessage]) error {
 	return nil
 }
 
 func main() {
 	srv := serverGRPC.NewIConfig(nil, nil)
-
 	if err := srv.Register(func(r grpc.ServiceRegistrar) {
 		pb.RegisterGreeterServer(r, greeterServer{})
 	}); err != nil {
@@ -373,19 +278,9 @@ func main() {
 }
 ```
 
-### gRPC refresh endpoint
+## Clients
 
-`config/server/grpc` exposes an internal administrative refresh RPC through `"/quicksgo.admin/Refresh"`.
-
-It is intended for:
-
-- refreshing process-local state on all nodes
-- restarting package-level scheduled jobs in a coordinated way
-- propagating internal reload events across gRPC instances
-
-## HTTP client
-
-`config/client/http` exposes a generic REST client with request and response tracing.
+HTTP:
 
 ```go
 client := clientHttp.NewGenericRest(10*time.Second, nil)
@@ -399,16 +294,11 @@ err := client.GetGeneric(ctx, clientHttp.RequestGeneric{
 })
 ```
 
-## gRPC client
-
-`config/client/grpc` wraps `grpc.ClientConn` and can:
-
-- build protobuf clients through `BuildClient`
-- resolve TLS and mTLS from `viper`
-- trace metadata, request, and response through `logger`
+gRPC:
 
 ```go
 cli := clientGRPC.NewIClient(nil)
+cli.SetAddress("localhost:50051")
 
 greeter, err := clientGRPC.BuildClient(cli, pb.NewGreeterClient)
 if err != nil {
@@ -416,27 +306,14 @@ if err != nil {
 }
 ```
 
-## Background jobs
+Use `NewGenericRestFromConfig()` or the gRPC client TLS settings when you want
+client transports to be built from `viper`.
 
-`config/utilities/jobs` provides simple in-process recurring tasks.
+## Background Work
 
-Common entry points:
-
-- `jobs.Job(...)`
-- `jobs.CronJob(...)`
-- `jobs.StartJobs()`
-- `jobs.RestartJobs()`
-- `jobs.StopAllJobs(...)`
-- `jobs.CheckStatusJobs()`
-
-Important behavior:
-
-- jobs start only after `StartJobs()` runs
-- `config/server/gin.Start(...)` already calls `jobs.StartJobs()`
-- jobs registered after `StartJobs()` starts are launched immediately
-- when `server.modeTest=true`, jobs do not run
-
-Example:
+`tools/jobs` provides fixed-interval in-process jobs. Jobs begin when
+`jobs.StartJobs()` runs; `config/server/gin.Start(...)` calls it automatically.
+When `server.modeTest=true`, jobs are not started.
 
 ```go
 func registerJobs() {
@@ -445,69 +322,48 @@ func registerJobs() {
 	jobs.Job(func() {
 		refreshCache()
 	}, time.Minute, &timeout)
-
-	jobs.CronJob(func() {
-		buildDailyReport()
-	}, jobs.CronTrigger{
-		Hour:   2,
-		Minute: 0,
-		Second: 0,
-	}, 0)
-}
-
-func main() {
-	registerJobs()
-
-	srv, err := serverGin.CreateApp()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	serverGin.Start(srv)
 }
 ```
 
-## Runnable example
+`tools/workers` provides a small bounded worker loop through `SetWorkersLimit`,
+`RunWorkers`, `AddTask`, `StopWorkers`, and `RestartWorkers`.
 
-The `config` module includes a runnable example in [config/main.go](/e:/Proyects/Practices/QuicksGo/config/main.go).
+## Runtime Examples
+
+The root module includes runnable examples in [main.go](./main.go).
+Use an application file like the minimal YAML above before starting the Gin
+example; it expects `/api/v1` in `server.gin.groups`.
 
 Run the Gin example:
 
-```powershell
-$env:QUICKSGO_EXAMPLE_SERVER="gin"
-go run ./config
+```bash
+GoForge_EXAMPLE_SERVER=gin go run .
 ```
 
 Run the gRPC example:
 
-```powershell
-$env:QUICKSGO_EXAMPLE_SERVER="grpc"
-go run ./config
+```bash
+GoForge_EXAMPLE_SERVER=grpc go run .
 ```
 
-## Recommended usage
+## Development
 
-If you are starting a new application with QuicksGo:
+The workspace uses Go `1.25.0`.
 
-1. start from [config/application.yml](/e:/Proyects/Practices/QuicksGo/config/application.yml)
-2. load configuration with `config/utilities.LoadEnv`
-3. use `config/server/gin` or `config/server/grpc` as your bootstrap layer
-4. define your routes or protobuf services
-5. use `security` for JWT and endpoint protection
-6. use `config/client/http` or `config/client/grpc` for traced outbound calls
-7. use `config/utilities/jobs` when you need lightweight recurring background work
-
-You can also scaffold a new service with `qgo`:
+Run tests for the root module:
 
 ```bash
-go install github.com/PointerByte/QuicksGo/cmd/qgo@latest
-qgo new gin
-qgo new grpc
+go test ./...
 ```
 
-## Protobuf
+Run tests for a workspace module:
 
-Required commands:
+```bash
+cd logger
+go test ./...
+```
+
+Generate protobuf files after editing `config/proto/methods.proto`:
 
 ```bash
 go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
@@ -515,40 +371,10 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 protoc --go_out=. --go-grpc_out=. config/proto/methods.proto
 ```
 
-## Tests
+Coverage for the current module:
 
 ```bash
-go test ./...
-```
-
-## Useful commands
-
-### Update dependencies
-
-```bash
-go get -u=patch ./...
-```
-
-### Clean build, test, and module cache
-
-```bash
-go clean -cache -testcache -modcache
-```
-
-### Run tests with coverage
-
-```bash
-go test -cover -covermode=atomic -coverprofile="coverage.out" ./...
-```
-
-### Generate HTML coverage report
-
-```bash
-go tool cover -html="coverage.out" -o "coverage.html"
-```
-
-### Show coverage by function
-
-```bash
-go tool cover -func="coverage.out"
+go test -cover -covermode=atomic -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out
+go tool cover -html=coverage.out -o coverage.html
 ```

@@ -1,4 +1,4 @@
-module github.com/PointerByte/QuicksGo/logger
+module github.com/PointerByte/GoForge/logger
 
 go 1.25.0
 

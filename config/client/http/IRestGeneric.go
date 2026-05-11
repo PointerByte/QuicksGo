@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/PointerByte/QuicksGo/logger/builder"
-	"github.com/PointerByte/QuicksGo/logger/formatter"
+	"github.com/PointerByte/GoForge/logger/builder"
+	"github.com/PointerByte/GoForge/logger/formatter"
 	"github.com/gin-gonic/gin/binding"
 )
 

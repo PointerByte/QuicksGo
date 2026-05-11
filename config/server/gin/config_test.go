@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/PointerByte/QuicksGo/logger/builder"
-	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
-	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
+	"github.com/PointerByte/GoForge/logger/builder"
+	viperdata "github.com/PointerByte/GoForge/logger/viperData"
+	jwtservice "github.com/PointerByte/GoForge/security/auth/jwt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	sdklog "go.opentelemetry.io/otel/sdk/log"

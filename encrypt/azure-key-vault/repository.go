@@ -20,10 +20,10 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
-	"github.com/PointerByte/QuicksGo/encrypt/common"
-	"github.com/PointerByte/QuicksGo/encrypt/local"
-	"github.com/PointerByte/QuicksGo/encrypt/models"
-	"github.com/PointerByte/QuicksGo/encrypt/utilities"
+	"github.com/PointerByte/GoForge/encrypt/common"
+	"github.com/PointerByte/GoForge/encrypt/local"
+	"github.com/PointerByte/GoForge/encrypt/models"
+	"github.com/PointerByte/GoForge/encrypt/utilities"
 	"github.com/spf13/viper"
 )
 
@@ -33,8 +33,8 @@ const (
 	defaultAzureVaultURLKey  = "encrypt.vault.azure-key-vault.vault-url"
 	legacyAzureVaultURLKey   = "encrypt.azure-key-vault.vault-url"
 	azureProviderName        = "azure-key-vault"
-	azureSymmetricKeyPrefix  = "quicksgo-symmetric"
-	azureAsymmetricKeyPrefix = "quicksgo-rsa"
+	azureSymmetricKeyPrefix  = "GoForge-symmetric"
+	azureAsymmetricKeyPrefix = "GoForge-rsa"
 )
 
 var (

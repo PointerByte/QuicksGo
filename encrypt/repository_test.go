@@ -6,7 +6,7 @@ package encrypt
 import (
 	"testing"
 
-	"github.com/PointerByte/QuicksGo/encrypt/local"
+	"github.com/PointerByte/GoForge/encrypt/local"
 )
 
 func TestNewRepository(t *testing.T) {

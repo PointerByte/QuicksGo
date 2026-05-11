@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/PointerByte/QuicksGo/logger/builder"
-	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
-	awsTools "github.com/PointerByte/QuicksGo/tools/aws"
+	"github.com/PointerByte/GoForge/logger/builder"
+	viperdata "github.com/PointerByte/GoForge/logger/viperData"
+	awsTools "github.com/PointerByte/GoForge/tools/aws"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
@@ -667,7 +667,7 @@ func taskWithContainerIP(taskArn, ip string) ecsTypes.Task {
 }
 
 func testLoggerContext() *builder.Context {
-	viper.Set(string(viperdata.AppAtribute), "quicksgo-test")
+	viper.Set(string(viperdata.AppAtribute), "GoForge-test")
 	viper.Set(string(viperdata.LoggerModeTestAtribute), true)
 	viper.Set(string(viperdata.LoggerIgnoredHeadersAtribute), []string{})
 	viperdata.ResetViperDataSingleton()

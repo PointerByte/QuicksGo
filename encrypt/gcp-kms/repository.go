@@ -19,10 +19,10 @@ import (
 
 	kms "cloud.google.com/go/kms/apiv1"
 	kmspb "cloud.google.com/go/kms/apiv1/kmspb"
-	"github.com/PointerByte/QuicksGo/encrypt/common"
-	"github.com/PointerByte/QuicksGo/encrypt/local"
-	"github.com/PointerByte/QuicksGo/encrypt/models"
-	"github.com/PointerByte/QuicksGo/encrypt/utilities"
+	"github.com/PointerByte/GoForge/encrypt/common"
+	"github.com/PointerByte/GoForge/encrypt/local"
+	"github.com/PointerByte/GoForge/encrypt/models"
+	"github.com/PointerByte/GoForge/encrypt/utilities"
 	"github.com/spf13/viper"
 )
 
@@ -30,9 +30,9 @@ const (
 	defaultGCPKeyIDKey     = "encrypt.vault.gcp-kms.key-id"
 	legacyGCPKeyIDKey      = "encrypt.gcp-kms.key-id"
 	gcpProviderName        = "gcp-kms"
-	gcpSymmetricKeyPrefix  = "quicksgo-symmetric"
-	gcpAsymmetricKeyPrefix = "quicksgo-rsa"
-	gcpEd25519KeyPrefix    = "quicksgo-ed25519"
+	gcpSymmetricKeyPrefix  = "GoForge-symmetric"
+	gcpAsymmetricKeyPrefix = "GoForge-rsa"
+	gcpEd25519KeyPrefix    = "GoForge-ed25519"
 )
 
 var (

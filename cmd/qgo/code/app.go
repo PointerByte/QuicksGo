@@ -59,7 +59,7 @@ func (app *App) Execute() error {
 func (app *App) rootCommand() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "qgo",
-		Short:         "QuicksGo service generator",
+		Short:         "GoForge service generator",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	clientHttp "github.com/PointerByte/QuicksGo/config/client/http"
-	"github.com/PointerByte/QuicksGo/logger/builder"
-	"github.com/PointerByte/QuicksGo/logger/middlewares"
-	"github.com/PointerByte/QuicksGo/tools/jobs"
+	clientHttp "github.com/PointerByte/GoForge/config/client/http"
+	"github.com/PointerByte/GoForge/logger/builder"
+	"github.com/PointerByte/GoForge/logger/middlewares"
+	"github.com/PointerByte/GoForge/tools/jobs"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 )

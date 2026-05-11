@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/PointerByte/QuicksGo/cmd/qgo/code"
+	"github.com/PointerByte/GoForge/cmd/qgo/code"
 )
 
 var (

@@ -14,8 +14,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	clientHttp "github.com/PointerByte/QuicksGo/config/client/http"
-	"github.com/PointerByte/QuicksGo/logger/builder"
+	clientHttp "github.com/PointerByte/GoForge/config/client/http"
+	"github.com/PointerByte/GoForge/logger/builder"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 )

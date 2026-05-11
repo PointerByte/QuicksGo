@@ -1,4 +1,4 @@
-module github.com/PointerByte/QuicksGo/encrypt
+module github.com/PointerByte/GoForge/encrypt
 
 go 1.25.0
 

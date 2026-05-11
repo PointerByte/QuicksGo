@@ -8,7 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	builder "github.com/PointerByte/QuicksGo/logger/builder"
+	builder "github.com/PointerByte/GoForge/logger/builder"
 	gomock "github.com/golang/mock/gomock"
 )
 

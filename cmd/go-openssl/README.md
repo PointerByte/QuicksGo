@@ -1,14 +1,85 @@
 # go-openssl
 
-`go-openssl` is the QuicksGo CLI used to generate `.pem` certificates and keys for RSA, ECC, or Ed25519.
+`go-openssl` is the GoForge CLI for generating PEM certificates and keys for
+RSA, ECC/ECDSA, or Ed25519. It can create self-signed certificates, CA
+certificates, certificates signed by an existing CA, and encrypted PEM
+envelopes that can later be read back by the CLI or the Go API.
 
 ## Install
 
 ```bash
-go install github.com/PointerByte/QuicksGo/cmd/go-openssl@latest
+go install github.com/PointerByte/GoForge/cmd/go-openssl@latest
 ```
 
 ## Commands
+
+Generate PEM files:
+
+```bash
+go-openssl generate [flags]
+```
+
+Read a plain or encrypted PEM file:
+
+```bash
+go-openssl read --file ./certs/cert.pem
+```
+
+## Generate Defaults
+
+When flags are omitted, generation uses:
+
+- algorithm: `rsa`
+- output directory: `.`
+- common name: `localhost`
+- DNS SAN: `localhost`
+- organization: `PointerByte`
+- validity: `365` days
+- RSA size: `2048` bits
+- ECC curve: `p256`
+- files: `cert.pem`, `key.pem`, `public.pem`
+
+Private keys are written with mode `0600`; certificate and public key files are
+written with mode `0644`.
+
+## Generate Flags
+
+| Flag | Short | Description |
+| --- | --- | --- |
+| `--algorithm` | `-a` | `rsa`, `ecc`, or `ed25519` |
+| `--dir` | `-d` | output directory |
+| `--common-name` | `-n` | certificate common name |
+| `--dns` | | DNS Subject Alternative Name; may be repeated or comma-separated |
+| `--organization` | | certificate subject organization |
+| `--days` | | certificate validity in days |
+| `--rsa-bits` | | RSA key size in bits; minimum `2048` |
+| `--ecc-curve` | | `p256`, `p384`, or `p521` |
+| `--salt` | | optional extra entropy mixed into generation |
+| `--cert-file` | | certificate file name |
+| `--key-file` | | private key file name |
+| `--public-key-file` | | public key file name |
+| `--signed-by` | | CA certificate PEM path used to sign the new certificate |
+| `--ca-key` | | CA private key PEM path used with `--signed-by` |
+| `--ca` | | mark the generated certificate as a CA |
+| `--encrypt-secret` | | encrypt generated PEM files; must be at least 32 bytes |
+| `--signed-by-secret` | | secret used to read an encrypted `--signed-by` certificate |
+| `--ca-key-secret` | | secret used to read an encrypted `--ca-key` private key |
+
+`--signed-by` and `--ca-key` must be provided together. If either CA file is
+encrypted, pass the matching secret with `--signed-by-secret` or
+`--ca-key-secret`.
+
+## Read Flags
+
+| Flag | Short | Description |
+| --- | --- | --- |
+| `--file` | `-f` | plain or encrypted PEM file to read |
+| `--secret` | `-s` | secret used to decrypt encrypted PEM files |
+| `--out` | `-o` | optional destination for decrypted PEM output |
+
+If `--out` is omitted, the command writes the PEM content to stdout.
+
+## Basic Examples
 
 Generate a self-signed RSA certificate:
 
@@ -16,70 +87,194 @@ Generate a self-signed RSA certificate:
 go-openssl generate --algorithm rsa --dir ./certs
 ```
 
-Generate an ECC certificate with an optional salt:
+Generate an ECC certificate:
 
 ```bash
-go-openssl generate --algorithm ecc --ecc-curve p384 --dir ./certs --salt my-extra-entropy
+go-openssl generate \
+  --algorithm ecc \
+  --ecc-curve p384 \
+  --dir ./certs/ecc \
+  --common-name api.default.svc \
+  --dns api.default.svc \
+  --dns api.default.svc.cluster.local
 ```
 
-Generate an Ed25519 certificate:
+Generate an Ed25519 certificate and key pair:
 
 ```bash
-go-openssl generate --algorithm ed25519 --dir ./certs
+go-openssl generate \
+  --algorithm ed25519 \
+  --dir ./certs/jwt \
+  --common-name jwt-signing.default.svc \
+  --key-file key.pem \
+  --public-key-file public.pem
 ```
 
-Generate encrypted PEM files. The secret must be at least 256 bits, which means
-32 bytes or more:
+## CA And mTLS Example
+
+Create a CA:
 
 ```bash
-go-openssl generate --algorithm rsa --dir ./certs --encrypt-secret "12345678901234567890123456789012"
+go-openssl generate \
+  --algorithm rsa \
+  --rsa-bits 4096 \
+  --ca \
+  --dir ./certs/ca \
+  --common-name internal-ca.example.local \
+  --organization "Example Internal CA" \
+  --days 3650 \
+  --cert-file ca.pem \
+  --key-file ca-key.pem \
+  --public-key-file ca-public.pem
 ```
 
-Read an encrypted certificate or key back as plain PEM:
+Create a server certificate signed by that CA:
 
 ```bash
-go-openssl read --file ./certs/cert.pem --secret "12345678901234567890123456789012"
+go-openssl generate \
+  --algorithm ecc \
+  --ecc-curve p256 \
+  --dir ./certs/server \
+  --common-name my-api.default.svc \
+  --dns my-api.default.svc \
+  --dns my-api.default.svc.cluster.local \
+  --organization "Example Platform" \
+  --days 365 \
+  --signed-by ./certs/ca/ca.pem \
+  --ca-key ./certs/ca/ca-key.pem
 ```
 
-The generator can control:
+Create a client certificate for mTLS:
 
-- the algorithm: `rsa`, `ecc`, or `ed25519`
-- the output directory through `--dir`
-- the certificate common name through `--common-name`
-- DNS Subject Alternative Names through repeated `--dns`
-- the organization value through `--organization`
-- validity time through `--days`
-- RSA key size through `--rsa-bits`
-- ECC curve through `--ecc-curve`
-- the output file names through `--cert-file`, `--key-file`, and `--public-key-file`
-- signing with an existing CA through `--signed-by` and `--ca-key`
-- reading an encrypted signing CA through `--signed-by-secret` and `--ca-key-secret`
-- whether the certificate is a CA through `--ca`
-- optional extra entropy through `--salt`
-- encrypting generated PEM files through `--encrypt-secret`
+```bash
+go-openssl generate \
+  --algorithm ecc \
+  --ecc-curve p256 \
+  --dir ./certs/client \
+  --common-name my-api-client.default.svc \
+  --dns my-api-client.default.svc \
+  --organization "Example Platform" \
+  --days 365 \
+  --signed-by ./certs/ca/ca.pem \
+  --ca-key ./certs/ca/ca-key.pem
+```
 
-The command writes:
+## Encrypted PEM Files
 
-- `cert.pem`
-- `key.pem`
-- `public.pem`
+Use `--encrypt-secret` to encrypt `cert.pem`, `key.pem`, and `public.pem` as
+`GoForge ENCRYPTED PEM` envelopes using AES-256-GCM. The secret must be at
+least 32 bytes.
 
-inside the selected directory by default.
+```bash
+go-openssl generate \
+  --algorithm rsa \
+  --rsa-bits 4096 \
+  --dir ./certs/encrypted \
+  --common-name api.default.svc \
+  --encrypt-secret "12345678901234567890123456789012"
+```
 
-When `--signed-by` is set, `--ca-key` must also be set. The generated
-certificate is signed by that CA, while `key.pem` and `public.pem` belong to
-the new certificate.
+Read an encrypted PEM to stdout:
 
-When `--encrypt-secret` is set, `cert.pem`, `key.pem`, and `public.pem` are
-written as `QUICKSGO ENCRYPTED PEM` envelopes using AES-256-GCM. Use
-`go-openssl read`, `goopenssl.ReadPEMFile`, `goopenssl.ReadCertificateFile`,
-`goopenssl.ReadPrivateKeyFile`, or `goopenssl.ReadPublicKeyFile` with the same
-secret to recover the original PEM content.
+```bash
+go-openssl read \
+  --file ./certs/encrypted/cert.pem \
+  --secret "12345678901234567890123456789012"
+```
 
-### CLI to Go options
+Write the decrypted PEM to a new file:
 
-Every `go-openssl generate` flag maps to a field in `goopenssl.Options` when
-you call the generator from Go:
+```bash
+go-openssl read \
+  --file ./certs/encrypted/key.pem \
+  --secret "12345678901234567890123456789012" \
+  --out ./certs/encrypted/key.decrypted.pem
+```
+
+Use an encrypted CA to sign another certificate:
+
+```bash
+go-openssl generate \
+  --algorithm ecc \
+  --ecc-curve p384 \
+  --dir ./certs/service \
+  --common-name service.default.svc \
+  --dns service.default.svc \
+  --signed-by ./certs/ca/ca.pem \
+  --ca-key ./certs/ca/ca-key.pem \
+  --signed-by-secret "12345678901234567890123456789012" \
+  --ca-key-secret "12345678901234567890123456789012"
+```
+
+## Kubernetes Examples
+
+Backend certificate for a service behind an Ingress:
+
+```bash
+go-openssl generate \
+  --algorithm rsa \
+  --rsa-bits 4096 \
+  --dir ./certs/my-api \
+  --common-name my-api.default.svc \
+  --dns my-api.default.svc \
+  --dns my-api.default.svc.cluster.local \
+  --dns api.example.com \
+  --organization "Example Platform" \
+  --days 365
+```
+
+Internal service-to-service certificate:
+
+```bash
+go-openssl generate \
+  --algorithm ecc \
+  --ecc-curve p256 \
+  --dir ./certs/orders-to-payments \
+  --common-name payments.default.svc \
+  --dns payments.default.svc \
+  --dns payments.default.svc.cluster.local \
+  --organization "Example Internal Services" \
+  --days 365
+```
+
+## Go API
+
+The generator can also be used directly from Go:
+
+```go
+package main
+
+import (
+	"log"
+
+	goopenssl "github.com/PointerByte/GoForge/cmd/go-openssl/code"
+)
+
+func main() {
+	result, err := goopenssl.GenerateCertificates(goopenssl.Options{
+		Algorithm:    "ecc",
+		ECCCurve:     "p256",
+		OutputDir:    "./certs",
+		CommonName:   "localhost",
+		DNSNames:     []string{"localhost"},
+		IPAddresses:  []string{"127.0.0.1"},
+		Organization: "Example",
+		ValidForDays: 365,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cert, err := goopenssl.ReadCertificateFile(result.CertificatePath, "")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_ = cert
+}
+```
+
+`go-openssl generate` maps to `goopenssl.Options` fields:
 
 | CLI flag | Go field |
 | --- | --- |
@@ -87,6 +282,7 @@ you call the generator from Go:
 | `--dir` | `OutputDir` |
 | `--common-name` | `CommonName` |
 | `--dns` | `DNSNames` |
+| Go API only | `IPAddresses` |
 | `--organization` | `Organization` |
 | `--days` | `ValidForDays` |
 | `--rsa-bits` | `RSAKeySize` |
@@ -102,469 +298,21 @@ you call the generator from Go:
 | `--signed-by-secret` | `SignedBySecret` |
 | `--ca-key-secret` | `CAKeySecret` |
 
-`go-openssl read` is a read/decrypt helper and maps to the exported reader
-functions:
+Reader helpers:
 
-| CLI flag | Go equivalent |
-| --- | --- |
-| `--file` | first argument to `ReadPEMFile`, `ReadCertificateFile`, `ReadPrivateKeyFile`, or `ReadPublicKeyFile` |
-| `--secret` | second argument to the reader function |
-| `--out` | write the returned bytes to the destination file |
+- `ReadPEMFile(path, secret)`
+- `ReadCertificateFile(path, secret)`
+- `ReadPrivateKeyFile(path, secret)`
+- `ReadPublicKeyFile(path, secret)`
 
-The Go examples below assume this import:
+Plain PEM files can be read with an empty secret. Encrypted PEM files require
+the same secret used during generation.
 
-```go
-import goopenssl "github.com/PointerByte/QuicksGo/cmd/go-openssl/code"
-```
+## Development
 
-## Examples by Use Case
-
-Each CLI example has an equivalent Go snippet using `GenerateCertificates`.
-
-### Create a CA certificate separately
-
-Use `--ca` only for a certificate authority. Naming the certificate `CA.pem`
-makes sense for this case because it is used as a trust anchor, not as an
-individual service certificate.
+From the `cmd/go-openssl` module directory:
 
 ```bash
-go-openssl generate \
-  --algorithm rsa \
-  --rsa-bits 4096 \
-  --ca \
-  --dir ./certs/internal-ca \
-  --common-name internal-ca.example.local \
-  --dns internal-ca.example.local \
-  --organization "Example Internal CA" \
-  --days 3650 \
-  --cert-file CA.pem \
-  --key-file CA-key.pem \
-  --public-key-file CA-public.pem
-```
-
-Equivalent Go code:
-
-```go
-_, err := goopenssl.GenerateCertificates(goopenssl.Options{
-	Algorithm:         "rsa",
-	RSAKeySize:        4096,
-	IsCA:              true,
-	OutputDir:         "./certs/internal-ca",
-	CommonName:        "internal-ca.example.local",
-	DNSNames:          []string{"internal-ca.example.local"},
-	Organization:      "Example Internal CA",
-	ValidForDays:      3650,
-	CertFileName:      "CA.pem",
-	KeyFileName:       "CA-key.pem",
-	PublicKeyFileName: "CA-public.pem",
-})
-```
-
-### Create server and client certificates signed by a CA
-
-For mTLS, generate the CA first, then generate the server and client
-certificates with `--signed-by` and `--ca-key`. Keep the CA key in its own file
-so later commands do not overwrite it.
-
-```bash
-go-openssl generate \
-  --algorithm ecc \
-  --ecc-curve p521 \
-  --ca \
-  --dir ./certs/server \
-  --common-name internal-ca.example.local \
-  --organization "Example Platform" \
-  --days 365 \
-  --cert-file ca.pem \
-  --key-file ca-key.pem \
-  --public-key-file ca-public.pem
-
-go-openssl generate \
-  --algorithm ecc \
-  --ecc-curve p521 \
-  --dir ./certs/server \
-  --common-name my-api.default.svc.cluster.local \
-  --dns my-api.default.svc.cluster.local \
-  --organization "Example Platform" \
-  --days 365 \
-  --cert-file cert.pem \
-  --key-file key.pem \
-  --public-key-file public.pem \
-  --signed-by ./certs/server/ca.pem \
-  --ca-key ./certs/server/ca-key.pem
-
-go-openssl generate \
-  --algorithm ecc \
-  --ecc-curve p521 \
-  --dir ./certs/client \
-  --common-name my-api-client.default.svc.cluster.local \
-  --dns my-api-client.default.svc.cluster.local \
-  --organization "Example Platform" \
-  --days 365 \
-  --cert-file cert.pem \
-  --key-file key.pem \
-  --public-key-file public.pem \
-  --signed-by ./certs/server/ca.pem \
-  --ca-key ./certs/server/ca-key.pem
-```
-
-Equivalent Go code:
-
-```go
-caResult, err := goopenssl.GenerateCertificates(goopenssl.Options{
-	Algorithm:         "ecc",
-	ECCCurve:          "p521",
-	IsCA:              true,
-	OutputDir:         "./certs/server",
-	CommonName:        "internal-ca.example.local",
-	Organization:      "Example Platform",
-	ValidForDays:      365,
-	CertFileName:      "ca.pem",
-	KeyFileName:       "ca-key.pem",
-	PublicKeyFileName: "ca-public.pem",
-})
-if err != nil {
-	return err
-}
-
-_, err = goopenssl.GenerateCertificates(goopenssl.Options{
-	Algorithm:         "ecc",
-	ECCCurve:          "p521",
-	OutputDir:         "./certs/server",
-	CommonName:        "my-api.default.svc.cluster.local",
-	DNSNames:          []string{"my-api.default.svc.cluster.local"},
-	Organization:      "Example Platform",
-	ValidForDays:      365,
-	CertFileName:      "cert.pem",
-	KeyFileName:       "key.pem",
-	PublicKeyFileName: "public.pem",
-	SignedBy:          caResult.CertificatePath,
-	CAKeyFile:         caResult.PrivateKeyPath,
-})
-if err != nil {
-	return err
-}
-
-_, err = goopenssl.GenerateCertificates(goopenssl.Options{
-	Algorithm:         "ecc",
-	ECCCurve:          "p521",
-	OutputDir:         "./certs/client",
-	CommonName:        "my-api-client.default.svc.cluster.local",
-	DNSNames:          []string{"my-api-client.default.svc.cluster.local"},
-	Organization:      "Example Platform",
-	ValidForDays:      365,
-	CertFileName:      "cert.pem",
-	KeyFileName:       "key.pem",
-	PublicKeyFileName: "public.pem",
-	SignedBy:          caResult.CertificatePath,
-	CAKeyFile:         caResult.PrivateKeyPath,
-})
-```
-
-### Create and read encrypted certificate files
-
-Use `--encrypt-secret` to encrypt all generated PEM outputs. The same secret is
-required to read them later. The secret must be at least 32 bytes.
-
-```bash
-go-openssl generate \
-  --algorithm rsa \
-  --rsa-bits 4096 \
-  --dir ./certs/encrypted \
-  --common-name my-api.default.svc.cluster.local \
-  --dns my-api.default.svc.cluster.local \
-  --organization "Example Platform" \
-  --days 365 \
-  --encrypt-secret "12345678901234567890123456789012"
-```
-
-Read the encrypted certificate to stdout:
-
-```bash
-go-openssl read \
-  --file ./certs/encrypted/cert.pem \
-  --secret "12345678901234567890123456789012"
-```
-
-Write the decrypted PEM to another file:
-
-```bash
-go-openssl read \
-  --file ./certs/encrypted/key.pem \
-  --secret "12345678901234567890123456789012" \
-  --out ./certs/encrypted/key.decrypted.pem
-```
-
-Equivalent Go code:
-
-```go
-result, err := goopenssl.GenerateCertificates(goopenssl.Options{
-	Algorithm:     "rsa",
-	RSAKeySize:    4096,
-	OutputDir:     "./certs/encrypted",
-	CommonName:    "my-api.default.svc.cluster.local",
-	DNSNames:      []string{"my-api.default.svc.cluster.local"},
-	Organization:  "Example Platform",
-	ValidForDays:  365,
-	EncryptSecret: "12345678901234567890123456789012",
-})
-if err != nil {
-	return err
-}
-
-certPEM, err := goopenssl.ReadPEMFile(result.CertificatePath, "12345678901234567890123456789012")
-if err != nil {
-	return err
-}
-_ = certPEM
-
-certificate, err := goopenssl.ReadCertificateFile(result.CertificatePath, "12345678901234567890123456789012")
-if err != nil {
-	return err
-}
-_ = certificate
-```
-
-If a CA was generated encrypted, pass the read secrets when using it to sign a
-new certificate.
-
-CLI:
-
-```bash
-go-openssl generate \
-  --algorithm ecc \
-  --ecc-curve p384 \
-  --dir ./certs/service \
-  --common-name service.default.svc.cluster.local \
-  --dns service.default.svc.cluster.local \
-  --signed-by ./certs/ca/ca.pem \
-  --ca-key ./certs/ca/ca-key.pem \
-  --signed-by-secret "12345678901234567890123456789012" \
-  --ca-key-secret "12345678901234567890123456789012"
-```
-
-Equivalent Go code:
-
-```go
-_, err = goopenssl.GenerateCertificates(goopenssl.Options{
-	Algorithm:      "ecc",
-	ECCCurve:       "p384",
-	OutputDir:      "./certs/service",
-	CommonName:     "service.default.svc.cluster.local",
-	DNSNames:       []string{"service.default.svc.cluster.local"},
-	SignedBy:       "./certs/ca/ca.pem",
-	CAKeyFile:      "./certs/ca/ca-key.pem",
-	SignedBySecret: "12345678901234567890123456789012",
-	CAKeySecret:    "12345678901234567890123456789012",
-})
-```
-
-### Kubernetes service behind an Ingress
-
-Use this when the public domain is terminated by an Ingress TLS certificate,
-but the application container also needs its own certificate for backend TLS,
-mTLS, sidecars, service meshes, or direct pod-to-service connections.
-
-The Ingress certificate for `api.example.com` and the service certificate below
-are different pieces of material. The service certificate should include the
-Kubernetes service DNS names and can also include the public domain when the
-service validates that hostname directly.
-
-RSA certificate with a 4096-bit key:
-
-```bash
-go-openssl generate \
-  --algorithm rsa \
-  --rsa-bits 4096 \
-  --dir ./certs/my-api-public-rsa \
-  --common-name my-api.default.svc \
-  --dns my-api.default.svc \
-  --dns my-api.default.svc.cluster.local \
-  --dns api.example.com \
-  --organization "Example Platform" \
-  --days 365
-```
-
-Equivalent Go code:
-
-```go
-_, err := goopenssl.GenerateCertificates(goopenssl.Options{
-	Algorithm:    "rsa",
-	RSAKeySize:   4096,
-	OutputDir:    "./certs/my-api-public-rsa",
-	CommonName:   "my-api.default.svc",
-	DNSNames:     []string{"my-api.default.svc", "my-api.default.svc.cluster.local", "api.example.com"},
-	Organization: "Example Platform",
-	ValidForDays: 365,
-})
-```
-
-ECC/ECDSA certificate with a P-256 key:
-
-```bash
-go-openssl generate \
-  --algorithm ecc \
-  --ecc-curve p256 \
-  --dir ./certs/my-api-public-ecc \
-  --common-name my-api.default.svc \
-  --dns my-api.default.svc \
-  --dns my-api.default.svc.cluster.local \
-  --dns api.example.com \
-  --organization "Example Platform" \
-  --days 365
-```
-
-Equivalent Go code:
-
-```go
-_, err := goopenssl.GenerateCertificates(goopenssl.Options{
-	Algorithm:    "ecc",
-	ECCCurve:     "p256",
-	OutputDir:    "./certs/my-api-public-ecc",
-	CommonName:   "my-api.default.svc",
-	DNSNames:     []string{"my-api.default.svc", "my-api.default.svc.cluster.local", "api.example.com"},
-	Organization: "Example Platform",
-	ValidForDays: 365,
-})
-```
-
-Use `--ecc-curve p384` or `ECCCurve: "p384"` if your environment requires a
-larger curve.
-
-### Internal service-to-service communication
-
-Use this when one Kubernetes workload talks to another directly, for example
-`orders` calling `payments` inside the cluster. Prefer internal Kubernetes DNS
-names in the SAN list.
-
-RSA is the compatibility-first option:
-
-```bash
-go-openssl generate \
-  --algorithm rsa \
-  --rsa-bits 2048 \
-  --dir ./certs/orders-to-payments-rsa \
-  --common-name payments.default.svc \
-  --dns payments.default.svc \
-  --dns payments.default.svc.cluster.local \
-  --organization "Example Internal Services" \
-  --days 365
-```
-
-Equivalent Go code:
-
-```go
-_, err := goopenssl.GenerateCertificates(goopenssl.Options{
-	Algorithm:    "rsa",
-	RSAKeySize:   2048,
-	OutputDir:    "./certs/orders-to-payments-rsa",
-	CommonName:   "payments.default.svc",
-	DNSNames:     []string{"payments.default.svc", "payments.default.svc.cluster.local"},
-	Organization: "Example Internal Services",
-	ValidForDays: 365,
-})
-```
-
-ECC/ECDSA keeps keys smaller and is a good fit when all clients support it:
-
-```bash
-go-openssl generate \
-  --algorithm ecc \
-  --ecc-curve p256 \
-  --dir ./certs/orders-to-payments-ecc \
-  --common-name payments.default.svc \
-  --dns payments.default.svc \
-  --dns payments.default.svc.cluster.local \
-  --organization "Example Internal Services" \
-  --days 365
-```
-
-Equivalent Go code:
-
-```go
-_, err := goopenssl.GenerateCertificates(goopenssl.Options{
-	Algorithm:    "ecc",
-	ECCCurve:     "p256",
-	OutputDir:    "./certs/orders-to-payments-ecc",
-	CommonName:   "payments.default.svc",
-	DNSNames:     []string{"payments.default.svc", "payments.default.svc.cluster.local"},
-	Organization: "Example Internal Services",
-	ValidForDays: 365,
-})
-```
-
-### Ed25519 keys for JWT signatures
-
-Use Ed25519 when your JWT layer signs tokens with EdDSA. The command still
-writes `cert.pem`, `key.pem`, and `public.pem`; for JWT signing, the private
-and public key files are usually the values you need.
-
-```bash
-go-openssl generate \
-  --algorithm ed25519 \
-  --dir ./certs/jwt \
-  --common-name jwt-signing.default.svc \
-  --dns jwt-signing.default.svc \
-  --organization "Example Security" \
-  --days 365 \
-  --key-file key.pem \
-  --public-key-file public.pem
-```
-
-Equivalent Go code:
-
-```go
-_, err := goopenssl.GenerateCertificates(goopenssl.Options{
-	Algorithm:         "ed25519",
-	OutputDir:         "./certs/jwt",
-	CommonName:        "jwt-signing.default.svc",
-	DNSNames:          []string{"jwt-signing.default.svc"},
-	Organization:      "Example Security",
-	ValidForDays:      365,
-	KeyFileName:       "key.pem",
-	PublicKeyFileName: "public.pem",
-})
-```
-
-If your configuration expects Base64 DER values, convert the PEM files with
-`openssl pkey`:
-
-```bash
-openssl pkey -in ./certs/jwt/key.pem \
-  -outform DER \
-  | base64 -w 0
-
-openssl pkey -pubin -in ./certs/jwt/public.pem \
-  -outform DER \
-  | base64 -w 0
-```
-
-Those values can be stored in configuration keys such as
-`jwt.eddsa.private_key` and `jwt.eddsa.public_key`.
-
-## Go Usage
-
-The dependency can also be called directly from Go code:
-
-```go
-package main
-
-import (
-	"log"
-
-	goopenssl "github.com/PointerByte/QuicksGo/cmd/go-openssl/code"
-)
-
-func main() {
-	_, err := goopenssl.GenerateCertificates(goopenssl.Options{
-		Algorithm:  "ecc",
-		ECCCurve:   "p256",
-		OutputDir:  "./certs",
-		CommonName: "localhost",
-		Salt:       "my-extra-entropy",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-}
+go test ./...
+go test -cover -covermode=atomic -coverprofile=coverage.out ./...
 ```

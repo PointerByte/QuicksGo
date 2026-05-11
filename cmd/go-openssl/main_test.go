@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/PointerByte/QuicksGo/cmd/go-openssl/code"
+	"github.com/PointerByte/GoForge/cmd/go-openssl/code"
 )
 
 func TestMainSuccess(t *testing.T) {

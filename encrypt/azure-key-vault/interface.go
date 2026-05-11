@@ -5,8 +5,9 @@ package azurekeyvault
 
 import (
 	"context"
-	"github.com/PointerByte/QuicksGo/encrypt/common"
-	"github.com/PointerByte/QuicksGo/encrypt/models"
+
+	"github.com/PointerByte/GoForge/encrypt/common"
+	"github.com/PointerByte/GoForge/encrypt/models"
 )
 
 type SymmetricRepository interface {

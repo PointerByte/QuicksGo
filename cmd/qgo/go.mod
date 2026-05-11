@@ -1,4 +1,4 @@
-module github.com/PointerByte/QuicksGo/cmd/qgo
+module github.com/PointerByte/GoForge/cmd/qgo
 
 go 1.25.0
 

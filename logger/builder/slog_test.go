@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/PointerByte/QuicksGo/logger/formatter"
-	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
+	"github.com/PointerByte/GoForge/logger/formatter"
+	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/spf13/viper"
 )
 

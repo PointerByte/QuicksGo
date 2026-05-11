@@ -24,8 +24,8 @@
 //		"context"
 //		"log"
 //
-//		pb "github.com/PointerByte/QuicksGo/config/proto"
-//		servergrpc "github.com/PointerByte/QuicksGo/config/server/grpc"
+//		pb "github.com/PointerByte/GoForge/config/proto"
+//		servergrpc "github.com/PointerByte/GoForge/config/server/grpc"
 //		grpcstd "google.golang.org/grpc"
 //	)
 //

@@ -12,8 +12,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	cookiesauth "github.com/PointerByte/QuicksGo/security/auth/cookies"
-	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
+	cookiesauth "github.com/PointerByte/GoForge/security/auth/cookies"
+	jwtservice "github.com/PointerByte/GoForge/security/auth/jwt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 )

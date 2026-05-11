@@ -1,7 +1,7 @@
 // Copyright 2026 PointerByte Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-// Package main provides practical runnable examples for bootstrapping QuicksGo
+// Package main provides practical runnable examples for bootstrapping GoForge
 // servers from the config module.
 //
 // Gin example:
@@ -34,11 +34,11 @@
 //
 // To run the executable examples in this file:
 //
-//	QUICKSGO_EXAMPLE_SERVER=gin
+//	GoForge_EXAMPLE_SERVER=gin
 //
 // or:
 //
-//	QUICKSGO_EXAMPLE_SERVER=grpc
+//	GoForge_EXAMPLE_SERVER=grpc
 package main
 
 import (
@@ -50,16 +50,16 @@ import (
 	"net/http"
 	"os"
 
-	pb "github.com/PointerByte/QuicksGo/config/proto"
-	serverGin "github.com/PointerByte/QuicksGo/config/server/gin"
-	serverGRPC "github.com/PointerByte/QuicksGo/config/server/grpc"
-	serverLogger "github.com/PointerByte/QuicksGo/logger/builder"
+	pb "github.com/PointerByte/GoForge/config/proto"
+	serverGin "github.com/PointerByte/GoForge/config/server/gin"
+	serverGRPC "github.com/PointerByte/GoForge/config/server/grpc"
+	serverLogger "github.com/PointerByte/GoForge/logger/builder"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 )
 
 const (
-	exampleModeEnv  = "QUICKSGO_EXAMPLE_SERVER"
+	exampleModeEnv  = "GoForge_EXAMPLE_SERVER"
 	exampleModeGin  = "gin"
 	exampleModeGRPC = "grpc"
 )
@@ -110,7 +110,7 @@ func runGinExample() error {
 		ctxLogger.Info("gin example route hit")
 		c.JSON(200, gin.H{
 			"framework": "gin",
-			"message":   "hello from QuicksGo HTTP server",
+			"message":   "hello from GoForge HTTP server",
 			"path":      c.FullPath(),
 		})
 	})
@@ -133,7 +133,7 @@ func runGRPCExample() error {
 func (exampleGreeterServer) SayHello(ctx context.Context, req *pb.HelloRequest) (*pb.HelloReply, error) {
 	serverLogger.New(ctx).Info("grpc example unary method hit")
 	return &pb.HelloReply{
-		Message: fmt.Sprintf("hello %s from QuicksGo gRPC", req.GetName()),
+		Message: fmt.Sprintf("hello %s from GoForge gRPC", req.GetName()),
 	}, nil
 }
 
@@ -172,7 +172,7 @@ func (exampleGreeterServer) StreamAlerts(stream grpc.BidiStreamingServer[pb.Aler
 		default:
 			if err := stream.Send(&pb.AlertMessage{
 				AlertId:       msg.GetAlertId(),
-				Source:        "quicksgo-example",
+				Source:        "GoForge-example",
 				Level:         msg.GetLevel(),
 				Message:       fmt.Sprintf("echo: %s", msg.GetMessage()),
 				CreatedAtUnix: msg.GetCreatedAtUnix(),

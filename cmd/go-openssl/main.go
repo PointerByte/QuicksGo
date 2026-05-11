@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/PointerByte/QuicksGo/cmd/go-openssl/code"
+	"github.com/PointerByte/GoForge/cmd/go-openssl/code"
 )
 
 var (

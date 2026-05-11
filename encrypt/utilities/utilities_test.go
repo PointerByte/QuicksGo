@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/PointerByte/QuicksGo/encrypt/common"
+	"github.com/PointerByte/GoForge/encrypt/common"
 )
 
 func TestParseRSAKeysFromBase64(t *testing.T) {
