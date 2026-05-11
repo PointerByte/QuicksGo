@@ -1,6 +1,6 @@
-# QuicksGo Encrypt
+# GoForge Encrypt
 
-`encrypt` es el modulo de criptografia independiente de QuicksGo. Expone una
+`encrypt` es el modulo de criptografia independiente de GoForge. Expone una
 API estilo repositorio para cifrado simetrico, hashing, utilidades RSA/ECC y
 firmas digitales, con implementaciones intercambiables locales y respaldadas
 por proveedores cloud.
@@ -8,16 +8,16 @@ por proveedores cloud.
 ## Instalacion
 
 ```bash
-go get github.com/PointerByte/QuicksGo/encrypt
+go get github.com/PointerByte/GoForge/encrypt
 ```
 
 ## Paquetes
 
-- `github.com/PointerByte/QuicksGo/encrypt`: interfaces compartidas y wrapper de repositorio compuesto
-- `github.com/PointerByte/QuicksGo/encrypt/local`: criptografia en proceso
-- `github.com/PointerByte/QuicksGo/encrypt/aws-kms`: operaciones con AWS KMS y fallbacks locales
-- `github.com/PointerByte/QuicksGo/encrypt/azure-key-vault`: operaciones con Azure Key Vault y fallbacks locales
-- `github.com/PointerByte/QuicksGo/encrypt/gcp-kms`: operaciones con Google Cloud KMS y fallbacks locales
+- `github.com/PointerByte/GoForge/encrypt`: interfaces compartidas y wrapper de repositorio compuesto
+- `github.com/PointerByte/GoForge/encrypt/local`: criptografia en proceso
+- `github.com/PointerByte/GoForge/encrypt/aws-kms`: operaciones con AWS KMS y fallbacks locales
+- `github.com/PointerByte/GoForge/encrypt/azure-key-vault`: operaciones con Azure Key Vault y fallbacks locales
+- `github.com/PointerByte/GoForge/encrypt/gcp-kms`: operaciones con Google Cloud KMS y fallbacks locales
 
 ## Capacidades
 
@@ -80,9 +80,9 @@ package main
 import (
 	"context"
 
-	"github.com/PointerByte/QuicksGo/encrypt"
-	"github.com/PointerByte/QuicksGo/encrypt/common"
-	"github.com/PointerByte/QuicksGo/encrypt/local"
+	"github.com/PointerByte/GoForge/encrypt"
+	"github.com/PointerByte/GoForge/encrypt/common"
+	"github.com/PointerByte/GoForge/encrypt/local"
 )
 
 func main() {
@@ -197,9 +197,9 @@ soportado.
 
 ```go
 import (
-	awskms "github.com/PointerByte/QuicksGo/encrypt/aws-kms"
-	azurekeyvault "github.com/PointerByte/QuicksGo/encrypt/azure-key-vault"
-	gcpkms "github.com/PointerByte/QuicksGo/encrypt/gcp-kms"
+	awskms "github.com/PointerByte/GoForge/encrypt/aws-kms"
+	azurekeyvault "github.com/PointerByte/GoForge/encrypt/azure-key-vault"
+	gcpkms "github.com/PointerByte/GoForge/encrypt/gcp-kms"
 )
 ```
 

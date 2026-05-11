@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	encryptedPEMBlockType        = "QUICKSGO ENCRYPTED PEM"
+	encryptedPEMBlockType        = "GoForge ENCRYPTED PEM"
 	encryptedPEMVersion          = 1
 	encryptedPEMAlgorithm        = "AES-256-GCM"
 	encryptedKindCertificate     = "certificate"
@@ -488,7 +488,7 @@ func readPrivateKeyPEMFile(path string, secret string) (any, error) {
 	return nil, fmt.Errorf("parse private key: %w", err)
 }
 
-// ReadPEMFile reads a PEM file and decrypts it when it contains a QuicksGo
+// ReadPEMFile reads a PEM file and decrypts it when it contains a GoForge
 // encrypted PEM envelope.
 func ReadPEMFile(path string, secret string) ([]byte, error) {
 	content, err := os.ReadFile(path)

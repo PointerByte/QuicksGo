@@ -6,8 +6,8 @@ package local
 import (
 	"context"
 
-	"github.com/PointerByte/QuicksGo/encrypt/common"
-	"github.com/PointerByte/QuicksGo/encrypt/models"
+	"github.com/PointerByte/GoForge/encrypt/common"
+	"github.com/PointerByte/GoForge/encrypt/models"
 )
 
 //go:generate mockgen -source=interface.go -destination=mock_repository.go -package=encrypt

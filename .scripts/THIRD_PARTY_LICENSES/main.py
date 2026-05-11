@@ -13,7 +13,7 @@ MAX_DEPS = 10000
 
 # 🔥 Ignore internal modules
 IGNORE_PREFIXES = [
-    "github.com/PointerByte/QuicksGo",
+    "github.com/PointerByte/GoForge",
 ]
 
 LICENSE_CANDIDATES = [

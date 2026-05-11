@@ -1,6 +1,6 @@
-# QuicksGo Logger
+# GoForge Logger
 
-`logger` provides QuicksGo's structured logging layer. It configures a global
+`logger` provides GoForge's structured logging layer. It configures a global
 `slog` logger, formats entries as JSON, text, or a custom template, exports logs
 through OpenTelemetry, and includes Gin and gRPC middleware for request-scoped
 logs.
@@ -8,7 +8,7 @@ logs.
 ## Installation
 
 ```bash
-go get github.com/PointerByte/QuicksGo/logger
+go get github.com/PointerByte/GoForge/logger
 ```
 
 ## Packages
@@ -84,7 +84,7 @@ import (
 	"context"
 	"path/filepath"
 
-	"github.com/PointerByte/QuicksGo/logger/builder"
+	"github.com/PointerByte/GoForge/logger/builder"
 	"github.com/spf13/viper"
 )
 
@@ -120,7 +120,7 @@ package main
 import (
 	"net/http"
 
-	logmiddlewares "github.com/PointerByte/QuicksGo/logger/middlewares"
+	logmiddlewares "github.com/PointerByte/GoForge/logger/middlewares"
 	"github.com/gin-gonic/gin"
 )
 

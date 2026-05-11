@@ -15,9 +15,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/PointerByte/QuicksGo/logger/builder"
-	"github.com/PointerByte/QuicksGo/logger/formatter"
-	"github.com/PointerByte/QuicksGo/logger/middlewares"
+	"github.com/PointerByte/GoForge/logger/builder"
+	"github.com/PointerByte/GoForge/logger/formatter"
+	"github.com/PointerByte/GoForge/logger/middlewares"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	sdklog "go.opentelemetry.io/otel/sdk/log"

@@ -1,6 +1,6 @@
-# QuicksGo Logger
+# GoForge Logger
 
-`logger` provee la capa de logging estructurado de QuicksGo. Configura un
+`logger` provee la capa de logging estructurado de GoForge. Configura un
 logger global basado en `slog`, formatea entradas como JSON, texto o template
 custom, exporta logs mediante OpenTelemetry e incluye middleware Gin e
 interceptores gRPC para logs asociados al request.
@@ -8,7 +8,7 @@ interceptores gRPC para logs asociados al request.
 ## Instalacion
 
 ```bash
-go get github.com/PointerByte/QuicksGo/logger
+go get github.com/PointerByte/GoForge/logger
 ```
 
 ## Paquetes
@@ -84,7 +84,7 @@ import (
 	"context"
 	"path/filepath"
 
-	"github.com/PointerByte/QuicksGo/logger/builder"
+	"github.com/PointerByte/GoForge/logger/builder"
 	"github.com/spf13/viper"
 )
 
@@ -120,7 +120,7 @@ package main
 import (
 	"net/http"
 
-	logmiddlewares "github.com/PointerByte/QuicksGo/logger/middlewares"
+	logmiddlewares "github.com/PointerByte/GoForge/logger/middlewares"
 	"github.com/gin-gonic/gin"
 )
 

@@ -41,8 +41,8 @@
 //		"context"
 //		"log"
 //
-//		clientgrpc "github.com/PointerByte/QuicksGo/config/client/grpc"
-//		pb "github.com/PointerByte/QuicksGo/config/proto"
+//		clientgrpc "github.com/PointerByte/GoForge/config/client/grpc"
+//		pb "github.com/PointerByte/GoForge/config/proto"
 //	)
 //
 //	func main() {

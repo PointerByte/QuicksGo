@@ -12,8 +12,8 @@ import (
 
 	"log/slog"
 
-	"github.com/PointerByte/QuicksGo/logger/formatter"
-	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
+	"github.com/PointerByte/GoForge/logger/formatter"
+	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 )
 
 type jsonHandler struct {

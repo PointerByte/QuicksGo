@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strings"
 
-	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
+	jwtservice "github.com/PointerByte/GoForge/security/auth/jwt"
 	"github.com/spf13/viper"
 )
 

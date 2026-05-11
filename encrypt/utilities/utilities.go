@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/PointerByte/QuicksGo/encrypt/common"
+	"github.com/PointerByte/GoForge/encrypt/common"
 )
 
-const eccHKDFInfoPrefix = "quicksgo-ecc-aes-gcm:"
+const eccHKDFInfoPrefix = "GoForge-ecc-aes-gcm:"
 
 // ECCCipherPayload stores the envelope used by ECC hybrid encryption.
 type ECCCipherPayload struct {

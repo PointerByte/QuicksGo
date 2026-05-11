@@ -10,7 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
+	jwtservice "github.com/PointerByte/GoForge/security/auth/jwt"
 	"github.com/spf13/viper"
 )
 

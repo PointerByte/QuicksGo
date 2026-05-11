@@ -5,7 +5,7 @@ import os
 import subprocess
 
 
-PROJECT_ROOT = "/run/media/mblanco/Multimedia/Proyects/Practices/QuicksGo"
+PROJECT_ROOT = "/run/media/mblanco/Multimedia/Proyects/Practices/GoForge"
 DEFAULT_COVERAGE_FILE = "coverage.out"
 
 REQUIRED_SETUP_MODULES = [

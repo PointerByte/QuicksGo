@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/PointerByte/QuicksGo/logger/formatter"
-	"github.com/PointerByte/QuicksGo/logger/utilities"
-	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
+	"github.com/PointerByte/GoForge/logger/formatter"
+	"github.com/PointerByte/GoForge/logger/utilities"
+	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/spf13/viper"
 )
 

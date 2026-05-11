@@ -8,7 +8,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-REPO_URL = "https://github.com/PointerByte/QuicksGo.git"
+REPO_URL = "https://github.com/PointerByte/GoForge.git"
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -24,37 +24,37 @@ MANAGED_MODULES = (
     ManagedModule(
         name="root",
         directory=".",
-        module_path="github.com/PointerByte/QuicksGo",
+        module_path="github.com/PointerByte/GoForge",
         tag_prefix="",
     ),
     ManagedModule(
         name="logger",
         directory="logger",
-        module_path="github.com/PointerByte/QuicksGo/logger",
+        module_path="github.com/PointerByte/GoForge/logger",
         tag_prefix="logger/",
     ),
     ManagedModule(
         name="encrypt",
         directory="encrypt",
-        module_path="github.com/PointerByte/QuicksGo/encrypt",
+        module_path="github.com/PointerByte/GoForge/encrypt",
         tag_prefix="encrypt/",
     ),
     ManagedModule(
         name="security",
         directory="security",
-        module_path="github.com/PointerByte/QuicksGo/security",
+        module_path="github.com/PointerByte/GoForge/security",
         tag_prefix="security/",
     ),
     ManagedModule(
         name="cmd/qgo",
         directory="cmd/qgo",
-        module_path="github.com/PointerByte/QuicksGo/cmd/qgo",
+        module_path="github.com/PointerByte/GoForge/cmd/qgo",
         tag_prefix="cmd/qgo/",
     ),
     ManagedModule(
         name="cmd/go-openssl",
         directory="cmd/go-openssl",
-        module_path="github.com/PointerByte/QuicksGo/cmd/go-openssl",
+        module_path="github.com/PointerByte/GoForge/cmd/go-openssl",
         tag_prefix="cmd/go-openssl/",
     ),
 )
@@ -275,7 +275,7 @@ def format_report(
     updated_go_mod_files: list[str],
 ) -> str:
     lines = [
-        "ULTIMAS VERSIONES DE MODULOS QUICKSGO",
+        "ULTIMAS VERSIONES DE MODULOS GoForge",
         "=" * 80,
         f"Repositorio remoto: {repo_url}",
         f"Tipo de incremento sugerido: {bump_type}",
@@ -358,7 +358,7 @@ def format_report(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Obtiene los ultimos tags remotos de GitHub para los modulos de QuicksGo y sugiere la siguiente version."
+        description="Obtiene los ultimos tags remotos de GitHub para los modulos de GoForge y sugiere la siguiente version."
     )
     parser.set_defaults(update_go_mod=True)
     parser.add_argument(

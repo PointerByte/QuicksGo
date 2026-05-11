@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/PointerByte/QuicksGo/logger/builder"
+	"github.com/PointerByte/GoForge/logger/builder"
 	"github.com/golang/mock/gomock"
 	"github.com/spf13/viper"
 	v1 "k8s.io/api/core/v1"

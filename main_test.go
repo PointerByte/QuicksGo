@@ -14,10 +14,10 @@ import (
 	"reflect"
 	"testing"
 
-	pb "github.com/PointerByte/QuicksGo/config/proto"
-	serverGRPC "github.com/PointerByte/QuicksGo/config/server/grpc"
-	"github.com/PointerByte/QuicksGo/logger/builder"
-	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
+	pb "github.com/PointerByte/GoForge/config/proto"
+	serverGRPC "github.com/PointerByte/GoForge/config/server/grpc"
+	"github.com/PointerByte/GoForge/logger/builder"
+	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -326,7 +326,7 @@ func TestExampleGreeterServerSayHello(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SayHello() error = %v", err)
 	}
-	if resp.GetMessage() != "hello Manuel from QuicksGo gRPC" {
+	if resp.GetMessage() != "hello Manuel from GoForge gRPC" {
 		t.Fatalf("SayHello() message = %q", resp.GetMessage())
 	}
 }
@@ -401,7 +401,7 @@ func TestExampleGreeterServerStreamAlerts(t *testing.T) {
 		if stream.sentMsgs[0].GetMessage() != "echo: disk" {
 			t.Fatalf("sent message = %q", stream.sentMsgs[0].GetMessage())
 		}
-		if stream.sentMsgs[0].GetSource() != "quicksgo-example" {
+		if stream.sentMsgs[0].GetSource() != "GoForge-example" {
 			t.Fatalf("sent source = %q", stream.sentMsgs[0].GetSource())
 		}
 	})

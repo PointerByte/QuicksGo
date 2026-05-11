@@ -1,19 +1,19 @@
-# QuicksGo Security
+# GoForge Security
 
 `security` provee servicios JWT y middleware Gin para autenticacion basada en
 tokens. Usa `viper` para servicios configurados y depende de
-`github.com/PointerByte/QuicksGo/encrypt` para helpers criptograficos.
+`github.com/PointerByte/GoForge/encrypt` para helpers criptograficos.
 
 ## Instalacion
 
 ```bash
-go get github.com/PointerByte/QuicksGo/security
+go get github.com/PointerByte/GoForge/security
 ```
 
 Si tu aplicacion tambien necesita operaciones criptograficas directas, agrega:
 
 ```bash
-go get github.com/PointerByte/QuicksGo/encrypt
+go get github.com/PointerByte/GoForge/encrypt
 ```
 
 ## Paquetes
@@ -84,7 +84,7 @@ Archivos de ejemplo:
 package main
 
 import (
-	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
+	jwtservice "github.com/PointerByte/GoForge/security/auth/jwt"
 	"github.com/spf13/viper"
 )
 
@@ -182,8 +182,8 @@ package main
 import (
 	"context"
 
-	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
-	"github.com/PointerByte/QuicksGo/security/middlewares"
+	jwtservice "github.com/PointerByte/GoForge/security/auth/jwt"
+	"github.com/PointerByte/GoForge/security/middlewares"
 	"github.com/gin-gonic/gin"
 )
 
@@ -231,8 +231,8 @@ El paquete `auth/cookies` valida JWTs almacenados en una cookie HTTP.
 
 ```go
 import (
-	cookiesauth "github.com/PointerByte/QuicksGo/security/auth/cookies"
-	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
+	cookiesauth "github.com/PointerByte/GoForge/security/auth/cookies"
+	jwtservice "github.com/PointerByte/GoForge/security/auth/jwt"
 )
 
 hmacSecretKey := jwtservice.DefaultHMACSecretKey
@@ -303,7 +303,7 @@ router.Use(middlewares.SecurityHeaders())
 publica para criptografia es:
 
 ```go
-github.com/PointerByte/QuicksGo/encrypt
+github.com/PointerByte/GoForge/encrypt
 ```
 
 Usa `encrypt` directamente cuando tu aplicacion necesite AES, hashing, RSA/ECC,

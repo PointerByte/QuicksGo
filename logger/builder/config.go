@@ -11,7 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
-	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
+	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
@@ -79,7 +79,7 @@ func InitLogger(ctx context.Context, dir string) (*sdklog.LoggerProvider, error)
 		return nil, fmt.Errorf("failed to create logger provider: %v", err)
 	}
 	handlerOtel := otelslog.NewHandler(
-		"github.com/PointerByte/QuicksGo/logger",
+		"github.com/PointerByte/GoForge/logger",
 		otelslog.WithLoggerProvider(lp),
 		otelslog.WithSource(true),
 	)

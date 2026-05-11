@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
+	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"

@@ -1,13 +1,13 @@
 # qgo
 
-`qgo` is the QuicksGo service scaffolding CLI. It creates starter projects for
+`qgo` is the GoForge service scaffolding CLI. It creates starter projects for
 Gin HTTP services or gRPC services, writes the initial application
 configuration, initializes `go.mod`, and runs `go mod tidy`.
 
 ## Install
 
 ```bash
-go install github.com/PointerByte/QuicksGo/cmd/qgo@latest
+go install github.com/PointerByte/GoForge/cmd/qgo@latest
 ```
 
 ## Commands
@@ -79,7 +79,7 @@ go mod init <module>
 go mod tidy
 ```
 
-`go mod tidy` downloads the QuicksGo dependencies required by the generated
+`go mod tidy` downloads the GoForge dependencies required by the generated
 service, so network access may be needed.
 
 ## Gin Scaffold

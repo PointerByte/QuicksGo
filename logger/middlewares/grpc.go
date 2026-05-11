@@ -10,9 +10,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/PointerByte/QuicksGo/logger/builder"
-	"github.com/PointerByte/QuicksGo/logger/formatter"
-	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
+	"github.com/PointerByte/GoForge/logger/builder"
+	"github.com/PointerByte/GoForge/logger/formatter"
+	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"

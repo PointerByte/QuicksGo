@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
+	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"go.opentelemetry.io/otel/trace"
 )
 

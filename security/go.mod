@@ -1,11 +1,11 @@
-module github.com/PointerByte/QuicksGo/security
+module github.com/PointerByte/GoForge/security
 
 go 1.25.0
 
-replace github.com/PointerByte/QuicksGo/encrypt => ../encrypt
+replace github.com/PointerByte/GoForge/encrypt => ../encrypt
 
 require (
-	github.com/PointerByte/QuicksGo/encrypt v0.0.10
+	github.com/PointerByte/GoForge/encrypt v0.0.10
 	github.com/gin-gonic/gin v1.12.0
 	github.com/spf13/viper v1.21.0
 )

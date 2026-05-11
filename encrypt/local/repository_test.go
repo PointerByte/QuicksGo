@@ -16,8 +16,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/PointerByte/QuicksGo/encrypt/common"
-	"github.com/PointerByte/QuicksGo/encrypt/utilities"
+	"github.com/PointerByte/GoForge/encrypt/common"
+	"github.com/PointerByte/GoForge/encrypt/utilities"
 	"github.com/zeebo/blake3"
 )
 

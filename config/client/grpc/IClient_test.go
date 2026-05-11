@@ -20,9 +20,9 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/PointerByte/QuicksGo/config/proto"
-	"github.com/PointerByte/QuicksGo/logger/builder"
-	"github.com/PointerByte/QuicksGo/logger/formatter"
+	pb "github.com/PointerByte/GoForge/config/proto"
+	"github.com/PointerByte/GoForge/logger/builder"
+	"github.com/PointerByte/GoForge/logger/formatter"
 	"github.com/golang/mock/gomock"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"

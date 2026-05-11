@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
+	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/spf13/viper"
 )
 

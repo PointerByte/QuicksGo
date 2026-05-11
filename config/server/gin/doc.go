@@ -1,7 +1,7 @@
 // Copyright 2026 PointerByte Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-// Package gin provides the HTTP bootstrap layer used by QuicksGo services.
+// Package gin provides the HTTP bootstrap layer used by GoForge services.
 //
 // It is responsible for turning the framework configuration into a runnable Gin
 // server with shared middleware, route groups, observability setup, refresh and
@@ -31,7 +31,7 @@
 //	import (
 //		"log"
 //
-//		servergin "github.com/PointerByte/QuicksGo/config/server/gin"
+//		servergin "github.com/PointerByte/GoForge/config/server/gin"
 //		"github.com/gin-gonic/gin"
 //	)
 //

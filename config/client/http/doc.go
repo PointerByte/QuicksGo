@@ -9,7 +9,7 @@
 //     responses, and emits trace and log metadata through the logger package
 //
 // The package is intended for outbound service-to-service calls that should
-// reuse QuicksGo conventions for context propagation, headers, timeouts, and
+// reuse GoForge conventions for context propagation, headers, timeouts, and
 // observability.
 //
 // Main entry points:

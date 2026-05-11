@@ -44,7 +44,7 @@ func newServiceGeneratorCommand(app *App, serviceType string) Command {
 func (command *newCommand) Cobra() *cobra.Command {
 	newCmd := &cobra.Command{
 		Use:   "new",
-		Short: "Create a new QuicksGo service",
+		Short: "Create a new GoForge service",
 	}
 
 	newCmd.AddCommand(newServiceGeneratorCommand(command.app, serviceTypeGin).Cobra())

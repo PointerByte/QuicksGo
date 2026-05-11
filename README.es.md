@@ -1,6 +1,6 @@
-# QuicksGo
+# GoForge
 
-QuicksGo es un toolkit modular para arrancar aplicaciones de servicios en Go
+GoForge es un toolkit modular para arrancar aplicaciones de servicios en Go
 con convenciones compartidas para configuracion, transporte HTTP y gRPC,
 logging, OpenTelemetry, seguridad JWT, jobs en background y utilidades de
 runtime.
@@ -27,7 +27,7 @@ La documentacion en ingles esta disponible en [README.md](./README.md).
 
 ## Modulos
 
-- [modulo raiz](./go.mod): `github.com/PointerByte/QuicksGo`
+- [modulo raiz](./go.mod): `github.com/PointerByte/GoForge`
 - [logger](./logger/README.es.md): logging estructurado y middlewares HTTP/gRPC
 - [security](./security/README.es.md): servicios JWT y middleware de seguridad para Gin
 - [encrypt](./encrypt/README.es.md): cifrado simetrico, hashes, RSA, firmas y backends orientados a KMS
@@ -39,22 +39,22 @@ La documentacion en ingles esta disponible en [README.md](./README.md).
 Instalar el modulo raiz:
 
 ```bash
-go get github.com/PointerByte/QuicksGo
+go get github.com/PointerByte/GoForge
 ```
 
 O instalar solo los modulos que necesites:
 
 ```bash
-go get github.com/PointerByte/QuicksGo/logger
-go get github.com/PointerByte/QuicksGo/security
-go get github.com/PointerByte/QuicksGo/encrypt
+go get github.com/PointerByte/GoForge/logger
+go get github.com/PointerByte/GoForge/security
+go get github.com/PointerByte/GoForge/encrypt
 ```
 
 Instalar las CLIs:
 
 ```bash
-go install github.com/PointerByte/QuicksGo/cmd/qgo@latest
-go install github.com/PointerByte/QuicksGo/cmd/go-openssl@latest
+go install github.com/PointerByte/GoForge/cmd/qgo@latest
+go install github.com/PointerByte/GoForge/cmd/go-openssl@latest
 ```
 
 ## Configuracion
@@ -86,7 +86,7 @@ YAML es el formato recomendado para aplicaciones nuevas.
 
 ```yaml
 app:
-  name: quicksgo-service
+  name: GoForge-service
   version: 0.0.1
 
 server:
@@ -209,7 +209,7 @@ package main
 import (
 	"log"
 
-	serverGin "github.com/PointerByte/QuicksGo/config/server/gin"
+	serverGin "github.com/PointerByte/GoForge/config/server/gin"
 	"github.com/gin-gonic/gin"
 )
 
@@ -245,8 +245,8 @@ import (
 	"context"
 	"log"
 
-	pb "github.com/PointerByte/QuicksGo/config/proto"
-	serverGRPC "github.com/PointerByte/QuicksGo/config/server/grpc"
+	pb "github.com/PointerByte/GoForge/config/proto"
+	serverGRPC "github.com/PointerByte/GoForge/config/server/grpc"
 	"google.golang.org/grpc"
 )
 
@@ -337,13 +337,13 @@ ejemplo Gin; espera `/api/v1` en `server.gin.groups`.
 Ejecutar el ejemplo Gin:
 
 ```bash
-QUICKSGO_EXAMPLE_SERVER=gin go run .
+GoForge_EXAMPLE_SERVER=gin go run .
 ```
 
 Ejecutar el ejemplo gRPC:
 
 ```bash
-QUICKSGO_EXAMPLE_SERVER=grpc go run .
+GoForge_EXAMPLE_SERVER=grpc go run .
 ```
 
 ## Desarrollo

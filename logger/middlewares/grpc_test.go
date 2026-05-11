@@ -11,9 +11,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/PointerByte/QuicksGo/logger/builder"
-	"github.com/PointerByte/QuicksGo/logger/formatter"
-	viperdata "github.com/PointerByte/QuicksGo/logger/viperData"
+	"github.com/PointerByte/GoForge/logger/builder"
+	"github.com/PointerByte/GoForge/logger/formatter"
+	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"

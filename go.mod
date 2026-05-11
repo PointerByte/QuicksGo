@@ -1,16 +1,16 @@
-module github.com/PointerByte/QuicksGo
+module github.com/PointerByte/GoForge
 
 go 1.25.0
 
 replace (
-	github.com/PointerByte/QuicksGo/encrypt => ./encrypt
-	github.com/PointerByte/QuicksGo/logger => ./logger
-	github.com/PointerByte/QuicksGo/security => ./security
+	github.com/PointerByte/GoForge/encrypt => ./encrypt
+	github.com/PointerByte/GoForge/logger => ./logger
+	github.com/PointerByte/GoForge/security => ./security
 )
 
 require (
-	github.com/PointerByte/QuicksGo/logger v0.0.11
-	github.com/PointerByte/QuicksGo/security v0.0.30
+	github.com/PointerByte/GoForge/logger v0.0.11
+	github.com/PointerByte/GoForge/security v0.0.30
 	github.com/aws/aws-sdk-go-v2 v1.41.7
 	github.com/aws/aws-sdk-go-v2/config v1.32.17
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.74.1
@@ -48,7 +48,7 @@ require (
 )
 
 require (
-	github.com/PointerByte/QuicksGo/encrypt v0.0.10 // indirect
+	github.com/PointerByte/GoForge/encrypt v0.0.10 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.16 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.23 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.23 // indirect

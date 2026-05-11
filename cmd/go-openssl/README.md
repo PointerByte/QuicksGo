@@ -1,6 +1,6 @@
 # go-openssl
 
-`go-openssl` is the QuicksGo CLI for generating PEM certificates and keys for
+`go-openssl` is the GoForge CLI for generating PEM certificates and keys for
 RSA, ECC/ECDSA, or Ed25519. It can create self-signed certificates, CA
 certificates, certificates signed by an existing CA, and encrypted PEM
 envelopes that can later be read back by the CLI or the Go API.
@@ -8,7 +8,7 @@ envelopes that can later be read back by the CLI or the Go API.
 ## Install
 
 ```bash
-go install github.com/PointerByte/QuicksGo/cmd/go-openssl@latest
+go install github.com/PointerByte/GoForge/cmd/go-openssl@latest
 ```
 
 ## Commands
@@ -162,7 +162,7 @@ go-openssl generate \
 ## Encrypted PEM Files
 
 Use `--encrypt-secret` to encrypt `cert.pem`, `key.pem`, and `public.pem` as
-`QUICKSGO ENCRYPTED PEM` envelopes using AES-256-GCM. The secret must be at
+`GoForge ENCRYPTED PEM` envelopes using AES-256-GCM. The secret must be at
 least 32 bytes.
 
 ```bash
@@ -247,7 +247,7 @@ package main
 import (
 	"log"
 
-	goopenssl "github.com/PointerByte/QuicksGo/cmd/go-openssl/code"
+	goopenssl "github.com/PointerByte/GoForge/cmd/go-openssl/code"
 )
 
 func main() {

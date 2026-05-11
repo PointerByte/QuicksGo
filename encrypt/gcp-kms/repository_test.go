@@ -18,9 +18,9 @@ import (
 
 	kms "cloud.google.com/go/kms/apiv1"
 	kmspb "cloud.google.com/go/kms/apiv1/kmspb"
-	"github.com/PointerByte/QuicksGo/encrypt/common"
-	"github.com/PointerByte/QuicksGo/encrypt/local"
-	"github.com/PointerByte/QuicksGo/encrypt/utilities"
+	"github.com/PointerByte/GoForge/encrypt/common"
+	"github.com/PointerByte/GoForge/encrypt/local"
+	"github.com/PointerByte/GoForge/encrypt/utilities"
 	"github.com/spf13/viper"
 )
 

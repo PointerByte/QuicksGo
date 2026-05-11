@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	jwtservice "github.com/PointerByte/QuicksGo/security/auth/jwt"
-	"github.com/PointerByte/QuicksGo/security/middlewares"
+	jwtservice "github.com/PointerByte/GoForge/security/auth/jwt"
+	"github.com/PointerByte/GoForge/security/middlewares"
 	"github.com/gin-gonic/gin"
 )
 
