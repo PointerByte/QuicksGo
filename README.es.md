@@ -1,35 +1,38 @@
 # QuicksGo
 
-QuicksGo es un framework modular para arrancar servicios Go con un enfoque compartido de configuracion, transporte, observabilidad y seguridad.
+QuicksGo es un toolkit modular para arrancar aplicaciones de servicios en Go
+con convenciones compartidas para configuracion, transporte HTTP y gRPC,
+logging, OpenTelemetry, seguridad JWT, jobs en background y utilidades de
+runtime.
 
-Ayuda a construir aplicaciones mas rapido con:
+El repositorio esta organizado como un workspace de Go. El modulo raiz contiene
+los paquetes de bootstrap en `config` y `tools`; `logger`, `security`,
+`encrypt` y las CLIs son modulos separados que tambien pueden consumirse de
+forma independiente.
 
-- servidor HTTP con Gin
-- servidor gRPC
-- clientes HTTP y gRPC
-- logging estructurado
-- tracing con OpenTelemetry
-- middlewares JWT y de seguridad
-- carga de configuracion con `viper`
-- jobs simples dentro del proceso
+La documentacion en ingles esta disponible en [README.md](./README.md).
 
-## Modulos principales
+## Que Incluye
 
-- [config](/e:/Proyects/Practices/QuicksGo/config): bootstrap de servidores y clientes, carga de configuracion, tracing y jobs
-- [logger](/e:/Proyects/Practices/QuicksGo/logger/README.es.md): logging estructurado y middlewares HTTP/gRPC
-- [security](/e:/Proyects/Practices/QuicksGo/security/README.es.md): JWT, middlewares de seguridad y utilidades criptograficas
-- [cmd/qgo](/e:/Proyects/Practices/QuicksGo/cmd/qgo/README.es.md): CLI para generar servicios nuevos con Gin y gRPC
+- bootstrap de servidor HTTP con Gin y middlewares comunes
+- bootstrap de servidor gRPC con interceptores unary y stream
+- clientes HTTP y gRPC con hooks de tracing
+- logging estructurado mediante el modulo `logger`
+- trazas, metricas y helpers de instrumentacion con OpenTelemetry
+- middleware JWT mediante el modulo `security`
+- criptografia local y backends orientados a KMS mediante `encrypt`
+- jobs de intervalo fijo y utilidades simples de workers
+- helpers de ECS y Kubernetes para descubrir hosts de refresh
+- CLIs para generar servicios y certificados
 
-## Como encajan las piezas
+## Modulos
 
-Flujo tipico de una aplicacion QuicksGo:
-
-1. `config/utilities.LoadEnv` carga `application.yml` o `application.json` en `viper`
-2. `config` inicializa `logger`
-3. `config` inicializa tracing con OpenTelemetry
-4. `config/server/gin` o `config/server/grpc` arrancan el servidor
-5. `security` reutiliza la misma configuracion compartida en `viper`
-6. `config/client/http` y `config/client/grpc` reutilizan tracing y logging para llamadas salientes
+- [modulo raiz](./go.mod): `github.com/PointerByte/QuicksGo`
+- [logger](./logger/README.es.md): logging estructurado y middlewares HTTP/gRPC
+- [security](./security/README.es.md): servicios JWT y middleware de seguridad para Gin
+- [encrypt](./encrypt/README.es.md): cifrado simetrico, hashes, RSA, firmas y backends orientados a KMS
+- [cmd/qgo](./cmd/qgo/README.es.md): CLI para generar servicios Gin y gRPC
+- [cmd/go-openssl](./cmd/go-openssl/README.es.md): CLI para generar y leer certificados y llaves PEM
 
 ## Instalacion
 
@@ -39,248 +42,166 @@ Instalar el modulo raiz:
 go get github.com/PointerByte/QuicksGo
 ```
 
-O instalar solo el modulo que necesites:
+O instalar solo los modulos que necesites:
 
 ```bash
-go get github.com/PointerByte/QuicksGo/config
 go get github.com/PointerByte/QuicksGo/logger
 go get github.com/PointerByte/QuicksGo/security
+go get github.com/PointerByte/QuicksGo/encrypt
 ```
 
-## Modelo de configuracion
+Instalar las CLIs:
 
-Las plantillas completas del framework estan en:
+```bash
+go install github.com/PointerByte/QuicksGo/cmd/qgo@latest
+go install github.com/PointerByte/QuicksGo/cmd/go-openssl@latest
+```
 
-- [config/application.yml](/e:/Proyects/Practices/QuicksGo/config/application.yml)
-- [config/application.json](/e:/Proyects/Practices/QuicksGo/config/application.json)
+## Configuracion
 
-Prioridad de carga soportada:
+`config/utilities.LoadEnv(prefixPath)` carga configuracion en `viper` desde el
+directorio indicado. Busca estos archivos en orden:
 
 1. `application.yml`
-2. `application.json`
-3. `.env`
-4. `.env.local`
-5. variables de entorno
+2. `application.yaml`
+3. `application.json`
+
+Despues de leer el archivo de aplicacion, mezcla `.env` y `.env.local` desde el
+directorio de trabajo actual y habilita variables de entorno. Los overrides por
+entorno se generan desde la ruta de claves ya existente en la configuracion.
+
+Ejemplos:
+
+- `app.name` -> `APP_NAME`
+- `server.gin.port` -> `SERVER_GIN_PORT`
+- `server.gin.groups` -> `SERVER_GIN_GROUPS`
+- `server.grpc.port` -> `SERVER_GRPC_PORT`
+- `client.http.timeout` -> `CLIENT_HTTP_TIMEOUT`
+- `client.grpc.tls.serverName` -> `CLIENT_GRPC_TLS_SERVERNAME`
+- `jwt.hmac.secret` -> `JWT_HMAC_SECRET`
 
 YAML es el formato recomendado para aplicaciones nuevas.
 
-### Ejemplo YAML
+### YAML Minimo
 
 ```yaml
 app:
-  name: quicksgo-server
+  name: quicksgo-service
   version: 0.0.1
 
 server:
-  groups:
-    - /api/v1
+  modeTest: false
   gin:
     port: ":8080"
     mode: release
+    groups:
+      - /api/v1
     UseH2C: true
     rate:
       limit: 1000
       burst: 2000
+    LoggerWithConfig:
+      enabled: true
+      SkipPaths:
+        - /api/v1/health
+      SkipQueryString: false
   grpc:
     port: ":50051"
+
+client:
+  http:
+    timeout: 5s
 
 logger:
   dir: logs
   level: info
+  formatter: json
+  formatDate: "2006-01-02T15:04:05.000"
+  ignoredHeaders:
+    - Authorization
+    - Cookie
+
+traces:
+  enable: false
+  SkipPaths:
+    - /api/v1/health
 
 jwt:
-  enable: true
-  transport: cookie
-  cookie:
-    name: session_token
+  enable: false
+  transport: header
   algorithm: HS256
   hmac:
     secret: change-me
 ```
 
-### Mapeo de variables de entorno
+## Claves Principales
 
-Los overrides se generan desde la ruta de cada clave. Ejemplos:
+### Aplicacion
 
-- `app.name` -> `APP_NAME`
-- `server.port` -> `SERVER_PORT`
-- `server.gin.port` -> `SERVER_GIN_PORT`
-- `server.grpc.port` -> `SERVER_GRPC_PORT`
-- `client.grpc.tls.serverName` -> `CLIENT_GRPC_TLS_SERVERNAME`
-- `jwt.hmac.secret` -> `JWT_HMAC_SECRET`
+- `app.name`: nombre del servicio usado por health endpoints y metadata OpenTelemetry
+- `app.version`: version del servicio reportada en health endpoints y telemetria
+- `server.modeTest`: deshabilita comportamientos de runtime como ejecucion de jobs durante pruebas
 
-## Referencia de configuracion
-
-Las plantillas de ejemplo incluyen las claves mas usadas hoy por `config`, `logger` y `security`.
-
-### `app`
-
-- `app.name`: nombre del servicio usado por health endpoints, metadata del logger y nombre del recurso OTEL
-- `app.version`: version del servicio reportada en health endpoints y metadata OTEL
-
-### `server`
-
-- `server.groups`: grupos de rutas Gin creados automaticamente por `config/server/gin`
-- `server.modeTest`: bandera auxiliar usada en pruebas para simplificar el runtime
-
-### `server.gin`
+### Servidor Gin
 
 - `server.gin.port`: direccion de escucha HTTP
-- `server.gin.mode`: modo de Gin como `debug`, `release` o `test`
+- `server.gin.mode`: modo de Gin, por ejemplo `debug`, `release` o `test`
+- `server.gin.groups`: grupos de rutas creados por `config/server/gin`
 - `server.gin.UseH2C`: habilita soporte HTTP/2 cleartext
-- `server.gin.rate.limit`: limite de requests del rate limiter incorporado
-- `server.gin.rate.burst`: burst del rate limiter
+- `server.gin.rate.limit`: tasa del limiter incorporado; `0` lo deshabilita
+- `server.gin.rate.burst`: burst del limiter
+- `server.gin.LoggerWithConfig.enabled`: habilita logs estructurados de requests HTTP
+- `server.gin.LoggerWithConfig.SkipPaths`: rutas omitidas por el logger de requests
+- `server.gin.LoggerWithConfig.SkipQueryString`: oculta query strings en paths logueados
 
-### `server.gin.LoggerWithConfig`
+Gin tambien soporta `server.gin.autotls.*`, `server.gin.tls.*` y
+`server.gin.mtls.*` para TLS automatico, TLS explicito y mTLS.
 
-- `server.gin.LoggerWithConfig.enabled`: habilita el logger estructurado de requests HTTP
-- `server.gin.LoggerWithConfig.SkipPaths`: rutas excluidas del middleware de logging
-- `server.gin.LoggerWithConfig.SkipQueryString`: oculta el query string del path logueado
+Versiones TLS soportadas: `tlsv10`, `tlsv11`, `tlsv12` y `tlsv13`.
+Valores de client-auth soportados: `no_client_cert`, `request_client_cert`,
+`require_any_client_cert`, `verify_client_cert_if_given` y
+`require_and_verify_client_cert`.
 
-### `server.grpc`
+### Servidor gRPC
 
 - `server.grpc.port`: direccion de escucha gRPC
-
-### `server.grpc.tls`
-
 - `server.grpc.tls.enable`: habilita TLS en el servidor gRPC
 - `server.grpc.tls.certFile`: ruta del certificado del servidor
 - `server.grpc.tls.keyFile`: ruta de la llave privada del servidor
-- `server.grpc.tls.version`: version minima TLS como `tlsv12` o `tlsv13`
-
-### `server.grpc.mtls`
-
-- `server.grpc.mtls.enable`: habilita validacion mTLS en el servidor gRPC
+- `server.grpc.tls.version`: version minima TLS
+- `server.grpc.mtls.enable`: habilita validacion mTLS
 - `server.grpc.mtls.clientCAFile`: archivo CA para validar certificados cliente
 - `server.grpc.mtls.clientAuth`: politica de certificados cliente
 
-Valores soportados para `server.grpc.mtls.clientAuth`:
+### Clientes
 
-- `request_client_cert`
-- `require_any_client_cert`
-- `verify_client_cert_if_given`
-- `require_and_verify_client_cert`
+- `client.http.timeout`: timeout por defecto para clientes HTTP configurados
+- `client.http.tls.*`: configuracion TLS HTTP saliente
+- `client.http.mtls.*`: certificado cliente mTLS HTTP saliente
+- `client.grpc.tls.*`: configuracion TLS gRPC saliente
+- `client.grpc.mtls.*`: certificado cliente mTLS gRPC saliente
 
-### `server.gin.autotls`
+### Logger, Traces y JWT
 
-- `server.gin.autotls.enable`: habilita gestion automatica de certificados con `autocert`
-- `server.gin.autotls.domain`: dominio permitido para certificados administrados
-- `server.gin.autotls.dirCache`: directorio local de cache para `autocert`
-- `server.gin.autotls.version`: version minima TLS para auto TLS
-
-### `server.gin.tls`
-
-- `server.gin.tls.enable`: habilita TLS en el servidor Gin
-- `server.gin.tls.certFile`: ruta del certificado del servidor
-- `server.gin.tls.keyFile`: ruta de la llave privada del servidor
-- `server.gin.tls.version`: version minima TLS como `tlsv12` o `tlsv13`
-
-### `server.gin.mtls`
-
-- `server.gin.mtls.enable`: habilita validacion mTLS en el servidor Gin
-- `server.gin.mtls.clientCAFile`: archivo CA para validar certificados cliente
-- `server.gin.mtls.clientAuth`: politica de certificados cliente
-
-### `client.http.tls`
-
-- `client.http.tls.enable`: habilita TLS en el cliente HTTP saliente
-- `client.http.tls.caFile`: bundle CA usado para validar el certificado remoto
-- `client.http.tls.serverName`: nombre esperado opcional durante la validacion del certificado
-- `client.http.tls.version`: version minima TLS para el transporte cliente
-- `client.http.tls.insecureSkipVerify`: desactiva la validacion de certificados y solo deberia usarse en desarrollo controlado
-
-### `client.http.mtls`
-
-- `client.http.mtls.enable`: habilita mTLS en el cliente HTTP saliente
-- `client.http.mtls.certFile`: ruta del certificado cliente
-- `client.http.mtls.keyFile`: ruta de la llave privada cliente
-
-### `client.grpc.tls`
-
-- `client.grpc.tls.enable`: habilita TLS en el cliente gRPC saliente
-- `client.grpc.tls.caFile`: bundle CA usado para validar el certificado remoto
-- `client.grpc.tls.serverName`: nombre esperado del servidor durante la validacion del certificado
-- `client.grpc.tls.version`: version minima TLS para el transporte cliente
-- `client.grpc.tls.insecureSkipVerify`: desactiva la validacion de certificados y solo deberia usarse en desarrollo controlado
-
-### `client.grpc.mtls`
-
-- `client.grpc.mtls.enable`: habilita mTLS en el cliente gRPC saliente
-- `client.grpc.mtls.certFile`: ruta del certificado cliente
-- `client.grpc.mtls.keyFile`: ruta de la llave privada cliente
-
-### `logger`
-
-- `logger.dir`: directorio usado para crear el archivo de log
-- `logger.modeTest`: desactiva la salida del logger durante tests
-- `logger.level`: nivel minimo de log como `debug`, `info`, `warn` o `error`
-- `logger.ignoredHeaders`: headers que no deben aparecer en logs estructurados
-- `logger.formatter`: formato de salida como `json` o `text`
-- `logger.formatDate`: formato de fecha usado por el formatter
-
-### `logger.rotate`
-
-- `logger.rotate.enable`: habilita rotacion de archivos con `lumberjack`
-- `logger.rotate.maxSize`: tamano maximo en MB antes de rotar
-- `logger.rotate.maxBackups`: numero maximo de archivos rotados a conservar
-- `logger.rotate.maxAge`: edad maxima en dias de los archivos rotados
-- `logger.rotate.compress`: comprime archivos rotados cuando esta habilitado
-
-### `traces`
-
-- `traces.enable`: habilita la inicializacion de trazas y metricas de OpenTelemetry; cuando es `false`, esos exportadores no se inician
-- `traces.SkipPaths`: paths HTTP excluidos del middleware OpenTelemetry de Gin
-
-### `jwt`
-
-- `jwt.enable`: habilita o deshabilita la validacion JWT en middleware
-- `jwt.transport`: origen del JWT usado por Gin. Valores soportados: `header` y `cookie`
+- `logger.dir`: directorio de archivos de log
+- `logger.level`: nivel minimo como `debug`, `info`, `warn` o `error`
+- `logger.ignoredHeaders`: headers removidos de logs estructurados
+- `logger.formatter`: formato de salida, normalmente `json` o `text`
+- `logger.rotate.*`: configuracion de rotacion de archivos
+- `traces.enable`: habilita inicializacion de OpenTelemetry
+- `traces.SkipPaths`: rutas HTTP omitidas por el middleware OpenTelemetry de Gin
+- `jwt.enable`: habilita validacion JWT en middleware
+- `jwt.transport`: origen del token, normalmente `header` o `cookie`
+- `jwt.cookie.name`: nombre de cookie cuando `jwt.transport` es `cookie`
 - `jwt.algorithm`: algoritmo de firma como `HS256`, `RS256`, `PS256` o `EdDSA`
-
-### `jwt.cookie`
-
-- `jwt.cookie.name`: nombre de la cookie usada cuando `jwt.transport` es `cookie`
-
-### `jwt.hmac`
-
-- `jwt.hmac.secret`: secreto compartido usado por algoritmos JWT basados en HMAC
-
-### `jwt.rsa`
-
-- `jwt.rsa.private_key`: llave privada RSA en texto para firmar
-- `jwt.rsa.public_key`: llave publica RSA en texto para validar
-
-### `jwt.eddsa`
-
-- `jwt.eddsa.private_key`: llave privada Ed25519 en texto para firmar
-- `jwt.eddsa.public_key`: llave publica Ed25519 en texto para validar
-
-## Observabilidad
-
-Los servicios arrancados con QuicksGo ya quedan preparados para observabilidad basada en OpenTelemetry.
-
-Eso incluye:
-
-- trazas
-- logs
-- metricas
-
-QuicksGo tambien es compatible con OpenTelemetry Go Auto Instrumentation cuando tu despliegue necesita instrumentacion automatica encima de la configuracion del framework.
+- `jwt.hmac.secret`, `jwt.rsa.*`, `jwt.eddsa.*`: configuracion de llaves de firma
 
 ## Servidor HTTP
 
-`config/server/gin.CreateApp()`:
-
-- carga configuracion
-- inicializa logger
-- inicializa OpenTelemetry
-- crea el `gin.Engine`
-- registra middlewares compartidos
-- aplica middleware JWT cuando esta configurado
-- crea grupos desde `server.groups`
-- registra `/health` y `/refresh` por cada grupo
-
-Uso basico:
+`config/server/gin.CreateApp()` carga configuracion, inicializa logger y
+OpenTelemetry, crea el `gin.Engine` compartido, registra middlewares comunes,
+crea grupos desde `server.gin.groups` y registra `/health` y `/refresh` en cada
+grupo.
 
 ```go
 package main
@@ -288,9 +209,8 @@ package main
 import (
 	"log"
 
-	"github.com/gin-gonic/gin"
-
 	serverGin "github.com/PointerByte/QuicksGo/config/server/gin"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -308,29 +228,15 @@ func main() {
 }
 ```
 
-### Endpoint refresh en Gin
-
-Cada grupo de rutas creado desde `server.groups` tambien recibe un endpoint `GET /refresh`.
-
-Esta pensado para:
-
-- recargar cache o estado en memoria
-- reiniciar jobs de background entre instancias
-- propagar eventos de refresh a peers registrados con `SetHostsRefresh(...)`
-
-Si necesitas logica local antes del fan-out, registra callbacks con `SetFunctionsRefresh(...)`.
+`GET /refresh` reinicia jobs registrados a nivel de paquete, ejecuta callbacks
+registrados con `SetFunctionsRefresh(...)` y puede propagarse a peers
+registrados con `SetHostsRefresh(...)`.
 
 ## Servidor gRPC
 
-`config/server/grpc`:
-
-- carga configuracion cuando se ejecuta `Serve()`
-- resuelve `server.grpc.port` desde `viper`
-- integra interceptores de logger y tracing
-- soporta TLS y mTLS
-- escucha senales de apagado y ejecuta `GracefulStop()`
-
-Uso basico:
+`config/server/grpc` carga configuracion en `Serve()`, resuelve
+`server.grpc.port`, agrega interceptores de logging y OpenTelemetry, soporta
+TLS y mTLS, y hace apagado graceful ante senales del proceso.
 
 ```go
 package main
@@ -348,21 +254,20 @@ type greeterServer struct {
 	pb.UnimplementedGreeterServer
 }
 
-func (s greeterServer) SayHello(_ context.Context, req *pb.HelloRequest) (*pb.HelloReply, error) {
+func (greeterServer) SayHello(_ context.Context, req *pb.HelloRequest) (*pb.HelloReply, error) {
 	return &pb.HelloReply{Message: "hello " + req.GetName()}, nil
 }
 
-func (s greeterServer) CreateChat(stream grpc.ClientStreamingServer[pb.ChatMessage, pb.ChatSummary]) error {
+func (greeterServer) CreateChat(stream grpc.ClientStreamingServer[pb.ChatMessage, pb.ChatSummary]) error {
 	return nil
 }
 
-func (s greeterServer) StreamAlerts(stream grpc.BidiStreamingServer[pb.AlertMessage, pb.AlertMessage]) error {
+func (greeterServer) StreamAlerts(stream grpc.BidiStreamingServer[pb.AlertMessage, pb.AlertMessage]) error {
 	return nil
 }
 
 func main() {
 	srv := serverGRPC.NewIConfig(nil, nil)
-
 	if err := srv.Register(func(r grpc.ServiceRegistrar) {
 		pb.RegisterGreeterServer(r, greeterServer{})
 	}); err != nil {
@@ -373,19 +278,9 @@ func main() {
 }
 ```
 
-### Endpoint refresh en gRPC
+## Clientes
 
-`config/server/grpc` expone un RPC administrativo interno de refresh en `"/quicksgo.admin/Refresh"`.
-
-Esta pensado para:
-
-- refrescar estado local en todos los nodos
-- reiniciar jobs programados de forma coordinada
-- propagar eventos internos de recarga entre instancias gRPC
-
-## Cliente HTTP
-
-`config/client/http` expone un cliente REST generico con trazabilidad de request y response.
+HTTP:
 
 ```go
 client := clientHttp.NewGenericRest(10*time.Second, nil)
@@ -399,16 +294,11 @@ err := client.GetGeneric(ctx, clientHttp.RequestGeneric{
 })
 ```
 
-## Cliente gRPC
-
-`config/client/grpc` envuelve `grpc.ClientConn` y puede:
-
-- construir clientes protobuf con `BuildClient`
-- resolver TLS y mTLS desde `viper`
-- trazar metadata, request y response con `logger`
+gRPC:
 
 ```go
 cli := clientGRPC.NewIClient(nil)
+cli.SetAddress("localhost:50051")
 
 greeter, err := clientGRPC.BuildClient(cli, pb.NewGreeterClient)
 if err != nil {
@@ -416,27 +306,14 @@ if err != nil {
 }
 ```
 
-## Jobs en background
+Usa `NewGenericRestFromConfig()` o las claves TLS del cliente gRPC cuando
+quieras construir transportes desde `viper`.
 
-`config/utilities/jobs` ofrece tareas recurrentes simples dentro del mismo proceso.
+## Trabajo En Background
 
-Entradas comunes:
-
-- `jobs.Job(...)`
-- `jobs.CronJob(...)`
-- `jobs.StartJobs()`
-- `jobs.RestartJobs()`
-- `jobs.StopAllJobs(...)`
-- `jobs.CheckStatusJobs()`
-
-Comportamiento importante:
-
-- los jobs arrancan solo despues de `StartJobs()`
-- `config/server/gin.Start(...)` ya llama `jobs.StartJobs()`
-- los jobs registrados despues de `StartJobs()` se lanzan de inmediato
-- cuando `server.modeTest=true`, los jobs no corren
-
-Ejemplo:
+`tools/jobs` ofrece jobs en proceso con intervalo fijo. Los jobs arrancan
+cuando se ejecuta `jobs.StartJobs()`; `config/server/gin.Start(...)` lo llama
+automaticamente. Cuando `server.modeTest=true`, los jobs no arrancan.
 
 ```go
 func registerJobs() {
@@ -445,69 +322,48 @@ func registerJobs() {
 	jobs.Job(func() {
 		refreshCache()
 	}, time.Minute, &timeout)
-
-	jobs.CronJob(func() {
-		buildDailyReport()
-	}, jobs.CronTrigger{
-		Hour:   2,
-		Minute: 0,
-		Second: 0,
-	}, 0)
-}
-
-func main() {
-	registerJobs()
-
-	srv, err := serverGin.CreateApp()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	serverGin.Start(srv)
 }
 ```
 
-## Ejemplo ejecutable
+`tools/workers` ofrece un loop simple de workers acotados mediante
+`SetWorkersLimit`, `RunWorkers`, `AddTask`, `StopWorkers` y `RestartWorkers`.
 
-El modulo `config` incluye un ejemplo ejecutable en [config/main.go](/e:/Proyects/Practices/QuicksGo/config/main.go).
+## Ejemplos Ejecutables
+
+El modulo raiz incluye ejemplos ejecutables en [main.go](./main.go).
+Usa un archivo de aplicacion como el YAML minimo anterior antes de arrancar el
+ejemplo Gin; espera `/api/v1` en `server.gin.groups`.
 
 Ejecutar el ejemplo Gin:
 
-```powershell
-$env:QUICKSGO_EXAMPLE_SERVER="gin"
-go run ./config
+```bash
+QUICKSGO_EXAMPLE_SERVER=gin go run .
 ```
 
 Ejecutar el ejemplo gRPC:
 
-```powershell
-$env:QUICKSGO_EXAMPLE_SERVER="grpc"
-go run ./config
+```bash
+QUICKSGO_EXAMPLE_SERVER=grpc go run .
 ```
 
-## Uso recomendado
+## Desarrollo
 
-Si vas a arrancar una aplicacion nueva con QuicksGo:
+El workspace usa Go `1.25.0`.
 
-1. usa como base [config/application.yml](/e:/Proyects/Practices/QuicksGo/config/application.yml)
-2. carga configuracion con `config/utilities.LoadEnv`
-3. usa `config/server/gin` o `config/server/grpc` como bootstrap
-4. define tus rutas o servicios protobuf
-5. usa `security` para JWT y proteccion de endpoints
-6. usa `config/client/http` o `config/client/grpc` para llamadas salientes con tracing
-7. usa `config/utilities/jobs` si necesitas jobs recurrentes livianos
-
-Tambien puedes generar un servicio nuevo con `qgo`:
+Ejecutar pruebas del modulo raiz:
 
 ```bash
-go install github.com/PointerByte/QuicksGo/cmd/qgo@latest
-qgo new gin
-qgo new grpc
+go test ./...
 ```
 
-## Protobuf
+Ejecutar pruebas de un modulo del workspace:
 
-Comandos requeridos:
+```bash
+cd logger
+go test ./...
+```
+
+Generar archivos protobuf despues de editar `config/proto/methods.proto`:
 
 ```bash
 go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
@@ -515,40 +371,10 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 protoc --go_out=. --go-grpc_out=. config/proto/methods.proto
 ```
 
-## Pruebas
+Coverage para el modulo actual:
 
 ```bash
-go test ./...
-```
-
-## Comandos utiles
-
-### Actualizar dependencias
-
-```bash
-go get -u=patch ./...
-```
-
-### Limpiar cache de build, tests y modulos
-
-```bash
-go clean -cache -testcache -modcache
-```
-
-### Ejecutar pruebas con coverage
-
-```bash
-go test -cover -covermode=atomic -coverprofile="coverage.out" ./...
-```
-
-### Generar reporte HTML de coverage
-
-```bash
-go tool cover -html="coverage.out" -o "coverage.html"
-```
-
-### Mostrar coverage por funcion
-
-```bash
-go tool cover -func="coverage.out"
+go test -cover -covermode=atomic -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out
+go tool cover -html=coverage.out -o coverage.html
 ```
