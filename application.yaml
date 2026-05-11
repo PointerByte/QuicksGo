@@ -15,7 +15,7 @@ server:
     LoggerWithConfig:
       enabled: true
       SkipPaths:
-        - /api/v1/health
+        - /health
       SkipQueryString: false
     autotls:
       enable: false

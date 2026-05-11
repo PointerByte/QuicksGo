@@ -159,7 +159,7 @@ server:
     LoggerWithConfig:
       enabled: true
       SkipPaths:
-        - /api/v1/health
+        - /health
       SkipQueryString: false
     autotls:
       enable: false
@@ -314,7 +314,7 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 				"LoggerWithConfig": map[string]any{
 					"enabled": true,
 					"SkipPaths": []string{
-						"/api/v1/health",
+						"/health",
 					},
 					"SkipQueryString": false,
 				},
