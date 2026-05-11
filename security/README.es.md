@@ -242,6 +242,45 @@ El token parseado se guarda con `middlewares.JWTTokenContextKey.String()`. Sin
 claims factory, los claims decodificados se guardan como `map[string]any`.
 Personaliza las claves con `WithJWTContextKeys`.
 
+## Interceptores Bearer Para gRPC
+
+`RequireJWTUnaryServerInterceptor` y `RequireJWTStreamServerInterceptor` leen un
+bearer token desde metadata gRPC `authorization`, validan el JWT y guardan el
+token parseado y los claims en `context.Context`.
+
+```go
+server := grpc.NewServer(
+	grpc.ChainUnaryInterceptor(
+		middlewares.RequireJWTUnaryServerInterceptor(
+			middlewares.WithGRPCJWTClaimsFactory(func() any { return &MyClaims{} }),
+		),
+	),
+	grpc.ChainStreamInterceptor(
+		middlewares.RequireJWTStreamServerInterceptor(
+			middlewares.WithGRPCJWTClaimsFactory(func() any { return &MyClaims{} }),
+		),
+	),
+)
+```
+
+Leer valores desde el contexto gRPC:
+
+```go
+claimsValue, ok := middlewares.JWTClaimsFromContext(ctx)
+if !ok {
+	return nil, status.Error(codes.Unauthenticated, "claims not available")
+}
+
+claims := claimsValue.(*MyClaims)
+_ = claims
+```
+
+El cliente debe enviar metadata:
+
+```text
+authorization: Bearer <token>
+```
+
 ## Auth Por Cookies
 
 El paquete `auth/cookies` valida JWTs almacenados en una cookie HTTP.

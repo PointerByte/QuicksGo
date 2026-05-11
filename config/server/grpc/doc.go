@@ -61,4 +61,16 @@
 //
 // If you already have your own listener, inject it with SetListener instead of
 // SetAddress.
+//
+// JWT can be attached explicitly with the security gRPC interceptors:
+//
+//	import (
+//		servergrpc "github.com/PointerByte/GoForge/config/server/grpc"
+//		"github.com/PointerByte/GoForge/security/middlewares"
+//	)
+//
+//	srv := servergrpc.NewIConfig(nil, nil,
+//		servergrpc.WithUnaryInterceptors(middlewares.RequireJWTUnaryServerInterceptor()),
+//		servergrpc.WithStreamInterceptors(middlewares.RequireJWTStreamServerInterceptor()),
+//	)
 package grpc

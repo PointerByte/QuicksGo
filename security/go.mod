@@ -8,6 +8,7 @@ require (
 	github.com/PointerByte/GoForge/encrypt v0.0.11
 	github.com/gin-gonic/gin v1.12.0
 	github.com/spf13/viper v1.21.0
+	google.golang.org/grpc v1.80.0
 )
 
 require (

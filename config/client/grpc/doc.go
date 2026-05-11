@@ -43,6 +43,7 @@
 //
 //		clientgrpc "github.com/PointerByte/GoForge/config/client/grpc"
 //		pb "github.com/PointerByte/GoForge/config/proto"
+//		"google.golang.org/grpc/metadata"
 //	)
 //
 //	func main() {
@@ -54,11 +55,19 @@
 //			log.Fatal(err)
 //		}
 //
-//		resp, err := greeter.SayHello(context.Background(), &pb.HelloRequest{Name: "Manuel"})
+//		ctx := metadata.AppendToOutgoingContext(
+//			context.Background(),
+//			"authorization", "Bearer <JWT>",
+//		)
+//
+//		resp, err := greeter.SayHello(ctx, &pb.HelloRequest{Name: "Manuel"})
 //		if err != nil {
 //			log.Fatal(err)
 //		}
 //
 //		log.Println(resp.GetMessage())
 //	}
+//
+// The same metadata pattern applies to streams: pass the outgoing metadata
+// context when creating the generated client stream.
 package grpc

@@ -87,15 +87,44 @@ type IConfig interface {
 }
 
 type Config struct {
-	mocks     IConfig
-	server    *grpc.Server
-	serverErr error
-	listener  net.Listener
-	address   string
-	mux       sync.RWMutex
+	mocks              IConfig
+	server             *grpc.Server
+	serverErr          error
+	listener           net.Listener
+	address            string
+	unaryInterceptors  []grpc.UnaryServerInterceptor
+	streamInterceptors []grpc.StreamServerInterceptor
+	mux                sync.RWMutex
 }
 
 var tlsConfig *tls.Config
+
+// ConfigOption customizes internally created gRPC servers.
+type ConfigOption func(*Config)
+
+// WithUnaryInterceptors appends unary interceptors to the default traces and
+// logger interceptor chain.
+func WithUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) ConfigOption {
+	return func(config *Config) {
+		for _, interceptor := range interceptors {
+			if interceptor != nil {
+				config.unaryInterceptors = append(config.unaryInterceptors, interceptor)
+			}
+		}
+	}
+}
+
+// WithStreamInterceptors appends stream interceptors to the default traces and
+// logger interceptor chain.
+func WithStreamInterceptors(interceptors ...grpc.StreamServerInterceptor) ConfigOption {
+	return func(config *Config) {
+		for _, interceptor := range interceptors {
+			if interceptor != nil {
+				config.streamInterceptors = append(config.streamInterceptors, interceptor)
+			}
+		}
+	}
+}
 
 // SetTLSConfig sets the TLS configuration that NewIConfig should attach to
 // internally created gRPC servers.
@@ -137,11 +166,17 @@ func SetTLSConfig(config *tls.Config) {
 //
 //	custom := grpc.NewServer()
 //	srv := unitary.NewIConfig(nil, custom)
-func NewIConfig(mocks IConfig, server *grpc.Server) IConfig {
-	return &Config{
+func NewIConfig(mocks IConfig, server *grpc.Server, options ...ConfigOption) IConfig {
+	config := &Config{
 		mocks:  mocks,
 		server: server,
 	}
+	for _, option := range options {
+		if option != nil {
+			option(config)
+		}
+	}
+	return config
 }
 
 func (su *Config) SetAddress(address string) {
@@ -274,7 +309,7 @@ func (su *Config) ensureServerLocked() error {
 		return su.serverErr
 	}
 
-	options, err := defaultServerOptions()
+	options, err := su.defaultServerOptions()
 	if err != nil {
 		su.serverErr = err
 		return err
@@ -283,20 +318,26 @@ func (su *Config) ensureServerLocked() error {
 	return nil
 }
 
-func defaultServerOptions() ([]grpc.ServerOption, error) {
+func (su *Config) defaultServerOptions() ([]grpc.ServerOption, error) {
+	unaryInterceptors := []grpc.UnaryServerInterceptor{
+		traces.MiddlewareOtelGRPCUnary(),
+		loggerMiddlewares.InitLoggerUnaryServerInterceptor(),
+		loggerMiddlewares.LoggerWithConfigUnaryServerInterceptor(),
+		loggerMiddlewares.CaptureBodyUnaryServerInterceptor(),
+	}
+	unaryInterceptors = append(unaryInterceptors, su.unaryInterceptors...)
+
+	streamInterceptors := []grpc.StreamServerInterceptor{
+		traces.MiddlewareOtelGRPCStream(),
+		loggerMiddlewares.InitLoggerStreamServerInterceptor(),
+		loggerMiddlewares.LoggerWithConfigStreamServerInterceptor(),
+		loggerMiddlewares.CaptureBodyStreamServerInterceptor(),
+	}
+	streamInterceptors = append(streamInterceptors, su.streamInterceptors...)
+
 	options := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(
-			traces.MiddlewareOtelGRPCUnary(),
-			loggerMiddlewares.InitLoggerUnaryServerInterceptor(),
-			loggerMiddlewares.LoggerWithConfigUnaryServerInterceptor(),
-			loggerMiddlewares.CaptureBodyUnaryServerInterceptor(),
-		),
-		grpc.ChainStreamInterceptor(
-			traces.MiddlewareOtelGRPCStream(),
-			loggerMiddlewares.InitLoggerStreamServerInterceptor(),
-			loggerMiddlewares.LoggerWithConfigStreamServerInterceptor(),
-			loggerMiddlewares.CaptureBodyStreamServerInterceptor(),
-		),
+		grpc.ChainUnaryInterceptor(unaryInterceptors...),
+		grpc.ChainStreamInterceptor(streamInterceptors...),
 	}
 
 	config, err := resolveTLSConfig()

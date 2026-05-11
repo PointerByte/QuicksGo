@@ -304,6 +304,16 @@ greeter, err := clientGRPC.BuildClient(cli, pb.NewGreeterClient)
 if err != nil {
 	panic(err)
 }
+
+ctx := metadata.AppendToOutgoingContext(
+	context.Background(),
+	"authorization", "Bearer "+token,
+)
+
+resp, err := greeter.SayHello(ctx, &pb.HelloRequest{Name: "Manuel"})
+if err != nil {
+	panic(err)
+}
 ```
 
 Usa `NewGenericRestFromConfig()` o las claves TLS del cliente gRPC cuando
