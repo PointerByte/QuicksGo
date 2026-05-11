@@ -103,7 +103,7 @@ server:
     LoggerWithConfig:
       enabled: true
       SkipPaths:
-        - /api/v1/health
+        - /health
       SkipQueryString: false
   grpc:
     port: ":50051"
@@ -124,7 +124,7 @@ logger:
 traces:
   enable: false
   SkipPaths:
-    - /api/v1/health
+    - /health
 
 jwt:
   enable: false
