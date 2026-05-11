@@ -264,6 +264,12 @@ func NewConfiguredService(input ConfigServiceInput) (*Service, error) {
 	if algorithm == "" {
 		algorithm = strings.ToUpper(strings.TrimSpace(viper.GetString(stringOrDefault(input.algorithmKey, DefaultAlgorithmKey))))
 	}
+	if algorithm == "" {
+		algorithm = inferConfiguredAlgorithm(input)
+	}
+	if algorithm == "" {
+		return nil, ErrMissingAlgorithm
+	}
 
 	switch algorithm {
 	case "HS256":
@@ -292,6 +298,32 @@ func NewConfiguredService(input ConfigServiceInput) (*Service, error) {
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedAlg, algorithm)
 	}
+}
+
+func inferConfiguredAlgorithm(input ConfigServiceInput) string {
+	candidates := make([]string, 0, 3)
+
+	hmacSecretKey := stringPtrOrDefault(input.HMACSecretKey, DefaultHMACSecretKey)
+	if viper.GetString(hmacSecretKey) != "" {
+		candidates = append(candidates, "HS256")
+	}
+
+	rsaPrivateKeyKey := stringPtrOrDefault(input.RSAPrivateKeyKey, DefaultRSAPrivateKeyKey)
+	rsaPublicKeyKey := stringPtrOrDefault(input.RSAPublicKeyKey, DefaultRSAPublicKeyKey)
+	if viper.GetString(rsaPrivateKeyKey) != "" || viper.GetString(rsaPublicKeyKey) != "" {
+		candidates = append(candidates, "RS256")
+	}
+
+	eddsaPrivateKeyKey := stringPtrOrDefault(input.EdDSAPrivateKeyKey, DefaultEdDSAPrivateKeyKey)
+	eddsaPublicKeyKey := stringPtrOrDefault(input.EdDSAPublicKeyKey, DefaultEdDSAPublicKeyKey)
+	if viper.GetString(eddsaPrivateKeyKey) != "" || viper.GetString(eddsaPublicKeyKey) != "" {
+		candidates = append(candidates, "EDDSA")
+	}
+
+	if len(candidates) != 1 {
+		return ""
+	}
+	return candidates[0]
 }
 
 // NewRSAPSSService builds a JWT service for PS256 signatures.

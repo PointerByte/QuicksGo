@@ -42,14 +42,8 @@ Este modulo no carga automaticamente `application.yaml`, `application.yml` ni
 ```yaml
 jwt:
   enable: true
-  algorithm: HS256
   cookie:
     name: access_token
-  hmac:
-    secret: change-me
-  rsa:
-    private_key: ./certs/jwt/key.pem
-    public_key: ./certs/jwt/public.pem
   eddsa:
     private_key: ./certs/jwt/ed25519-key.pem
     public_key: ./certs/jwt/ed25519-public.pem
@@ -58,13 +52,20 @@ jwt:
 Claves principales:
 
 - `jwt.enable`: cuando esta explicitamente en `false`, el middleware JWT de Gin deja pasar requests
-- `jwt.algorithm`: `HS256`, `RS256`, `PS256` o `EdDSA`
+- `jwt.algorithm`: `HS256`, `RS256`, `PS256` o `EdDSA`; es opcional cuando solo hay una estrategia configurada
 - `jwt.cookie.name`: nombre de cookie usado por auth con cookies; default `access_token`
 - `jwt.hmac.secret`: secreto compartido para `HS256`
 - `jwt.rsa.private_key`: valor de llave privada RSA o ruta a archivo PEM
 - `jwt.rsa.public_key`: valor de llave publica RSA o ruta a archivo PEM
 - `jwt.eddsa.private_key`: valor de llave privada Ed25519 o ruta a archivo PEM
 - `jwt.eddsa.public_key`: valor de llave publica Ed25519 o ruta a archivo PEM
+
+Configura una sola estrategia por servicio. Si hay mas de una estrategia bajo
+`jwt`, define `jwt.algorithm` para resolver la ambiguedad.
+
+Los archivos `application.yaml` y `application.json` de este modulo son ejemplos
+completos: incluyen `hmac`, `rsa` y `eddsa` para documentar las opciones. Como
+hay varias estrategias configuradas, tambien incluyen `jwt.algorithm`.
 
 Los inputs configurados reciben nombres de claves de viper, no valores crudos
 de secretos. Por ejemplo, `HMACSecretKey` apunta a la clave de viper donde vive
@@ -79,6 +80,22 @@ Archivos de ejemplo:
 ## Servicio JWT
 
 ### Configurado Desde Viper
+
+Con una sola estrategia configurada, `NewConfiguredService` puede inferir el
+algoritmo:
+
+```go
+viper.Set("jwt.eddsa.private_key", "./certs/jwt/ed25519-key.pem")
+viper.Set("jwt.eddsa.public_key", "./certs/jwt/ed25519-public.pem")
+
+service, err := jwtservice.NewConfiguredService(jwtservice.ConfigServiceInput{})
+if err != nil {
+	panic(err)
+}
+```
+
+Si configuras varias estrategias, define `jwt.algorithm` o pasalo en
+`ConfigServiceInput`:
 
 ```go
 package main

@@ -136,15 +136,9 @@ traces:
 jwt:
   enable: false
   transport: header
-  algorithm: HS256
-  hmac:
-    secret: change-me-hmac-secret
-  rsa:
-    private_key: ./certs/jwt/key.pem
-    public_key: ./certs/jwt/public.pem
   eddsa:
-    private_key: ./certs/jwt/key.pem
-    public_key: ./certs/jwt/public.pem
+    private_key: ./certs/jwt/ed25519-key.pem
+    public_key: ./certs/jwt/ed25519-public.pem
 `, appName)
 	}
 
@@ -228,9 +222,9 @@ traces:
 jwt:
   enable: false
   transport: header
-  algorithm: HS256
-  hmac:
-    secret: change-me-hmac-secret
+  eddsa:
+    private_key: ./certs/jwt/ed25519-key.pem
+    public_key: ./certs/jwt/ed25519-public.pem
 `, appName)
 }
 
@@ -381,17 +375,9 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 		data["jwt"] = map[string]any{
 			"enable":    false,
 			"transport": "header",
-			"algorithm": "HS256",
-			"hmac": map[string]any{
-				"secret": "change-me-hmac-secret",
-			},
-			"rsa": map[string]any{
-				"private_key": "./certs/jwt/key.pem",
-				"public_key":  "./certs/jwt/public.pem",
-			},
 			"eddsa": map[string]any{
-				"private_key": "./certs/jwt/key.pem",
-				"public_key":  "./certs/jwt/public.pem",
+				"private_key": "./certs/jwt/ed25519-key.pem",
+				"public_key":  "./certs/jwt/ed25519-public.pem",
 			},
 		}
 	}

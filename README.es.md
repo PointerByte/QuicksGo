@@ -129,9 +129,9 @@ traces:
 jwt:
   enable: false
   transport: header
-  algorithm: HS256
-  hmac:
-    secret: change-me
+  eddsa:
+    private_key: ./certs/jwt/ed25519-key.pem
+    public_key: ./certs/jwt/ed25519-public.pem
 ```
 
 ## Claves Principales
@@ -193,8 +193,8 @@ Valores de client-auth soportados: `no_client_cert`, `request_client_cert`,
 - `jwt.enable`: habilita validacion JWT en middleware
 - `jwt.transport`: origen del token, normalmente `header` o `cookie`
 - `jwt.cookie.name`: nombre de cookie cuando `jwt.transport` es `cookie`
-- `jwt.algorithm`: algoritmo de firma como `HS256`, `RS256`, `PS256` o `EdDSA`
-- `jwt.hmac.secret`, `jwt.rsa.*`, `jwt.eddsa.*`: configuracion de llaves de firma
+- `jwt.algorithm`: algoritmo de firma como `HS256`, `RS256`, `PS256` o `EdDSA`; opcional cuando solo hay una estrategia configurada
+- `jwt.hmac.secret`, `jwt.rsa.*`, `jwt.eddsa.*`: configuracion de firma; configura una sola estrategia por servicio o define `jwt.algorithm` si hay varias
 
 ## Servidor HTTP
 

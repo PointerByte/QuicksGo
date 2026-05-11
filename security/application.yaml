@@ -1,13 +1,15 @@
 jwt:
   enable: true
+  transport: header
   algorithm: HS256
   hmac:
-    algorithm: HS256
     secret: "replace-with-your-hmac-secret"
   rsa:
-    algorithm: RS256
     private_key: "./certs/jwt/key.pem"
     public_key: "./certs/jwt/public.pem"
+  eddsa:
+    private_key: "./certs/jwt/ed25519-key.pem"
+    public_key: "./certs/jwt/ed25519-public.pem"
 encrypt:
   aws-kms:
     arn: ""
