@@ -22,6 +22,7 @@ import (
 	"github.com/PointerByte/GoForge/logger/builder"
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	jwtservice "github.com/PointerByte/GoForge/security/auth/jwt"
+	"github.com/PointerByte/GoForge/security/middlewares"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
@@ -397,6 +398,29 @@ func TestCreateApp(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
 		GetEngine().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected health endpoint without global jwt middleware 200, got %d", rec.Code)
+		}
+	})
+}
+
+func TestAuthMiddleware(t *testing.T) {
+	t.Run("supports jwt cookie transport", func(t *testing.T) {
+		resetServerTestState(t)
+		viper.Set("jwt.enable", true)
+		viper.Set("jwt.transport", "cookie")
+		viper.Set("jwt.algorithm", "HS256")
+		viper.Set("jwt.hmac.secret", "cookie-secret")
+		viper.Set("jwt.cookie.name", "session_token")
+
+		router := gin.New()
+		protected := router.Group("/api")
+		protected.Use(middlewares.RequireJWTCookie())
+		protected.GET("/health", healthGin())
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+		router.ServeHTTP(rec, req)
 		if rec.Code != http.StatusUnauthorized {
 			t.Fatalf("expected missing cookie request 401, got %d", rec.Code)
 		}
@@ -411,9 +435,9 @@ func TestCreateApp(t *testing.T) {
 		}
 
 		rec = httptest.NewRecorder()
-		req = httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+		req = httptest.NewRequest(http.MethodGet, "/api/health", nil)
 		req.AddCookie(&http.Cookie{Name: "session_token", Value: token})
-		GetEngine().ServeHTTP(rec, req)
+		router.ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("expected cookie-authenticated health endpoint 200, got %d", rec.Code)
 		}

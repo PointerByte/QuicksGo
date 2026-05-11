@@ -270,7 +270,7 @@ func parseClientAuth(raw string) tls.ClientAuthType {
 // It loads configuration files and environment overrides, initializes logging
 // and OpenTelemetry, sets up the Gin engine, registers shared middleware, and
 // creates the route groups declared in configuration.
-func CreateApp(optionsJWT ...middlewares.JWTMiddlewareOption) (*http.Server, error) {
+func CreateApp() (*http.Server, error) {
 	// Load default config.
 	dir, err := os.Getwd()
 	if err != nil {
@@ -291,7 +291,6 @@ func CreateApp(optionsJWT ...middlewares.JWTMiddlewareOption) (*http.Server, err
 	engine.NoMethod(noMethod())
 	engine.Use(
 		gin.Recovery(),
-		authMiddleware(optionsJWT...),
 		limiter(),
 		middlewares.SecurityHeaders(),
 		traces.MiddlewareOtel(),
@@ -322,15 +321,6 @@ func CreateApp(optionsJWT ...middlewares.JWTMiddlewareOption) (*http.Server, err
 		Handler:   engine,
 		TLSConfig: tlsConfig,
 	}, nil
-}
-
-func authMiddleware(optionsJWT ...middlewares.JWTMiddlewareOption) gin.HandlerFunc {
-	switch strings.ToLower(strings.TrimSpace(viper.GetString("jwt.transport"))) {
-	case "cookie", "cookies":
-		return middlewares.RequireJWTCookie()
-	default:
-		return middlewares.RequireJWT(optionsJWT...)
-	}
 }
 
 const timeout = 30 * time.Second
