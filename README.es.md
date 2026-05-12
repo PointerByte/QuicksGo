@@ -122,7 +122,6 @@ logger:
     - Cookie
 
 traces:
-  enable: false
   SkipPaths:
     - /health
 
@@ -188,7 +187,6 @@ Valores de client-auth soportados: `no_client_cert`, `request_client_cert`,
 - `logger.ignoredHeaders`: headers removidos de logs estructurados
 - `logger.formatter`: formato de salida, normalmente `json` o `text`
 - `logger.rotate.*`: configuracion de rotacion de archivos
-- `traces.enable`: habilita inicializacion de OpenTelemetry
 - `traces.SkipPaths`: rutas HTTP omitidas por el middleware OpenTelemetry de Gin
 - `jwt.enable`: habilita validacion JWT en middleware
 - `jwt.transport`: origen del token, normalmente `header` o `cookie`

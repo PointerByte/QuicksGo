@@ -56,7 +56,7 @@ var (
 // and meter provider.
 //
 // Behavior is driven mainly by standard OTEL_* environment variables. When
-// OTEL_SDK_DISABLED is true or traces.enable is explicitly false, the package
+// OTEL_SDK_DISABLED is true, the package
 // installs no-op providers and returns a shutdown function that does nothing.
 //
 // On success it returns a shutdown function that must be called during
@@ -64,7 +64,7 @@ var (
 func InitOtel(ctx context.Context) (func(context.Context) error, error) {
 	otel.SetTextMapPropagator(newPropagator())
 
-	if isEnvTrue("OTEL_SDK_DISABLED") || telemetryDisabledByConfig() {
+	if isEnvTrue("OTEL_SDK_DISABLED") {
 		otel.SetTracerProvider(tracenoop.NewTracerProvider())
 		otel.SetMeterProvider(metricnoop.NewMeterProvider())
 		return func(context.Context) error { return nil }, nil
@@ -371,10 +371,6 @@ func isEnvTrue(key string) bool {
 
 	parsed, err := strconv.ParseBool(strings.TrimSpace(value))
 	return err == nil && parsed
-}
-
-func telemetryDisabledByConfig() bool {
-	return viper.IsSet("traces.enable") && !viper.GetBool("traces.enable")
 }
 
 // parseRatio parses a sampler ratio and clamps it to the [0, 1] range.

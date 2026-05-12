@@ -129,7 +129,6 @@ logger:
     compress: true
 
 traces:
-  enable: false
   SkipPaths:
     - /health
 
@@ -215,7 +214,6 @@ logger:
     compress: true
 
 traces:
-  enable: false
   SkipPaths:
     - /health
 
