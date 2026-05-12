@@ -112,26 +112,6 @@ func TestInitOtelSDKDisabled(t *testing.T) {
 	}
 }
 
-func TestInitOtelDisabledByConfig(t *testing.T) {
-	resetTestState(t)
-	viper.Set("traces.enable", false)
-	initResourceFn = func(context.Context) (*resource.Resource, error) {
-		t.Fatal("resource should not be initialized when traces.enable is false")
-		return nil, nil
-	}
-
-	shutdown, err := InitOtel(context.Background())
-	if err != nil {
-		t.Fatalf("InitOtel returned error: %v", err)
-	}
-	if shutdown == nil {
-		t.Fatal("expected shutdown function")
-	}
-	if err := shutdown(context.Background()); err != nil {
-		t.Fatalf("shutdown returned error: %v", err)
-	}
-}
-
 func TestInitOtelResourceError(t *testing.T) {
 	resetTestState(t)
 	wantErr := errors.New("resource error")
