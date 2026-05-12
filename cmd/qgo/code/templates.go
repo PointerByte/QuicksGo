@@ -12,7 +12,7 @@ import (
 func buildProjectFiles(serviceType string, options scaffoldOptions) (map[string]string, error) {
 	files := map[string]string{
 		"main.go": buildMainTemplate(serviceType, options.appName),
-		"go.mod":  buildGoModTemplate(options.modulePath, serviceType),
+		//"go.mod":  buildGoModTemplate(options.modulePath, serviceType),
 	}
 
 	switch options.configFormat {
@@ -386,16 +386,4 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 		return "", fmt.Errorf("marshal application json: %w", err)
 	}
 	return string(payload) + "\n", nil
-}
-
-// buildGoModTemplate renders the go.mod file with pinned dependencies.
-func buildGoModTemplate(modulePath string, serviceType string) string {
-	return fmt.Sprintf(`module %s
-
-go 1.23
-
-require (
-	github.com/PointerByte/GoForge v0.0.55
-)
-`, modulePath)
 }
