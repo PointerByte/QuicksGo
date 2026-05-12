@@ -115,6 +115,11 @@ func promptRequired(reader *bufio.Reader, output io.Writer, label string, fallba
 	return value, nil
 }
 
+const (
+	defaultGoForgeVersion       = "v0.0.55"
+	defaultGoForgeLoggerVersion = "v0.0.12"
+)
+
 // promptConfigFormat resolves the config format, defaulting to YAML when the user leaves it blank.
 func promptConfigFormat(reader *bufio.Reader, output io.Writer, fallback string) (string, error) {
 	fallback = strings.ToLower(strings.TrimSpace(fallback))
@@ -191,6 +196,11 @@ func (scaffolder *scaffolder) createService(serviceType string, options scaffold
 	if err := scaffolder.runner(outputDir, "mod", "init", options.modulePath); err != nil {
 		return fmt.Errorf("initialize go module: %w", err)
 	}
+
+	if err := scaffolder.runner(outputDir, "get", "github.com/PointerByte/GoForge@"+defaultGoForgeVersion, "github.com/PointerByte/GoForge/logger@"+defaultGoForgeLoggerVersion); err != nil {
+		return fmt.Errorf("pin dependencies: %w", err)
+	}
+
 	if err := scaffolder.runner(outputDir, "mod", "tidy"); err != nil {
 		return fmt.Errorf("install dependencies: %w", err)
 	}

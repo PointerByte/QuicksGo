@@ -318,7 +318,7 @@ func TestCreateServiceErrorBranches(t *testing.T) {
 		callCount := 0
 		sc := newScaffolder(streams, func(string, ...string) error {
 			callCount++
-			if callCount == 2 {
+			if callCount == 3 {
 				return errors.New("tidy")
 			}
 			return nil
