@@ -325,6 +325,18 @@ func TestNewTraceExporter(t *testing.T) {
 }
 
 func TestNewMeterProviderAndReader(t *testing.T) {
+	t.Run("default none exporter", func(t *testing.T) {
+		resetTestState(t)
+
+		mp, shutdown, err := newMeterProvider(context.Background(), resource.Empty())
+		if err != nil {
+			t.Fatalf("newMeterProvider returned error: %v", err)
+		}
+		if mp == nil || shutdown != nil {
+			t.Fatalf("unexpected meter provider result: mp nil=%t shutdown nil=%t", mp == nil, shutdown == nil)
+		}
+	})
+
 	t.Run("none exporter", func(t *testing.T) {
 		resetTestState(t)
 		t.Setenv("OTEL_METRICS_EXPORTER", "none")

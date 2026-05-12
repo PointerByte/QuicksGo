@@ -140,7 +140,7 @@ func newTracerProvider(ctx context.Context, res *resource.Resource) (oteltrace.T
 		return autoTracerProviderFn(), nil, nil
 	}
 
-	exporterName := signalExporterName("OTEL_TRACES_EXPORTER", "otlp")
+	exporterName := signalExporterName("OTEL_TRACES_EXPORTER", "none")
 	if exporterName == "none" {
 		return tracenoop.NewTracerProvider(), nil, nil
 	}
@@ -183,7 +183,7 @@ func newTraceExporter(ctx context.Context, exporterName string) (sdktrace.SpanEx
 // newMeterProvider builds the meter provider selected by the current OTEL
 // metrics configuration.
 func newMeterProvider(ctx context.Context, res *resource.Resource) (otelmetric.MeterProvider, func(context.Context) error, error) {
-	exporterName := signalExporterName("OTEL_METRICS_EXPORTER", "otlp")
+	exporterName := signalExporterName("OTEL_METRICS_EXPORTER", "none")
 	if exporterName == "none" {
 		return metricnoop.NewMeterProvider(), nil, nil
 	}
