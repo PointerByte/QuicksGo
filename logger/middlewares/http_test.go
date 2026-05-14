@@ -451,12 +451,12 @@ func TestPrintInfo(t *testing.T) {
 		t.Fatalf("%q = %d, want > 0", lineKey, lineValue)
 	}
 
-	level, ok := ctx.Get(InfoLevel)
+	level, ok := ctx.Get(formatter.InfoLevel)
 	if !ok {
-		t.Fatalf("expected %q to be set", InfoLevel)
+		t.Fatalf("expected %q to be set", formatter.InfoLevel)
 	}
 	if level != "info message" {
-		t.Fatalf("%q = %#v, want %#v", InfoLevel, level, "info message")
+		t.Fatalf("%q = %#v, want %#v", formatter.InfoLevel, level, "info message")
 	}
 }
 
@@ -490,12 +490,12 @@ func TestPrintDebug(t *testing.T) {
 		t.Fatalf("%q = %d, want > 0", lineKey, lineValue)
 	}
 
-	level, ok := ctx.Get(DebugLevel)
+	level, ok := ctx.Get(formatter.DebugLevel)
 	if !ok {
-		t.Fatalf("expected %q to be set", DebugLevel)
+		t.Fatalf("expected %q to be set", formatter.DebugLevel)
 	}
 	if level != "debug message" {
-		t.Fatalf("%q = %#v, want %#v", DebugLevel, level, "debug message")
+		t.Fatalf("%q = %#v, want %#v", formatter.DebugLevel, level, "debug message")
 	}
 }
 
@@ -529,12 +529,12 @@ func TestPrintWarn(t *testing.T) {
 		t.Fatalf("%q = %d, want > 0", lineKey, lineValue)
 	}
 
-	level, ok := ctx.Get(WarnLevel)
+	level, ok := ctx.Get(formatter.WarnLevel)
 	if !ok {
-		t.Fatalf("expected %q to be set", WarnLevel)
+		t.Fatalf("expected %q to be set", formatter.WarnLevel)
 	}
 	if level != "warn message" {
-		t.Fatalf("%q = %#v, want %#v", WarnLevel, level, "warn message")
+		t.Fatalf("%q = %#v, want %#v", formatter.WarnLevel, level, "warn message")
 	}
 }
 
@@ -569,15 +569,15 @@ func TestPrintError(t *testing.T) {
 		t.Fatalf("%q = %d, want > 0", lineKey, lineValue)
 	}
 
-	level, ok := ctx.Get(ErrorLevel)
+	level, ok := ctx.Get(formatter.ErrorLevel)
 	if !ok {
-		t.Fatalf("expected %q to be set", ErrorLevel)
+		t.Fatalf("expected %q to be set", formatter.ErrorLevel)
 	}
 	gotErr, ok := level.(error)
 	if !ok {
-		t.Fatalf("%q type = %T, want error", ErrorLevel, level)
+		t.Fatalf("%q type = %T, want error", formatter.ErrorLevel, level)
 	}
 	if gotErr != wantErr {
-		t.Fatalf("%q = %#v, want %#v", ErrorLevel, gotErr, wantErr)
+		t.Fatalf("%q = %#v, want %#v", formatter.ErrorLevel, gotErr, wantErr)
 	}
 }

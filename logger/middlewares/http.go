@@ -196,7 +196,7 @@ func PrintInfo(ctx *gin.Context, message string) {
 	method, line := utilities.TraceCaller(2)
 	ctx.Set(methodKey, method)
 	ctx.Set(lineKey, line)
-	ctx.Set(InfoLevel, message)
+	ctx.Set(formatter.InfoLevel, message)
 }
 
 // PrintDebug schedules a debug-level log message for the current Gin request
@@ -205,7 +205,7 @@ func PrintDebug(ctx *gin.Context, message string) {
 	method, line := utilities.TraceCaller(2)
 	ctx.Set(methodKey, method)
 	ctx.Set(lineKey, line)
-	ctx.Set(DebugLevel, message)
+	ctx.Set(formatter.DebugLevel, message)
 }
 
 // PrintWarn schedules a warn-level log message for the current Gin request and
@@ -214,7 +214,7 @@ func PrintWarn(ctx *gin.Context, message string) {
 	method, line := utilities.TraceCaller(2)
 	ctx.Set(methodKey, method)
 	ctx.Set(lineKey, line)
-	ctx.Set(WarnLevel, message)
+	ctx.Set(formatter.WarnLevel, message)
 }
 
 // PrintError schedules an error-level log message for the current Gin request
@@ -223,5 +223,5 @@ func PrintError(ctx *gin.Context, err error) {
 	method, line := utilities.TraceCaller(2)
 	ctx.Set(methodKey, method)
 	ctx.Set(lineKey, line)
-	ctx.Set(ErrorLevel, err)
+	ctx.Set(formatter.ErrorLevel, err)
 }
