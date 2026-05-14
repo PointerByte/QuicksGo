@@ -472,7 +472,7 @@ func TestLoggerWithConfig_BodyHandling(t *testing.T) {
 			var gotDisableRequestValue bool
 			var gotDisableResponseKey bool
 			var gotDisableResponseValue bool
-			var gotDetails formatter.KibanaData
+			var gotDetails formatter.Details
 
 			r := gin.New()
 			r.Use(func(c *gin.Context) {
@@ -505,9 +505,9 @@ func TestLoggerWithConfig_BodyHandling(t *testing.T) {
 				}
 
 				var castOK bool
-				gotDetails, castOK = detailsAny.(formatter.KibanaData)
+				gotDetails, castOK = detailsAny.(formatter.Details)
 				if !castOK {
-					t.Fatalf("%q type = %T, want formatter.KibanaData", detailsKey, detailsAny)
+					t.Fatalf("%q type = %T, want formatter.Details", detailsKey, detailsAny)
 				}
 			})
 			r.Use(InitLogger())

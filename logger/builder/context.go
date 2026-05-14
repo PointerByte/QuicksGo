@@ -27,7 +27,7 @@ type Context struct {
 	tracer          trace.Tracer // Trace from telemetry
 	Method          string
 	Line            int
-	Details         formatter.KibanaData
+	Details         formatter.Details
 }
 
 // DisableTrace disables trace logging for a specific process or trace.

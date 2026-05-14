@@ -212,7 +212,7 @@ func (f *CustomFormatter) executeTemplate(tpl string, log LogFormat) ([]byte, er
 	return json.Marshal(logFormat)
 }
 
-func buildDetails(d KibanaData) map[string]any {
+func buildDetails(d Details) map[string]any {
 	out := map[string]any{
 		"system": d.System,
 	}

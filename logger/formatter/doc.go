@@ -10,5 +10,5 @@
 // Main entry points:
 //   - New to create a template-aware formatter
 //   - Formatter as the formatting contract
-//   - LogFormat, Service, and KibanaData as the core log data structures
+//   - LogFormat, Service, and Details as the core log data structures
 package formatter

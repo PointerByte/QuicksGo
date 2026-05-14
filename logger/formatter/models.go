@@ -14,18 +14,18 @@ import (
 )
 
 type LogFormat struct {
-	Timestamp string     `json:"timestamp"`
-	TraceID   string     `json:"traceID"`
-	Level     Level      `json:"level"`
-	Message   string     `json:"message"`
-	Details   KibanaData `json:"details"`
-	Services  []Service  `json:"services"`
-	Method    string     `json:"method"`
-	Line      int        `json:"line"`
-	Latency   int64      `json:"latency"`
+	Timestamp string    `json:"timestamp"`
+	TraceID   string    `json:"traceID"`
+	Level     Level     `json:"level"`
+	Message   string    `json:"message"`
+	Details   Details   `json:"details"`
+	Services  []Service `json:"services"`
+	Method    string    `json:"method"`
+	Line      int       `json:"line"`
+	Latency   int64     `json:"latency"`
 }
 
-type KibanaData struct {
+type Details struct {
 	System   string      `json:"system"`
 	Client   string      `json:"client,omitempty"`
 	Protocol string      `json:"protocol,omitempty"`
@@ -38,7 +38,7 @@ type KibanaData struct {
 
 var mux sync.Mutex
 
-func (k *KibanaData) SetHeaders(headers http.Header) {
+func (k *Details) SetHeaders(headers http.Header) {
 	if headers == nil {
 		return
 	}
@@ -61,11 +61,11 @@ func (k *KibanaData) SetHeaders(headers http.Header) {
 	}
 }
 
-func (k *KibanaData) SetRequest(request any) {
+func (k *Details) SetRequest(request any) {
 	k.Request = request
 }
 
-func (k *KibanaData) SetResponse(response any) {
+func (k *Details) SetResponse(response any) {
 	k.Response = response
 }
 

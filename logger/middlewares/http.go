@@ -45,15 +45,15 @@ func InitLogger() gin.HandlerFunc {
 			ctxLogger.Set(traceIDKey, traceID.String())
 		}
 
-		datosKibana := formatter.KibanaData{
+		details := formatter.Details{
 			System:   appName,
 			Client:   ctx.ClientIP(),
 			Protocol: ctx.Request.Proto,
 			Method:   ctx.Request.Method,
 			Path:     ctx.Request.URL.Path,
 		}
-		datosKibana.SetHeaders(ctx.Request.Header)
-		ctxLogger.Set(detailsKey, datosKibana)
+		details.SetHeaders(ctx.Request.Header)
+		ctxLogger.Set(detailsKey, details)
 
 		// ---- reinyectar contexto con span ----
 		ctx.Request = ctx.Request.WithContext(ctxLogger)
@@ -152,6 +152,9 @@ func LoggerWithConfig() gin.HandlerFunc {
 				ctxLogger.Line = v.(int)
 			}
 
+			if v, ok := param.Keys[detailsKey]; ok {
+				ctxLogger.Details = v.(formatter.Details)
+			}
 			if v, ok := param.Keys[disableRequestBodyKey]; ok {
 				if !v.(bool) {
 					var requestBody any

@@ -93,7 +93,7 @@ func TestInitLoggerUnaryServerInterceptor(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected %q in logger context", detailsKey)
 	}
-	details := detailsAny.(formatter.KibanaData)
+	details := detailsAny.(formatter.Details)
 	if details.Protocol != "gRPC" {
 		t.Fatalf("details.Protocol = %q, want %q", details.Protocol, "gRPC")
 	}
@@ -140,7 +140,7 @@ func TestUnaryInterceptorsCaptureBodiesAndPopulateDetails(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected %q in logger context", detailsKey)
 	}
-	details := detailsAny.(formatter.KibanaData)
+	details := detailsAny.(formatter.Details)
 	requestBody, ok := details.Request.(map[string]any)
 	if !ok || requestBody["kind"] != "info" {
 		t.Fatalf("details.Request = %#v, want captured request map", details.Request)
@@ -179,7 +179,7 @@ func TestLoggerWithConfigUnaryOmitsBodiesWhenDisabled(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected %q in logger context", detailsKey)
 	}
-	details := detailsAny.(formatter.KibanaData)
+	details := detailsAny.(formatter.Details)
 	if details.Request != nil {
 		t.Fatalf("details.Request = %#v, want nil", details.Request)
 	}
@@ -325,7 +325,7 @@ func TestInitLoggerStreamServerInterceptor(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected %q in logger context", detailsKey)
 	}
-	details := detailsAny.(formatter.KibanaData)
+	details := detailsAny.(formatter.Details)
 	if details.Method != "StreamAlerts" {
 		t.Fatalf("details.Method = %q, want %q", details.Method, "StreamAlerts")
 	}
@@ -371,7 +371,7 @@ func TestLoggerWithConfigStreamServerInterceptor(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected %q in logger context", detailsKey)
 	}
-	details := detailsAny.(formatter.KibanaData)
+	details := detailsAny.(formatter.Details)
 	if details.Response != "out" {
 		t.Fatalf("details.Response = %#v, want %#v", details.Response, "out")
 	}
@@ -395,7 +395,7 @@ func TestNewGRPCLoggerContextWithoutPeerOrMetadata(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected %q in logger context", detailsKey)
 	}
-	details := detailsAny.(formatter.KibanaData)
+	details := detailsAny.(formatter.Details)
 	if details.Client != "" {
 		t.Fatalf("details.Client = %q, want empty", details.Client)
 	}
@@ -442,7 +442,7 @@ func TestApplyGRPCBodyDetailsGuards(t *testing.T) {
 	t.Run("returns when disable flag has invalid type", func(t *testing.T) {
 		ctxLogger := builder.New(context.Background())
 		ctxLogger.Set(disableRequestBodyKey, "bad")
-		ctxLogger.Details = formatter.KibanaData{System: "svc"}
+		ctxLogger.Details = formatter.Details{System: "svc"}
 		ctxLogger.Set(requestBodyKey, "req")
 		applyGRPCBodyDetails(ctxLogger)
 		if ctxLogger.Details.Request != nil {
@@ -452,7 +452,7 @@ func TestApplyGRPCBodyDetailsGuards(t *testing.T) {
 
 	t.Run("handles request and response flags independently", func(t *testing.T) {
 		ctxLogger := builder.New(context.Background())
-		ctxLogger.Details = formatter.KibanaData{System: "svc"}
+		ctxLogger.Details = formatter.Details{System: "svc"}
 		ctxLogger.Set(disableRequestBodyKey, true)
 		ctxLogger.Set(disableResponseBodyKey, false)
 		ctxLogger.Set(requestBodyKey, "req")
@@ -468,7 +468,7 @@ func TestApplyGRPCBodyDetailsGuards(t *testing.T) {
 
 	t.Run("supports string body flags from external callers", func(t *testing.T) {
 		ctxLogger := builder.New(context.Background())
-		ctxLogger.Details = formatter.KibanaData{System: "svc"}
+		ctxLogger.Details = formatter.Details{System: "svc"}
 		ctxLogger.Set(string(disableRequestBodyKey), false)
 		ctxLogger.Set(string(disableResponseBodyKey), true)
 		ctxLogger.Set(requestBodyKey, "req")

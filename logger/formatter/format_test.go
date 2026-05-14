@@ -173,7 +173,7 @@ func TestFormatJSONAndFormatTemplateDirect(t *testing.T) {
 		Method:    "Fn",
 		Line:      7,
 		Latency:   1,
-		Details: KibanaData{
+		Details: Details{
 			System: "svc",
 		},
 	}
@@ -217,7 +217,7 @@ func TestFormatText_WithDetailsAndServices(t *testing.T) {
 		Method:    "DetailedMethod",
 		Line:      99,
 		Latency:   321,
-		Details: KibanaData{
+		Details: Details{
 			System:   "loan-service",
 			Client:   "mobile-app",
 			Protocol: "HTTP",
@@ -317,7 +317,7 @@ func TestToJSON(t *testing.T) {
 	})
 }
 
-func TestKibanaData_SetHeaders(t *testing.T) {
+func TestDetails_SetHeaders(t *testing.T) {
 	t.Run("nil headers does nothing", func(t *testing.T) {
 		viperdata.ResetViperDataSingleton()
 		viper.Reset()
@@ -326,7 +326,7 @@ func TestKibanaData_SetHeaders(t *testing.T) {
 			viperdata.ResetViperDataSingleton()
 		})
 
-		k := &KibanaData{}
+		k := &Details{}
 		k.SetHeaders(nil)
 
 		if k.Headers != nil {
@@ -354,7 +354,7 @@ func TestKibanaData_SetHeaders(t *testing.T) {
 			"Cookie":        {"session=123"},
 		}
 
-		k := &KibanaData{}
+		k := &Details{}
 		k.SetHeaders(src)
 
 		if k.Headers == nil {
@@ -402,7 +402,7 @@ func TestKibanaData_SetHeaders(t *testing.T) {
 		existing := make(http.Header)
 		existing.Set("Already", "present")
 
-		k := &KibanaData{
+		k := &Details{
 			Headers: existing,
 		}
 
@@ -431,8 +431,8 @@ func TestKibanaData_SetHeaders(t *testing.T) {
 	})
 }
 
-func TestKibanaData_SetRequest(t *testing.T) {
-	k := &KibanaData{}
+func TestDetails_SetRequest(t *testing.T) {
+	k := &Details{}
 
 	req := map[string]any{
 		"id":      123,
@@ -446,8 +446,8 @@ func TestKibanaData_SetRequest(t *testing.T) {
 	}
 }
 
-func TestKibanaData_SetResponse(t *testing.T) {
-	k := &KibanaData{}
+func TestDetails_SetResponse(t *testing.T) {
+	k := &Details{}
 
 	resp := struct {
 		Code int
@@ -472,7 +472,7 @@ func TestBuildDetails(t *testing.T) {
 		req := map[string]any{"amount": 100}
 		resp := map[string]any{"ok": true}
 
-		got := buildDetails(KibanaData{
+		got := buildDetails(Details{
 			System:   "loan-service",
 			Client:   "mobile-app",
 			Protocol: "HTTP",
@@ -500,7 +500,7 @@ func TestBuildDetails(t *testing.T) {
 	})
 
 	t.Run("only required system", func(t *testing.T) {
-		got := buildDetails(KibanaData{
+		got := buildDetails(Details{
 			System: "loan-service",
 		})
 
@@ -514,7 +514,7 @@ func TestBuildDetails(t *testing.T) {
 	})
 
 	t.Run("empty headers and nil request response are omitted", func(t *testing.T) {
-		got := buildDetails(KibanaData{
+		got := buildDetails(Details{
 			System:  "loan-service",
 			Headers: http.Header{},
 		})

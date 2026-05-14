@@ -33,10 +33,10 @@ func (c *Context) customLogFormat() map[string]any {
 		traceID = v.(string)
 	}
 
-	// ---------- Datos Kibana ----------
-	var details formatter.KibanaData
+	// ---------- Details ----------
+	var details formatter.Details
 	if v, ok := c.Get(detailsKey); ok {
-		details = v.(formatter.KibanaData)
+		details = v.(formatter.Details)
 	}
 	if details.System == "" {
 		details.System = viperdata.GetViperData(string(viperdata.AppAtribute)).(string)
@@ -209,7 +209,7 @@ func classifyStatus(process *formatter.Service) {
 
 // Info logs an informational message using the current context.
 //
-// If the context already contains Kibana base information, it copies the System,
+// If the context already contains details base information, it copies the System,
 // Service, and Client fields from the received data before storing it again.
 //
 // If the logger is in test mode, it does not generate any output.
@@ -221,11 +221,11 @@ func (c *Context) Info(message string) {
 	}
 	v, ok := c.Get(detailsKey)
 	if ok {
-		KibanaData := v.(formatter.KibanaData)
-		c.Details.System = KibanaData.System
-		c.Details.Client = KibanaData.Client
-		c.Details.Method = KibanaData.Method
-		c.Details.Protocol = KibanaData.Protocol
+		Details := v.(formatter.Details)
+		c.Details.System = Details.System
+		c.Details.Client = Details.Client
+		c.Details.Method = Details.Method
+		c.Details.Protocol = Details.Protocol
 	}
 	c.Set(detailsKey, c.Details)
 	slog.InfoContext(c, message)
@@ -234,7 +234,7 @@ func (c *Context) Info(message string) {
 
 // Debug logs a debug-level message using the current context.
 //
-// If the context already contains Kibana base information, it copies the System,
+// If the context already contains details base information, it copies the System,
 // Service, and Client fields from the received data before storing it again.
 //
 // If the logger is in test mode, it does not generate any output.
@@ -250,11 +250,11 @@ func (c *Context) Debug(message string) {
 	}
 	v, ok := c.Get(detailsKey)
 	if ok {
-		KibanaData := v.(formatter.KibanaData)
-		c.Details.System = KibanaData.System
-		c.Details.Client = KibanaData.Client
-		c.Details.Method = KibanaData.Method
-		c.Details.Protocol = KibanaData.Protocol
+		Details := v.(formatter.Details)
+		c.Details.System = Details.System
+		c.Details.Client = Details.Client
+		c.Details.Method = Details.Method
+		c.Details.Protocol = Details.Protocol
 	}
 	c.Set(detailsKey, c.Details)
 	slog.DebugContext(c, message)
@@ -262,7 +262,7 @@ func (c *Context) Debug(message string) {
 
 // Warn logs a warning message using the current context.
 //
-// If the context already contains Kibana base information, it copies the System,
+// If the context already contains details base information, it copies the System,
 // Service, and Client fields from the received data before storing it again.
 //
 // If the logger is in test mode, it does not generate any output.
@@ -274,11 +274,11 @@ func (c *Context) Warn(message string) {
 	}
 	v, ok := c.Get(detailsKey)
 	if ok {
-		KibanaData := v.(formatter.KibanaData)
-		c.Details.System = KibanaData.System
-		c.Details.Client = KibanaData.Client
-		c.Details.Method = KibanaData.Method
-		c.Details.Protocol = KibanaData.Protocol
+		Details := v.(formatter.Details)
+		c.Details.System = Details.System
+		c.Details.Client = Details.Client
+		c.Details.Method = Details.Method
+		c.Details.Protocol = Details.Protocol
 	}
 	c.Set(detailsKey, c.Details)
 	slog.WarnContext(c, message)
@@ -286,7 +286,7 @@ func (c *Context) Warn(message string) {
 
 // Error logs an error message using `slog` with the current context.
 //
-// If the context already contains Kibana base information, it copies `System`,
+// If the context already contains details base information, it copies `System`,
 // `Service`, and `Client` to the received details before storing them again.
 //
 // If the logger is in test mode, it does not generate any output.
@@ -299,11 +299,11 @@ func (c *Context) Error(err error) {
 	}
 	v, ok := c.Get(detailsKey)
 	if ok {
-		KibanaData := v.(formatter.KibanaData)
-		c.Details.System = KibanaData.System
-		c.Details.Client = KibanaData.Client
-		c.Details.Method = KibanaData.Method
-		c.Details.Protocol = KibanaData.Protocol
+		Details := v.(formatter.Details)
+		c.Details.System = Details.System
+		c.Details.Client = Details.Client
+		c.Details.Method = Details.Method
+		c.Details.Protocol = Details.Protocol
 	}
 	c.Set(detailsKey, c.Details)
 	slog.ErrorContext(c, err.Error())

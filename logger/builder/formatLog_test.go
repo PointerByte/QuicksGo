@@ -152,7 +152,7 @@ func TestCustomLogFormat(t *testing.T) {
 	}
 
 	ctx.Set(traceIDKey, "trace-id-unit-test")
-	ctx.Set(detailsKey, formatter.KibanaData{
+	ctx.Set(detailsKey, formatter.Details{
 		System:   "unit-test-system",
 		Method:   "unit-test-method",
 		Protocol: "HTTP/1.1",
@@ -464,7 +464,7 @@ func TestInfoDebugWarnAndError(t *testing.T) {
 			}
 
 			ctx := New(context.Background())
-			ctx.Set(detailsKey, formatter.KibanaData{
+			ctx.Set(detailsKey, formatter.Details{
 				System:   "system-from-context",
 				Client:   "client-from-context",
 				Method:   "method-from-context",
@@ -504,7 +504,7 @@ func TestInfoDebugWarnAndError(t *testing.T) {
 			if !ok {
 				t.Fatal("detailsKey not found")
 			}
-			details := got.(formatter.KibanaData)
+			details := got.(formatter.Details)
 
 			if details.System != "system-from-context" {
 				t.Fatalf("System = %q, want %q", details.System, "system-from-context")

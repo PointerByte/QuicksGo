@@ -211,7 +211,7 @@ func newGRPCLoggerContext(parent context.Context, incoming context.Context, full
 		ctxLogger.Set(traceIDKey, traceID.String())
 	}
 
-	details := formatter.KibanaData{
+	details := formatter.Details{
 		System:   appName,
 		Protocol: "gRPC",
 		Method:   grpcMethodName(fullMethod),
@@ -266,7 +266,7 @@ func applyGRPCBodyDetails(ctxLogger *builder.Context) {
 		if !ok {
 			return
 		}
-		castDetails, castOK := detailsAny.(formatter.KibanaData)
+		castDetails, castOK := detailsAny.(formatter.Details)
 		if !castOK {
 			return
 		}

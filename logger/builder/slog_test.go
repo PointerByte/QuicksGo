@@ -50,7 +50,7 @@ func newTestCtx() *Context {
 	ctx := New(context.Background())
 
 	ctx.Set(traceIDKey, "trace-123")
-	ctx.Set(detailsKey, formatter.KibanaData{
+	ctx.Set(detailsKey, formatter.Details{
 		System:   "loan-service",
 		Client:   "mobile-app",
 		Method:   "POST",
