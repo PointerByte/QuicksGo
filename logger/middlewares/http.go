@@ -152,7 +152,7 @@ func LoggerWithConfig() gin.HandlerFunc {
 				ctxLogger.Line = v.(int)
 			}
 
-			if v, ok := param.Keys[detailsKey]; ok {
+			if v, ok := ctxLogger.Get(detailsKey); ok {
 				ctxLogger.Details = v.(formatter.Details)
 			}
 			if v, ok := param.Keys[disableRequestBodyKey]; ok {
