@@ -122,7 +122,8 @@ func TestUnaryInterceptorsCaptureBodiesAndPopulateDetails(t *testing.T) {
 				FullMethod: "/pkg.Greeter/SayHello",
 			}, func(ctx context.Context, req any) (any, error) {
 				gotCtxLogger = builder.New(ctx)
-				gotCtxLogger.Set(disableBodyKey, false)
+				gotCtxLogger.Set(disableRequestBodyKey, false)
+				gotCtxLogger.Set(disableResponseBodyKey, false)
 				gotCtxLogger.Set(formatter.InfoLevel, "request processed")
 				return map[string]any{"message": "ok"}, nil
 			})
@@ -164,7 +165,8 @@ func TestLoggerWithConfigUnaryOmitsBodiesWhenDisabled(t *testing.T) {
 				FullMethod: "/pkg.Greeter/SayHello",
 			}, func(ctx context.Context, req any) (any, error) {
 				gotCtxLogger = builder.New(ctx)
-				gotCtxLogger.Set(disableBodyKey, true)
+				gotCtxLogger.Set(disableRequestBodyKey, true)
+				gotCtxLogger.Set(disableResponseBodyKey, true)
 				return "response", errors.New("boom")
 			})
 		})
@@ -351,7 +353,8 @@ func TestLoggerWithConfigStreamServerInterceptor(t *testing.T) {
 				IsServerStream: true,
 			}, func(srv any, stream grpc.ServerStream) error {
 				gotCtxLogger = builder.New(stream.Context())
-				gotCtxLogger.Set(disableBodyKey, false)
+				gotCtxLogger.Set(disableRequestBodyKey, false)
+				gotCtxLogger.Set(disableResponseBodyKey, false)
 				gotCtxLogger.Set(formatter.InfoLevel, "stream processed")
 				if err := stream.SendMsg("out"); err != nil {
 					return err
@@ -438,12 +441,44 @@ func TestApplyGRPCBodyDetailsGuards(t *testing.T) {
 
 	t.Run("returns when disable flag has invalid type", func(t *testing.T) {
 		ctxLogger := builder.New(context.Background())
-		ctxLogger.Set(disableBodyKey, "bad")
+		ctxLogger.Set(disableRequestBodyKey, "bad")
 		ctxLogger.Details = formatter.KibanaData{System: "svc"}
 		ctxLogger.Set(requestBodyKey, "req")
 		applyGRPCBodyDetails(ctxLogger)
 		if ctxLogger.Details.Request != nil {
 			t.Fatalf("Details.Request = %#v, want nil", ctxLogger.Details.Request)
+		}
+	})
+
+	t.Run("handles request and response flags independently", func(t *testing.T) {
+		ctxLogger := builder.New(context.Background())
+		ctxLogger.Details = formatter.KibanaData{System: "svc"}
+		ctxLogger.Set(disableRequestBodyKey, true)
+		ctxLogger.Set(disableResponseBodyKey, false)
+		ctxLogger.Set(requestBodyKey, "req")
+		ctxLogger.Set(responseBodyKey, "resp")
+		applyGRPCBodyDetails(ctxLogger)
+		if ctxLogger.Details.Request != nil {
+			t.Fatalf("Details.Request = %#v, want nil", ctxLogger.Details.Request)
+		}
+		if ctxLogger.Details.Response != "resp" {
+			t.Fatalf("Details.Response = %#v, want %#v", ctxLogger.Details.Response, "resp")
+		}
+	})
+
+	t.Run("supports string body flags from external callers", func(t *testing.T) {
+		ctxLogger := builder.New(context.Background())
+		ctxLogger.Details = formatter.KibanaData{System: "svc"}
+		ctxLogger.Set(string(disableRequestBodyKey), false)
+		ctxLogger.Set(string(disableResponseBodyKey), true)
+		ctxLogger.Set(requestBodyKey, "req")
+		ctxLogger.Set(responseBodyKey, "resp")
+		applyGRPCBodyDetails(ctxLogger)
+		if ctxLogger.Details.Request != "req" {
+			t.Fatalf("Details.Request = %#v, want %#v", ctxLogger.Details.Request, "req")
+		}
+		if ctxLogger.Details.Response != nil {
+			t.Fatalf("Details.Response = %#v, want nil", ctxLogger.Details.Response)
 		}
 	})
 

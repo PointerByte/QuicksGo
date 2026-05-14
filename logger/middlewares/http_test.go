@@ -171,24 +171,50 @@ func TestDisableBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodGet, "/test", nil)
+	ctxLogger := builder.New(c.Request.Context())
+	c.Request = c.Request.WithContext(ctxLogger)
 
-	if _, ok := c.Get(disableBodyKey); ok {
-		t.Fatalf("did not expect %q before calling DisableBody", disableBodyKey)
+	if _, ok := c.Get(disableRequestBodyKey); ok {
+		t.Fatalf("did not expect %q before calling DisableBody", disableRequestBodyKey)
+	}
+	if _, ok := c.Get(disableResponseBodyKey); ok {
+		t.Fatalf("did not expect %q before calling DisableBody", disableResponseBodyKey)
 	}
 
-	DisableBody(c)
+	DisableBody(c, true, false)
 
-	got, ok := c.Get(disableBodyKey)
+	gotRequest, ok := c.Get(disableRequestBodyKey)
 	if !ok {
-		t.Fatalf("expected %q to be set", disableBodyKey)
+		t.Fatalf("expected %q to be set", disableRequestBodyKey)
+	}
+	disabledRequest, ok := gotRequest.(bool)
+	if !ok {
+		t.Fatalf("%q type = %T, want bool", disableRequestBodyKey, gotRequest)
+	}
+	if !disabledRequest {
+		t.Fatalf("%q = %v, want true", disableRequestBodyKey, disabledRequest)
 	}
 
-	disabled, ok := got.(bool)
+	gotResponse, ok := c.Get(disableResponseBodyKey)
 	if !ok {
-		t.Fatalf("%q type = %T, want bool", disableBodyKey, got)
+		t.Fatalf("expected %q to be set", disableResponseBodyKey)
 	}
-	if !disabled {
-		t.Fatalf("%q = %v, want true", disableBodyKey, disabled)
+	disabledResponse, ok := gotResponse.(bool)
+	if !ok {
+		t.Fatalf("%q type = %T, want bool", disableResponseBodyKey, gotResponse)
+	}
+	if disabledResponse {
+		t.Fatalf("%q = %v, want false", disableResponseBodyKey, disabledResponse)
+	}
+
+	gotLoggerRequest, ok := ctxLogger.Get(string(disableRequestBodyKey))
+	if !ok || gotLoggerRequest != true {
+		t.Fatalf("logger %q = %#v, want true", disableRequestBodyKey, gotLoggerRequest)
+	}
+	gotLoggerResponse, ok := ctxLogger.Get(string(disableResponseBodyKey))
+	if !ok || gotLoggerResponse != false {
+		t.Fatalf("logger %q = %#v, want false", disableResponseBodyKey, gotLoggerResponse)
 	}
 }
 
@@ -306,28 +332,45 @@ func TestLoggerWithConfig_BodyHandling(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name             string
-		disableBody      bool
-		wantDisableKey   bool
-		wantDisableValue bool
-		wantRequest      any
-		wantResponse     any
+		name                     string
+		disableRequestBody       bool
+		disableResponseBody      bool
+		wantDisableRequestKey    bool
+		wantDisableRequestValue  bool
+		wantDisableResponseKey   bool
+		wantDisableResponseValue bool
+		wantRequest              any
+		wantResponse             any
 	}{
 		{
-			name:             "bodies are added to details when disableBodyKey is false",
-			disableBody:      false,
-			wantDisableKey:   true,
-			wantDisableValue: false,
-			wantRequest:      `{"kind":"info"}`,
-			wantResponse:     `{"message":"Hello, World!"}`,
+			name:                   "bodies are added to details when disable flags are false",
+			disableRequestBody:     false,
+			disableResponseBody:    false,
+			wantDisableRequestKey:  true,
+			wantDisableResponseKey: true,
+			wantRequest:            `{"kind":"info"}`,
+			wantResponse:           `{"message":"Hello, World!"}`,
 		},
 		{
-			name:             "bodies are omitted when DisableBody is used",
-			disableBody:      true,
-			wantDisableKey:   true,
-			wantDisableValue: true,
-			wantRequest:      nil,
-			wantResponse:     nil,
+			name:                     "bodies are omitted when DisableBody is used",
+			disableRequestBody:       true,
+			disableResponseBody:      true,
+			wantDisableRequestKey:    true,
+			wantDisableRequestValue:  true,
+			wantDisableResponseKey:   true,
+			wantDisableResponseValue: true,
+			wantRequest:              nil,
+			wantResponse:             nil,
+		},
+		{
+			name:                    "request and response bodies are controlled independently",
+			disableRequestBody:      true,
+			disableResponseBody:     false,
+			wantDisableRequestKey:   true,
+			wantDisableRequestValue: true,
+			wantDisableResponseKey:  true,
+			wantRequest:             nil,
+			wantResponse:            `{"message":"Hello, World!"}`,
 		},
 	}
 
@@ -347,22 +390,34 @@ func TestLoggerWithConfig_BodyHandling(t *testing.T) {
 			viper.Set(string(viperdata.LoggerIgnoredHeadersAtribute), []string{})
 			viper.Set(string(viperdata.LoggerModeTestAtribute), false)
 
-			var gotDisableKey bool
-			var gotDisableValue bool
+			var gotDisableRequestKey bool
+			var gotDisableRequestValue bool
+			var gotDisableResponseKey bool
+			var gotDisableResponseValue bool
 			var gotDetails formatter.KibanaData
 
 			r := gin.New()
 			r.Use(func(c *gin.Context) {
 				c.Next()
 
-				v, ok := c.Get(disableBodyKey)
-				gotDisableKey = ok
+				v, ok := c.Get(disableRequestBodyKey)
+				gotDisableRequestKey = ok
 				if ok {
 					boolValue, typeOK := v.(bool)
 					if !typeOK {
-						t.Fatalf("%q type = %T, want bool", disableBodyKey, v)
+						t.Fatalf("%q type = %T, want bool", disableRequestBodyKey, v)
 					}
-					gotDisableValue = boolValue
+					gotDisableRequestValue = boolValue
+				}
+
+				v, ok = c.Get(disableResponseBodyKey)
+				gotDisableResponseKey = ok
+				if ok {
+					boolValue, typeOK := v.(bool)
+					if !typeOK {
+						t.Fatalf("%q type = %T, want bool", disableResponseBodyKey, v)
+					}
+					gotDisableResponseValue = boolValue
 				}
 
 				ctxLogger := builder.New(c.Request.Context())
@@ -382,11 +437,7 @@ func TestLoggerWithConfig_BodyHandling(t *testing.T) {
 			r.Use(CaptureBody())
 
 			r.POST("/test", func(c *gin.Context) {
-				if tt.disableBody {
-					DisableBody(c)
-				} else {
-					c.Set(disableBodyKey, false)
-				}
+				DisableBody(c, tt.disableRequestBody, tt.disableResponseBody)
 
 				PrintInfo(c, "info message")
 				c.JSON(http.StatusOK, gin.H{"message": "Hello, World!"})
@@ -402,14 +453,23 @@ func TestLoggerWithConfig_BodyHandling(t *testing.T) {
 				t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
 			}
 
-			if !gotDisableKey && tt.wantDisableKey {
-				t.Fatalf("expected %q to be present", disableBodyKey)
+			if !gotDisableRequestKey && tt.wantDisableRequestKey {
+				t.Fatalf("expected %q to be present", disableRequestBodyKey)
 			}
-			if gotDisableKey != tt.wantDisableKey {
-				t.Fatalf("%q presence = %v, want %v", disableBodyKey, gotDisableKey, tt.wantDisableKey)
+			if gotDisableRequestKey != tt.wantDisableRequestKey {
+				t.Fatalf("%q presence = %v, want %v", disableRequestBodyKey, gotDisableRequestKey, tt.wantDisableRequestKey)
 			}
-			if gotDisableValue != tt.wantDisableValue {
-				t.Fatalf("%q value = %v, want %v", disableBodyKey, gotDisableValue, tt.wantDisableValue)
+			if gotDisableRequestValue != tt.wantDisableRequestValue {
+				t.Fatalf("%q value = %v, want %v", disableRequestBodyKey, gotDisableRequestValue, tt.wantDisableRequestValue)
+			}
+			if !gotDisableResponseKey && tt.wantDisableResponseKey {
+				t.Fatalf("expected %q to be present", disableResponseBodyKey)
+			}
+			if gotDisableResponseKey != tt.wantDisableResponseKey {
+				t.Fatalf("%q presence = %v, want %v", disableResponseBodyKey, gotDisableResponseKey, tt.wantDisableResponseKey)
+			}
+			if gotDisableResponseValue != tt.wantDisableResponseValue {
+				t.Fatalf("%q value = %v, want %v", disableResponseBodyKey, gotDisableResponseValue, tt.wantDisableResponseValue)
 			}
 			if gotDetails.Request != tt.wantRequest {
 				t.Fatalf("details.request = %#v, want %#v", gotDetails.Request, tt.wantRequest)

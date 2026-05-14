@@ -81,7 +81,7 @@ func (r responseBodyWriter) Write(b []byte) (int, error) {
 //
 // This middleware only captures the payloads. Whether they are finally included
 // in details.request and details.response depends on MiddlewareLoggerWithConfig
-// and the value stored under disableBodyKey.
+// and the values stored under disableRequestBodyKey and disableResponseBodyKey.
 func CaptureBody() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// ---- Capturar request ----
@@ -111,18 +111,23 @@ func CaptureBody() gin.HandlerFunc {
 // DisableBody marks the current Gin request so MiddlewareLoggerWithConfig
 // omits request and response bodies from the final log entry.
 //
-// Internally this stores disableBodyKey=true in the gin.Context.
-func DisableBody(ctx *gin.Context) {
-	ctx.Set(disableBodyKey, true)
+// Internally this stores independent request and response body flags in the
+// gin.Context and request-scoped logger context.
+func DisableBody(ctx *gin.Context, disableRequestBody bool, disableResponseBody bool) {
+	ctxLogger := builder.New(ctx.Request.Context())
+	ctxLogger.Set(string(disableRequestBodyKey), disableRequestBody)
+	ctxLogger.Set(string(disableResponseBodyKey), disableResponseBody)
+	ctx.Set(disableRequestBodyKey, disableRequestBody)
+	ctx.Set(disableResponseBodyKey, disableResponseBody)
 }
 
 // LoggerWithConfig emits the final HTTP log entry using Gin's
 // LoggerWithConfig hook and the package logger helpers.
 //
-// Body handling is controlled through disableBodyKey in gin.Context:
-//   - if disableBodyKey is present and false, captured request/response bodies
-//     are copied into details.request and details.response
-//   - if disableBodyKey is present and true, bodies are intentionally omitted
+// Body handling is controlled through disableRequestBodyKey and
+// disableResponseBodyKey in gin.Context:
+//   - if a flag is present and false, the captured body is copied into details
+//   - if a flag is present and true, that body is intentionally omitted
 //
 // This middleware expects the request-scoped context produced by
 // LoggerWithConfig and is commonly paired with MiddlewareCaptureBody.
@@ -138,23 +143,29 @@ func LoggerWithConfig() gin.HandlerFunc {
 				ctxLogger.Line = v.(int)
 			}
 
-			if v, ok := param.Keys[disableBodyKey]; ok {
+			if v, ok := param.Keys[disableRequestBodyKey]; ok {
 				if !v.(bool) {
 					var requestBody any
-					var responseBody any
 					if param.Keys != nil {
 						if v, ok := param.Keys[requestBodyKey]; ok {
 							requestBody = v
 						}
+					}
+					ctxLogger.Details.Request = requestBody
+				}
+			}
+			if v, ok := param.Keys[disableResponseBodyKey]; ok {
+				if !v.(bool) {
+					var responseBody any
+					if param.Keys != nil {
 						if v, ok := param.Keys[responseBodyKey]; ok {
 							responseBody = v
 						}
 					}
-					ctxLogger.Details.Request = requestBody
 					ctxLogger.Details.Response = responseBody
-					ctxLogger.Set(detailsKey, ctxLogger.Details)
 				}
 			}
+			ctxLogger.Set(detailsKey, ctxLogger.Details)
 
 			if value, ok := param.Keys[formatter.InfoLevel]; ok {
 				if msg, ok := value.(string); ok {

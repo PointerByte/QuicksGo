@@ -110,7 +110,7 @@ func InitLoggerStreamServerInterceptor() grpc.StreamServerInterceptor {
 // payloads in the logger context.
 //
 // The captured values are later consumed by LoggerWithConfigUnaryServerInterceptor
-// to populate details.request and details.response when body logging is enabled.
+// to populate details.request and details.response when each body is enabled.
 func CaptureBodyUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		ctxLogger := builder.New(ctx)
@@ -254,12 +254,10 @@ func collapseCapturedBodies(items []any) any {
 }
 
 func applyGRPCBodyDetails(ctxLogger *builder.Context) {
-	v, ok := ctxLogger.Get(disableBodyKey)
-	if ok {
-		disabled, typeOK := v.(bool)
-		if !typeOK || disabled {
-			return
-		}
+	includeRequest := shouldIncludeGRPCBody(ctxLogger, disableRequestBodyKey)
+	includeResponse := shouldIncludeGRPCBody(ctxLogger, disableResponseBodyKey)
+	if !includeRequest && !includeResponse {
+		return
 	}
 
 	details := ctxLogger.Details
@@ -274,14 +272,26 @@ func applyGRPCBodyDetails(ctxLogger *builder.Context) {
 		}
 		details = castDetails
 	}
-	if requestBody, ok := ctxLogger.Get(requestBodyKey); ok {
+	if requestBody, ok := ctxLogger.Get(requestBodyKey); includeRequest && ok {
 		details.Request = requestBody
 	}
-	if responseBody, ok := ctxLogger.Get(responseBodyKey); ok {
+	if responseBody, ok := ctxLogger.Get(responseBodyKey); includeResponse && ok {
 		details.Response = responseBody
 	}
 	ctxLogger.Details = details
 	ctxLogger.Set(detailsKey, details)
+}
+
+func shouldIncludeGRPCBody(ctxLogger *builder.Context, key keyContex) bool {
+	v, ok := ctxLogger.Get(key)
+	if !ok {
+		v, ok = ctxLogger.Get(string(key))
+		if !ok {
+			return false
+		}
+	}
+	disabled, typeOK := v.(bool)
+	return typeOK && !disabled
 }
 
 func writeGRPCLog(ctxLogger *builder.Context, fullMethod string, err error) {
