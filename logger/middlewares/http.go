@@ -190,10 +190,16 @@ func LoggerWithConfig() gin.HandlerFunc {
 	})
 }
 
+var tracerCallerSkip = 2
+
+func SetTraceCallerSkip(skip int) {
+	tracerCallerSkip = skip
+}
+
 // PrintInfo schedules an info-level log message for the current Gin request and
 // stores the caller metadata so the formatter can include method and line.
 func PrintInfo(ctx *gin.Context, message string) {
-	method, line := utilities.TraceCaller(2)
+	method, line := utilities.TraceCaller(tracerCallerSkip)
 	ctx.Set(methodKey, method)
 	ctx.Set(lineKey, line)
 	ctx.Set(formatter.InfoLevel, message)
@@ -202,7 +208,7 @@ func PrintInfo(ctx *gin.Context, message string) {
 // PrintDebug schedules a debug-level log message for the current Gin request
 // and stores the caller metadata used by the formatter.
 func PrintDebug(ctx *gin.Context, message string) {
-	method, line := utilities.TraceCaller(2)
+	method, line := utilities.TraceCaller(tracerCallerSkip)
 	ctx.Set(methodKey, method)
 	ctx.Set(lineKey, line)
 	ctx.Set(formatter.DebugLevel, message)
@@ -211,7 +217,7 @@ func PrintDebug(ctx *gin.Context, message string) {
 // PrintWarn schedules a warn-level log message for the current Gin request and
 // stores the caller metadata used by the formatter.
 func PrintWarn(ctx *gin.Context, message string) {
-	method, line := utilities.TraceCaller(2)
+	method, line := utilities.TraceCaller(tracerCallerSkip)
 	ctx.Set(methodKey, method)
 	ctx.Set(lineKey, line)
 	ctx.Set(formatter.WarnLevel, message)
@@ -220,7 +226,7 @@ func PrintWarn(ctx *gin.Context, message string) {
 // PrintError schedules an error-level log message for the current Gin request
 // and stores the caller metadata used by the formatter.
 func PrintError(ctx *gin.Context, err error) {
-	method, line := utilities.TraceCaller(2)
+	method, line := utilities.TraceCaller(tracerCallerSkip)
 	ctx.Set(methodKey, method)
 	ctx.Set(lineKey, line)
 	ctx.Set(formatter.ErrorLevel, err)
