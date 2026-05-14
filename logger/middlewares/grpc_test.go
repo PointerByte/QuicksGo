@@ -188,6 +188,123 @@ func TestLoggerWithConfigUnaryOmitsBodiesWhenDisabled(t *testing.T) {
 	}
 }
 
+func TestDisableGRPCBody(t *testing.T) {
+	resetGRPCTestState(t)
+
+	var gotCtxLogger *builder.Context
+	resp, err := InitLoggerUnaryServerInterceptor()(context.Background(), "request", &grpc.UnaryServerInfo{
+		FullMethod: "/pkg.Greeter/SayHello",
+	}, func(ctx context.Context, req any) (any, error) {
+		return LoggerWithConfigUnaryServerInterceptor()(ctx, req, &grpc.UnaryServerInfo{
+			FullMethod: "/pkg.Greeter/SayHello",
+		}, func(ctx context.Context, req any) (any, error) {
+			return CaptureBodyUnaryServerInterceptor()(ctx, req, &grpc.UnaryServerInfo{
+				FullMethod: "/pkg.Greeter/SayHello",
+			}, func(ctx context.Context, req any) (any, error) {
+				ctx = DisableGRPCBody(ctx, true, false)
+				gotCtxLogger = builder.New(ctx)
+				gotCtxLogger.Set(formatter.InfoLevel, "request processed")
+				return "response", nil
+			})
+		})
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp != "response" {
+		t.Fatalf("response = %#v, want %#v", resp, "response")
+	}
+
+	requestFlag, ok := gotCtxLogger.Get(string(disableRequestBodyKey))
+	if !ok || requestFlag != true {
+		t.Fatalf("%q = %#v, want true", disableRequestBodyKey, requestFlag)
+	}
+	responseFlag, ok := gotCtxLogger.Get(string(disableResponseBodyKey))
+	if !ok || responseFlag != false {
+		t.Fatalf("%q = %#v, want false", disableResponseBodyKey, responseFlag)
+	}
+
+	detailsAny, ok := gotCtxLogger.Get(detailsKey)
+	if !ok {
+		t.Fatalf("expected %q in logger context", detailsKey)
+	}
+	details := detailsAny.(formatter.Details)
+	if details.Request != nil {
+		t.Fatalf("details.Request = %#v, want nil", details.Request)
+	}
+	if details.Response != "response" {
+		t.Fatalf("details.Response = %#v, want %#v", details.Response, "response")
+	}
+}
+
+func TestDisableGRPCTraceBody(t *testing.T) {
+	resetGRPCTestState(t)
+
+	tests := []struct {
+		name                string
+		disableRequestBody  bool
+		disableResponseBody bool
+		wantRequest         any
+		wantResponse        any
+	}{
+		{
+			name:                "disables only trace request body",
+			disableRequestBody:  true,
+			disableResponseBody: false,
+			wantRequest:         nil,
+			wantResponse:        "trace-response",
+		},
+		{
+			name:                "disables only trace response body",
+			disableRequestBody:  false,
+			disableResponseBody: true,
+			wantRequest:         "trace-request",
+			wantResponse:        nil,
+		},
+		{
+			name:                "keeps both trace bodies",
+			disableRequestBody:  false,
+			disableResponseBody: false,
+			wantRequest:         "trace-request",
+			wantResponse:        "trace-response",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctxLogger := builder.New(context.Background())
+			ctx := DisableGRPCTraceBody(ctxLogger, tt.disableRequestBody, tt.disableResponseBody)
+			ctxLogger = builder.New(ctx)
+
+			requestFlag, ok := ctxLogger.Get(string(disableTraceRequestBodyKey))
+			if !ok || requestFlag != tt.disableRequestBody {
+				t.Fatalf("%q = %#v, want %#v", disableTraceRequestBodyKey, requestFlag, tt.disableRequestBody)
+			}
+			responseFlag, ok := ctxLogger.Get(string(disableTraceResponseBodyKey))
+			if !ok || responseFlag != tt.disableResponseBody {
+				t.Fatalf("%q = %#v, want %#v", disableTraceResponseBodyKey, responseFlag, tt.disableResponseBody)
+			}
+
+			process := &formatter.Service{
+				System:   "test-service",
+				Process:  "trace-process",
+				Code:     http.StatusOK,
+				Request:  "trace-request",
+				Response: "trace-response",
+			}
+			ctxLogger.TraceInit(process)
+			ctxLogger.TraceEnd(process)
+
+			if process.Request != tt.wantRequest {
+				t.Fatalf("process.Request = %#v, want %#v", process.Request, tt.wantRequest)
+			}
+			if process.Response != tt.wantResponse {
+				t.Fatalf("process.Response = %#v, want %#v", process.Response, tt.wantResponse)
+			}
+		})
+	}
+}
+
 func TestCaptureBodyStreamServerInterceptor(t *testing.T) {
 	resetGRPCTestState(t)
 

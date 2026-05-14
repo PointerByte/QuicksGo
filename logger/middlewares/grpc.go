@@ -142,6 +142,30 @@ func CaptureBodyStreamServerInterceptor() grpc.StreamServerInterceptor {
 	}
 }
 
+// DisableGRPCBody marks the current request-scoped logger context so the final
+// gRPC structured log can omit request and response bodies independently.
+//
+// The returned context is the logger context carrying those flags. In handlers
+// reached through InitLoggerUnaryServerInterceptor or
+// InitLoggerStreamServerInterceptor, the input context already contains the
+// logger and the return value is mostly useful for chaining.
+func DisableGRPCBody(ctx context.Context, disableRequestBody bool, disableResponseBody bool) context.Context {
+	ctxLogger := builder.New(ctx)
+	ctxLogger.Set(string(disableRequestBodyKey), disableRequestBody)
+	ctxLogger.Set(string(disableResponseBodyKey), disableResponseBody)
+	return ctxLogger
+}
+
+// DisableGRPCTraceBody marks whether downstream trace services should omit
+// their request and response bodies when builder.Context.TraceEnd finishes a
+// trace inside a gRPC request.
+func DisableGRPCTraceBody(ctx context.Context, disableRequestBody bool, disableResponseBody bool) context.Context {
+	ctxLogger := builder.New(ctx)
+	ctxLogger.Set(string(disableTraceRequestBodyKey), disableRequestBody)
+	ctxLogger.Set(string(disableTraceResponseBodyKey), disableResponseBody)
+	return ctxLogger
+}
+
 // LoggerWithConfigUnaryServerInterceptor emits the final structured log entry
 // for a unary gRPC call.
 //
