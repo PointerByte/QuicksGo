@@ -131,12 +131,12 @@ func (c *Context) TraceEnd(process *formatter.Service) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	if v, ok := c.Get("disableRequestBody"); ok {
+	if v, ok := c.Get("disableTraceRequestBody"); ok {
 		if disable, ok := v.(bool); ok && disable {
 			process.Request = nil
 		}
 	}
-	if v, ok := c.Get("disableResponseBody"); ok {
+	if v, ok := c.Get("disableTraceResponseBody"); ok {
 		if disable, ok := v.(bool); ok && disable {
 			process.Response = nil
 		}

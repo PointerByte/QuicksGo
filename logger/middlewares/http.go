@@ -112,13 +112,22 @@ func CaptureBody() gin.HandlerFunc {
 // omits request and response bodies from the final log entry.
 //
 // Internally this stores independent request and response body flags in the
-// gin.Context and request-scoped logger context.
+// gin.Context so LoggerWithConfig can decide what to include.
 func DisableBody(ctx *gin.Context, disableRequestBody bool, disableResponseBody bool) {
-	ctxLogger := builder.New(ctx.Request.Context())
-	ctxLogger.Set(string(disableRequestBodyKey), disableRequestBody)
-	ctxLogger.Set(string(disableResponseBodyKey), disableResponseBody)
 	ctx.Set(disableRequestBodyKey, disableRequestBody)
 	ctx.Set(disableResponseBodyKey, disableResponseBody)
+}
+
+// DisableTraceBody marks whether downstream trace services should omit their
+// request and response bodies when the current request-scoped logger finishes a
+// trace with builder.Context.TraceEnd.
+//
+// Unlike DisableBody, these flags are stored only in the logger context because
+// they control formatter.Service trace entries, not the final Gin access log.
+func DisableTraceBody(ctx *gin.Context, disableRequestBody bool, disableResponseBody bool) {
+	ctxLogger := builder.New(ctx.Request.Context())
+	ctxLogger.Set(string(disableTraceRequestBodyKey), disableRequestBody)
+	ctxLogger.Set(string(disableTraceResponseBodyKey), disableResponseBody)
 }
 
 // LoggerWithConfig emits the final HTTP log entry using Gin's

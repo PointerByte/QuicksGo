@@ -172,8 +172,6 @@ func TestDisableBody(t *testing.T) {
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest(http.MethodGet, "/test", nil)
-	ctxLogger := builder.New(c.Request.Context())
-	c.Request = c.Request.WithContext(ctxLogger)
 
 	if _, ok := c.Get(disableRequestBodyKey); ok {
 		t.Fatalf("did not expect %q before calling DisableBody", disableRequestBodyKey)
@@ -207,14 +205,94 @@ func TestDisableBody(t *testing.T) {
 	if disabledResponse {
 		t.Fatalf("%q = %v, want false", disableResponseBodyKey, disabledResponse)
 	}
+}
 
-	gotLoggerRequest, ok := ctxLogger.Get(string(disableRequestBodyKey))
-	if !ok || gotLoggerRequest != true {
-		t.Fatalf("logger %q = %#v, want true", disableRequestBodyKey, gotLoggerRequest)
+func TestDisableTraceBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	viper.Reset()
+	viperdata.ResetViperDataSingleton()
+	t.Cleanup(func() {
+		viper.Reset()
+		viperdata.ResetViperDataSingleton()
+	})
+
+	viper.Set(string(viperdata.AppAtribute), "test-service")
+	viper.Set(string(viperdata.LoggerModeTestAtribute), false)
+	viper.Set(string(viperdata.LoggerIgnoredHeadersAtribute), []string{})
+
+	tests := []struct {
+		name                string
+		disableRequestBody  bool
+		disableResponseBody bool
+		wantRequest         any
+		wantResponse        any
+	}{
+		{
+			name:                "disables only trace request body",
+			disableRequestBody:  true,
+			disableResponseBody: false,
+			wantRequest:         nil,
+			wantResponse:        "trace-response",
+		},
+		{
+			name:                "disables only trace response body",
+			disableRequestBody:  false,
+			disableResponseBody: true,
+			wantRequest:         "trace-request",
+			wantResponse:        nil,
+		},
+		{
+			name:                "keeps both trace bodies",
+			disableRequestBody:  false,
+			disableResponseBody: false,
+			wantRequest:         "trace-request",
+			wantResponse:        "trace-response",
+		},
 	}
-	gotLoggerResponse, ok := ctxLogger.Get(string(disableResponseBodyKey))
-	if !ok || gotLoggerResponse != false {
-		t.Fatalf("logger %q = %#v, want false", disableResponseBodyKey, gotLoggerResponse)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodGet, "/test", nil)
+
+			ctxLogger := builder.New(c.Request.Context())
+			c.Request = c.Request.WithContext(ctxLogger)
+
+			if _, ok := ctxLogger.Get(string(disableTraceRequestBodyKey)); ok {
+				t.Fatalf("did not expect %q before calling DisableTraceBody", disableTraceRequestBodyKey)
+			}
+			if _, ok := ctxLogger.Get(string(disableTraceResponseBodyKey)); ok {
+				t.Fatalf("did not expect %q before calling DisableTraceBody", disableTraceResponseBodyKey)
+			}
+
+			DisableTraceBody(c, tt.disableRequestBody, tt.disableResponseBody)
+
+			gotRequestFlag, ok := ctxLogger.Get(string(disableTraceRequestBodyKey))
+			if !ok || gotRequestFlag != tt.disableRequestBody {
+				t.Fatalf("%q = %#v, want %#v", disableTraceRequestBodyKey, gotRequestFlag, tt.disableRequestBody)
+			}
+			gotResponseFlag, ok := ctxLogger.Get(string(disableTraceResponseBodyKey))
+			if !ok || gotResponseFlag != tt.disableResponseBody {
+				t.Fatalf("%q = %#v, want %#v", disableTraceResponseBodyKey, gotResponseFlag, tt.disableResponseBody)
+			}
+
+			process := &formatter.Service{
+				System:   "test-service",
+				Process:  "trace-process",
+				Code:     http.StatusOK,
+				Request:  "trace-request",
+				Response: "trace-response",
+			}
+			ctxLogger.TraceInit(process)
+			ctxLogger.TraceEnd(process)
+
+			if process.Request != tt.wantRequest {
+				t.Fatalf("process.Request = %#v, want %#v", process.Request, tt.wantRequest)
+			}
+			if process.Response != tt.wantResponse {
+				t.Fatalf("process.Response = %#v, want %#v", process.Response, tt.wantResponse)
+			}
+		})
 	}
 }
 

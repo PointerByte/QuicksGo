@@ -6,12 +6,14 @@ package middlewares
 type keyContex string
 
 const (
-	traceIDKey             keyContex = "traceID"
-	detailsKey             keyContex = "details"
-	disableRequestBodyKey  keyContex = "disableRequestBody"
-	disableResponseBodyKey keyContex = "disableResponseBody"
-	requestBodyKey         keyContex = "requestBody"
-	responseBodyKey        keyContex = "responseBody"
-	methodKey              keyContex = "method"
-	lineKey                keyContex = "line"
+	traceIDKey                  keyContex = "traceID"
+	detailsKey                  keyContex = "details"
+	disableRequestBodyKey       keyContex = "disableRequestBody"
+	disableResponseBodyKey      keyContex = "disableResponseBody"
+	disableTraceRequestBodyKey  keyContex = "disableTraceRequestBody"
+	disableTraceResponseBodyKey keyContex = "disableTraceResponseBody"
+	requestBodyKey              keyContex = "requestBody"
+	responseBodyKey             keyContex = "responseBody"
+	methodKey                   keyContex = "method"
+	lineKey                     keyContex = "line"
 )
