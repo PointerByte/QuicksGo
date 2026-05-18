@@ -17,8 +17,10 @@ import (
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 type nilPointerError struct{}
@@ -670,11 +672,47 @@ func TestWriteGRPCLogBranches(t *testing.T) {
 		writeGRPCLog(ctxLogger, "/pkg.Greeter/SayHello", errors.New("boom"))
 	})
 
+	t.Run("authorization handler error is not logged", func(t *testing.T) {
+		ctxLogger := builder.New(context.Background())
+		ctxLogger.Method = "preset"
+		ctxLogger.Line = 7
+		writeGRPCLog(ctxLogger, "/pkg.Greeter/SayHello", status.Error(codes.Unauthenticated, "jwt unauthorized"))
+		if ctxLogger.Method != "preset" || ctxLogger.Line != 7 {
+			t.Fatalf("method/line changed unexpectedly: %q %d", ctxLogger.Method, ctxLogger.Line)
+		}
+	})
+
+	t.Run("authorization error level is not logged", func(t *testing.T) {
+		ctxLogger := builder.New(context.Background())
+		ctxLogger.Method = "preset"
+		ctxLogger.Line = 7
+		ctxLogger.Set(formatter.ErrorLevel, status.Error(codes.PermissionDenied, "jwt forbidden"))
+		writeGRPCLog(ctxLogger, "/pkg.Greeter/SayHello", nil)
+		if ctxLogger.Method != "preset" || ctxLogger.Line != 7 {
+			t.Fatalf("method/line changed unexpectedly: %q %d", ctxLogger.Method, ctxLogger.Line)
+		}
+	})
+
 	t.Run("error branch", func(t *testing.T) {
 		ctxLogger := builder.New(context.Background())
 		PrintError(ctxLogger, errors.New("boom"))
 		writeGRPCLog(ctxLogger, "/pkg.Greeter/SayHello", nil)
 	})
+}
+
+func TestIsAuthorizationGRPCError(t *testing.T) {
+	if !isAuthorizationGRPCError(status.Error(codes.Unauthenticated, "missing jwt")) {
+		t.Fatal("expected unauthenticated error to be treated as authorization error")
+	}
+	if !isAuthorizationGRPCError(status.Error(codes.PermissionDenied, "forbidden")) {
+		t.Fatal("expected permission denied error to be treated as authorization error")
+	}
+	if isAuthorizationGRPCError(status.Error(codes.Internal, "boom")) {
+		t.Fatal("expected internal error not to be treated as authorization error")
+	}
+	if isAuthorizationGRPCError(nil) {
+		t.Fatal("expected nil not to be treated as authorization error")
+	}
 }
 
 func TestShouldSkipGRPCFunction(t *testing.T) {

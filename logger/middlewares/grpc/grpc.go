@@ -18,8 +18,10 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 type grpcMetadataCarrier metadata.MD
@@ -353,6 +355,9 @@ func writeGRPCLog(ctxLogger *builder.Context, fullMethod string, err error) {
 	if shouldSkipGRPCFunction(fullMethod) {
 		return
 	}
+	if isAuthorizationGRPCError(err) {
+		return
+	}
 
 	if value, ok := ctxLogger.Get(formatter.InfoLevel); ok {
 		if msg, castOK := value.(string); castOK {
@@ -374,6 +379,9 @@ func writeGRPCLog(ctxLogger *builder.Context, fullMethod string, err error) {
 	}
 	if value, ok := ctxLogger.Get(formatter.ErrorLevel); ok {
 		if loggedErr, castOK := value.(error); castOK && hasError(loggedErr) {
+			if isAuthorizationGRPCError(loggedErr) {
+				return
+			}
 			ctxLogger.Error(loggedErr)
 			return
 		}
@@ -382,6 +390,15 @@ func writeGRPCLog(ctxLogger *builder.Context, fullMethod string, err error) {
 		return
 	}
 	ctxLogger.Error(err)
+}
+
+func isAuthorizationGRPCError(err error) bool {
+	switch status.Code(err) {
+	case codes.Unauthenticated, codes.PermissionDenied:
+		return true
+	default:
+		return false
+	}
 }
 
 func shouldSkipGRPCFunction(fullMethod string) bool {
