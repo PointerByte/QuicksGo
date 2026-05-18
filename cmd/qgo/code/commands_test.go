@@ -343,6 +343,9 @@ func TestTemplateBranches(t *testing.T) {
 	if !strings.Contains(buildApplicationYAML(serviceTypeGRPC, "grpc-app"), "port: \":50051\"") {
 		t.Fatal("expected grpc yaml template")
 	}
+	if !strings.Contains(buildApplicationYAML(serviceTypeGRPC, "grpc-app"), "SkipFunction: []") {
+		t.Fatal("expected grpc yaml template to include empty SkipFunction")
+	}
 	ginYAML := buildApplicationYAML(serviceTypeGin, "gin-app")
 	if !strings.Contains(ginYAML, "transport: header") {
 		t.Fatal("expected gin yaml template")
@@ -360,6 +363,9 @@ func TestTemplateBranches(t *testing.T) {
 	grpcJSON, err := buildApplicationJSON(serviceTypeGRPC, "grpc-app")
 	if err != nil || !strings.Contains(grpcJSON, "\"port\": \":50051\"") {
 		t.Fatalf("expected grpc json template, got err=%v", err)
+	}
+	if !strings.Contains(grpcJSON, "\"SkipFunction\": []") {
+		t.Fatal("expected grpc json template to include empty SkipFunction")
 	}
 
 	ginJSON, err := buildApplicationJSON(serviceTypeGin, "gin-app")

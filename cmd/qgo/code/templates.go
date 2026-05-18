@@ -92,6 +92,9 @@ func buildApplicationYAML(serviceType string, appName string) string {
 server:
   grpc:
     port: ":50051"
+    LoggerWithConfig:
+      enabled: true
+      SkipFunction: []
     tls:
       enable: false
       certFile: ./certs/server/cert.pem
@@ -257,6 +260,10 @@ func buildApplicationJSON(serviceType string, appName string) (string, error) {
 		data["server"] = map[string]any{
 			"grpc": map[string]any{
 				"port": ":50051",
+				"LoggerWithConfig": map[string]any{
+					"enabled":      true,
+					"SkipFunction": []string{},
+				},
 				"tls": map[string]any{
 					"enable":   false,
 					"certFile": "./certs/server/cert.pem",

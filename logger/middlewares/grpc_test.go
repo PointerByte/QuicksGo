@@ -71,6 +71,8 @@ func resetGRPCTestState(t *testing.T) {
 	viper.Set(string(viperdata.AppAtribute), "test-service")
 	viper.Set(string(viperdata.LoggerIgnoredHeadersAtribute), []string{})
 	viper.Set(string(viperdata.LoggerModeTestAtribute), false)
+	viper.Set(string(viperdata.GRPCLoggerWithConfigEnabledAtribute), true)
+	viper.Set(string(viperdata.GRPCLoggerWithConfigSkipFunctionAtribute), []string{})
 }
 
 func TestInitLoggerUnaryServerInterceptor(t *testing.T) {
@@ -97,11 +99,11 @@ func TestInitLoggerUnaryServerInterceptor(t *testing.T) {
 	if details.Protocol != "gRPC" {
 		t.Fatalf("details.Protocol = %q, want %q", details.Protocol, "gRPC")
 	}
-	if details.Method != "SayHello" {
-		t.Fatalf("details.Method = %q, want %q", details.Method, "SayHello")
+	if details.Method != "" {
+		t.Fatalf("details.Method = %q, want empty", details.Method)
 	}
-	if details.Path != "/pkg.Greeter/SayHello" {
-		t.Fatalf("details.Path = %q, want %q", details.Path, "/pkg.Greeter/SayHello")
+	if details.Path != "" {
+		t.Fatalf("details.Path = %q, want empty", details.Path)
 	}
 	if got := details.Headers.Get("x-request-id"); got != "abc123" {
 		t.Fatalf("details.Headers[x-request-id] = %q, want %q", got, "abc123")
@@ -443,8 +445,8 @@ func TestInitLoggerStreamServerInterceptor(t *testing.T) {
 		t.Fatalf("expected %q in logger context", detailsKey)
 	}
 	details := detailsAny.(formatter.Details)
-	if details.Method != "StreamAlerts" {
-		t.Fatalf("details.Method = %q, want %q", details.Method, "StreamAlerts")
+	if details.Method != "" {
+		t.Fatalf("details.Method = %q, want empty", details.Method)
 	}
 	if got := details.Headers.Get("X-Request-Id"); got != "stream-123" {
 		t.Fatalf("details.Headers[X-Request-Id] = %q, want %q", got, "stream-123")
@@ -504,7 +506,7 @@ func TestExtractGRPCContextWithoutMetadata(t *testing.T) {
 func TestNewGRPCLoggerContextWithoutPeerOrMetadata(t *testing.T) {
 	resetGRPCTestState(t)
 
-	ctx, span := newGRPCLoggerContext(context.Background(), context.Background(), "/pkg.Greeter/SayHello")
+	ctx, span := newGRPCLoggerContext(context.Background(), context.Background())
 	defer span.End()
 
 	ctxLogger := builder.New(ctx)
@@ -616,7 +618,9 @@ func TestApplyGRPCBodyDetailsGuards(t *testing.T) {
 func TestWriteGRPCLogBranches(t *testing.T) {
 	resetGRPCTestState(t)
 
-	t.Run("keeps existing method and line", func(t *testing.T) {
+	t.Run("returns when grpc logger is disabled", func(t *testing.T) {
+		viper.Set(string(viperdata.GRPCLoggerWithConfigEnabledAtribute), false)
+		viperdata.ResetViperDataSingleton()
 		ctxLogger := builder.New(context.Background())
 		ctxLogger.Method = "preset"
 		ctxLogger.Line = 7
@@ -625,14 +629,31 @@ func TestWriteGRPCLogBranches(t *testing.T) {
 		if ctxLogger.Method != "preset" || ctxLogger.Line != 7 {
 			t.Fatalf("method/line changed unexpectedly: %q %d", ctxLogger.Method, ctxLogger.Line)
 		}
+		viper.Set(string(viperdata.GRPCLoggerWithConfigEnabledAtribute), true)
+		viperdata.ResetViperDataSingleton()
+	})
+
+	t.Run("returns when grpc function is skipped", func(t *testing.T) {
+		viper.Set(string(viperdata.GRPCLoggerWithConfigSkipFunctionAtribute), []string{"SayHello"})
+		viperdata.ResetViperDataSingleton()
+		ctxLogger := builder.New(context.Background())
+		ctxLogger.Method = "preset"
+		ctxLogger.Line = 7
+		ctxLogger.Set(formatter.InfoLevel, "info")
+		writeGRPCLog(ctxLogger, "/pkg.Greeter/SayHello", nil)
+		if ctxLogger.Method != "preset" || ctxLogger.Line != 7 {
+			t.Fatalf("method/line changed unexpectedly: %q %d", ctxLogger.Method, ctxLogger.Line)
+		}
+		viper.Set(string(viperdata.GRPCLoggerWithConfigSkipFunctionAtribute), []string{})
+		viperdata.ResetViperDataSingleton()
 	})
 
 	t.Run("debug branch", func(t *testing.T) {
 		ctxLogger := builder.New(context.Background())
 		ctxLogger.Set(formatter.DebugLevel, "debug")
 		writeGRPCLog(ctxLogger, "/pkg.Greeter/SayHello", nil)
-		if ctxLogger.Method != "/pkg.Greeter/SayHello" || ctxLogger.Line != 1 {
-			t.Fatalf("method/line = %q/%d, want %q/1", ctxLogger.Method, ctxLogger.Line, "/pkg.Greeter/SayHello")
+		if ctxLogger.Method == "" || ctxLogger.Line == 0 {
+			t.Fatalf("method/line = %q/%d, want caller metadata", ctxLogger.Method, ctxLogger.Line)
 		}
 	})
 
@@ -655,12 +676,20 @@ func TestWriteGRPCLogBranches(t *testing.T) {
 	})
 }
 
-func TestGRPCMethodName(t *testing.T) {
-	if got := grpcMethodName("/pkg.Greeter/SayHello"); got != "SayHello" {
-		t.Fatalf("grpcMethodName() = %q, want %q", got, "SayHello")
+func TestShouldSkipGRPCFunction(t *testing.T) {
+	resetGRPCTestState(t)
+
+	viper.Set(string(viperdata.GRPCLoggerWithConfigSkipFunctionAtribute), []string{"SayHello", "/pkg.Greeter/StreamAlerts", " "})
+	viperdata.ResetViperDataSingleton()
+
+	if !shouldSkipGRPCFunction("/pkg.Greeter/SayHello") {
+		t.Fatal("expected SayHello to be skipped by function name")
 	}
-	if got := grpcMethodName("SayHello"); got != "SayHello" {
-		t.Fatalf("grpcMethodName() = %q, want %q", got, "SayHello")
+	if !shouldSkipGRPCFunction("/pkg.Greeter/StreamAlerts") {
+		t.Fatal("expected StreamAlerts to be skipped by full method")
+	}
+	if shouldSkipGRPCFunction("/pkg.Greeter/CreateChat") {
+		t.Fatal("expected CreateChat not to be skipped")
 	}
 }
 

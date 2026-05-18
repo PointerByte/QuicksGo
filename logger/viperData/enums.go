@@ -21,4 +21,6 @@ const (
 	LoggerRotateMaxBackupsAtribute             TraceAtribute = "logger.rotate.maxBackups"
 	LoggerRotateMaxAgeAtribute                 TraceAtribute = "logger.rotate.maxAge"
 	LoggerCompressMaxAgeAtribute               TraceAtribute = "logger.rotate.compress"
+	GRPCLoggerWithConfigEnabledAtribute        TraceAtribute = "server.grpc.LoggerWithConfig.enabled"
+	GRPCLoggerWithConfigSkipFunctionAtribute   TraceAtribute = "server.grpc.LoggerWithConfig.SkipFunction"
 )

@@ -13,6 +13,10 @@ server:
       SkipPaths:
         - /health
       SkipQueryString: false
+  grpc:
+    LoggerWithConfig:
+      enabled: true
+      SkipFunction: []
 
 logger:
   level: info

@@ -19,15 +19,16 @@ import (
 
 // Context is a custom context similar to gin.Context.
 type Context struct {
-	context.Context // hereda Cancel, Deadline, Done, Value
-	mux             sync.Mutex
-	startTime       time.Time
-	fields          map[any]any
-	disableTrace    bool
-	tracer          trace.Tracer // Trace from telemetry
-	Method          string
-	Line            int
-	Details         formatter.Details
+	context.Context  // hereda Cancel, Deadline, Done, Value
+	mux              sync.Mutex
+	startTime        time.Time
+	fields           map[any]any
+	disableTrace     bool
+	tracer           trace.Tracer // Trace from telemetry
+	Method           string
+	Line             int
+	Details          formatter.Details
+	tracerCallerSkip int
 }
 
 // DisableTrace disables trace logging for a specific process or trace.
@@ -93,6 +94,19 @@ func New(parent context.Context) *Context {
 	// Save the *logger.Context* within the context for future retrieval
 	newContext.Context = context.WithValue(parent, loggerCtxKey, newContext)
 	return newContext
+}
+
+// SetTraceCallerSkip sets the number of stack frames to skip when determining the caller's method and line number for logging purposes.
+func (c *Context) SetTraceCallerSkip(skip int) {
+	c.tracerCallerSkip = skip
+}
+
+// GetTraceCallerSkip returns the number of stack frames to skip when determining the caller's method and line number for logging purposes.
+func (c *Context) GetTraceCallerSkip() int {
+	if c.tracerCallerSkip == 0 {
+		return 2 // Default value
+	}
+	return c.tracerCallerSkip
 }
 
 // Set adds a key-value pair to the context.

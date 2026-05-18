@@ -88,8 +88,8 @@ func convertStr(input any) string {
 // Recommended usage:
 //
 //	process := &formatter.Services{
-//	    Process: â€œprocessPaymentâ€,
-//	    System:  â€œpaymentsâ€,
+//	    System: "PaymentService",
+//	    Process: Process Paymaent,
 //	}
 //	ctx.TraceInit(process)
 //	defer ctx.TraceEnd(process)

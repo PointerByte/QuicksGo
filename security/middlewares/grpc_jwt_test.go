@@ -104,7 +104,7 @@ func TestRequireJWTStreamServerInterceptorAllowsValidBearerToken(t *testing.T) {
 	ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+token))
 	stream := &testServerStream{ctx: ctx}
 	handlerCalled := false
-	err = interceptor(nil, stream, &grpc.StreamServerInfo{FullMethod: "/test.Service/Stream"}, func(srv any, stream grpc.ServerStream) error {
+	err = interceptor(nil, stream, &grpc.StreamServerInfo{}, func(srv any, stream grpc.ServerStream) error {
 		handlerCalled = true
 		claimsValue, ok := JWTClaimsFromContext(stream.Context())
 		if !ok {

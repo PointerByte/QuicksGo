@@ -34,6 +34,9 @@ server:
 
   grpc:
     port: ":50051"
+    LoggerWithConfig:
+      enabled: true
+      SkipFunction: []
     tls:
       enable: false
       certFile: ./certs/server/cert.pem

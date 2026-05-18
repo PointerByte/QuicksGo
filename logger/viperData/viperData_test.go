@@ -17,6 +17,7 @@ func TestGetViperData(t *testing.T) {
 
 	viper.Set(string(AppAtribute), "test-app")
 	viper.Set(string(LoggerModeTestAtribute), true)
+	viper.Set(string(GRPCLoggerWithConfigSkipFunctionAtribute), []string{"SayHello"})
 
 	got := GetViperData(string(AppAtribute))
 	if got != "test-app" {
@@ -26,5 +27,10 @@ func TestGetViperData(t *testing.T) {
 	got = GetViperData(string(LoggerModeTestAtribute))
 	if got != true {
 		t.Errorf("logger.modeTest = %v, want %v", got, "true")
+	}
+
+	got = GetViperData(string(GRPCLoggerWithConfigSkipFunctionAtribute))
+	if gotSlice, ok := got.([]string); !ok || len(gotSlice) != 1 || gotSlice[0] != "SayHello" {
+		t.Errorf("server.grpc.LoggerWithConfig.SkipFunction = %v, want [SayHello]", got)
 	}
 }

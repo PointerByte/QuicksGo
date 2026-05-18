@@ -12,6 +12,7 @@ import (
 
 	"github.com/PointerByte/GoForge/logger/builder"
 	"github.com/PointerByte/GoForge/logger/formatter"
+	"github.com/PointerByte/GoForge/logger/utilities"
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
@@ -81,7 +82,7 @@ func (s *grpcCaptureStream) SendMsg(m any) error {
 func InitLoggerUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		parent := extractGRPCContext(ctx)
-		ctxLogger, span := newGRPCLoggerContext(parent, ctx, info.FullMethod)
+		ctxLogger, span := newGRPCLoggerContext(parent, ctx)
 		defer span.End()
 		return handler(ctxLogger, req)
 	}
@@ -96,7 +97,7 @@ func InitLoggerUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 func InitLoggerStreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		parent := extractGRPCContext(stream.Context())
-		ctxLogger, span := newGRPCLoggerContext(parent, stream.Context(), info.FullMethod)
+		ctxLogger, span := newGRPCLoggerContext(parent, stream.Context())
 		defer span.End()
 
 		return handler(srv, &grpcContextStream{
@@ -218,7 +219,7 @@ func extractGRPCContext(ctx context.Context) context.Context {
 	return otel.GetTextMapPropagator().Extract(ctx, grpcMetadataCarrier(md.Copy()))
 }
 
-func newGRPCLoggerContext(parent context.Context, incoming context.Context, fullMethod string) (context.Context, trace.Span) {
+func newGRPCLoggerContext(parent context.Context, incoming context.Context) (context.Context, trace.Span) {
 	ctxLogger := builder.New(parent)
 	appName := viperdata.GetViperData(string(viperdata.AppAtribute)).(string)
 	tracer := otel.Tracer(appName)
@@ -238,8 +239,6 @@ func newGRPCLoggerContext(parent context.Context, incoming context.Context, full
 	details := formatter.Details{
 		System:   appName,
 		Protocol: "gRPC",
-		Method:   grpcMethodName(fullMethod),
-		Path:     fullMethod,
 	}
 	if p, ok := peer.FromContext(incoming); ok && p.Addr != nil {
 		details.Client = p.Addr.String()
@@ -319,11 +318,14 @@ func shouldIncludeGRPCBody(ctxLogger *builder.Context, key keyContex) bool {
 }
 
 func writeGRPCLog(ctxLogger *builder.Context, fullMethod string, err error) {
-	if ctxLogger.Method == "" {
-		ctxLogger.Method = fullMethod
-		ctxLogger.Line = 1
+	if !viperdata.GetViperData(string(viperdata.GRPCLoggerWithConfigEnabledAtribute)).(bool) {
+		return
+	}
+	if shouldSkipGRPCFunction(fullMethod) {
+		return
 	}
 
+	ctxLogger.Method, ctxLogger.Line = utilities.TraceCaller(ctxLogger.GetTraceCallerSkip())
 	if value, ok := ctxLogger.Get(formatter.InfoLevel); ok {
 		if msg, castOK := value.(string); castOK {
 			ctxLogger.Info(msg)
@@ -354,6 +356,29 @@ func writeGRPCLog(ctxLogger *builder.Context, fullMethod string, err error) {
 	ctxLogger.Error(err)
 }
 
+func shouldSkipGRPCFunction(fullMethod string) bool {
+	skipFunctions := viperdata.GetViperData(string(viperdata.GRPCLoggerWithConfigSkipFunctionAtribute)).([]string)
+	functionName := grpcFunctionName(fullMethod)
+	for _, skipFunction := range skipFunctions {
+		skipFunction = strings.TrimSpace(skipFunction)
+		if skipFunction == "" {
+			continue
+		}
+		if skipFunction == fullMethod || skipFunction == functionName {
+			return true
+		}
+	}
+	return false
+}
+
+func grpcFunctionName(fullMethod string) string {
+	parts := strings.Split(strings.TrimPrefix(fullMethod, "/"), "/")
+	if len(parts) == 0 {
+		return fullMethod
+	}
+	return parts[len(parts)-1]
+}
+
 func hasError(err error) bool {
 	if err == nil {
 		return false
@@ -365,12 +390,4 @@ func hasError(err error) bool {
 	default:
 		return true
 	}
-}
-
-func grpcMethodName(fullMethod string) string {
-	parts := strings.Split(strings.TrimPrefix(fullMethod, "/"), "/")
-	if len(parts) == 0 {
-		return fullMethod
-	}
-	return parts[len(parts)-1]
 }

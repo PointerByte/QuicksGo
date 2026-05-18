@@ -48,6 +48,8 @@ func GetViperData(key string) any {
 			string(LoggerRotateMaxBackupsAtribute):             viper.GetInt(string(LoggerRotateMaxBackupsAtribute)),
 			string(LoggerRotateMaxAgeAtribute):                 viper.GetInt(string(LoggerRotateMaxAgeAtribute)),
 			string(LoggerCompressMaxAgeAtribute):               viper.GetBool(string(LoggerCompressMaxAgeAtribute)),
+			string(GRPCLoggerWithConfigEnabledAtribute):        viper.GetBool(string(GRPCLoggerWithConfigEnabledAtribute)),
+			string(GRPCLoggerWithConfigSkipFunctionAtribute):   viper.GetStringSlice(string(GRPCLoggerWithConfigSkipFunctionAtribute)),
 		}
 	})
 
