@@ -20,7 +20,7 @@ import (
 	"github.com/PointerByte/GoForge/config/utilities"
 	"github.com/PointerByte/GoForge/config/utilities/traces"
 	"github.com/PointerByte/GoForge/logger/builder"
-	loggerMiddlewares "github.com/PointerByte/GoForge/logger/middlewares"
+	loggerGRPCMiddlewares "github.com/PointerByte/GoForge/logger/middlewares/grpc"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -321,17 +321,17 @@ func (su *Config) ensureServerLocked() error {
 func (su *Config) defaultServerOptions() ([]grpc.ServerOption, error) {
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
 		traces.MiddlewareOtelGRPCUnary(),
-		loggerMiddlewares.InitLoggerUnaryServerInterceptor(),
-		loggerMiddlewares.LoggerWithConfigUnaryServerInterceptor(),
-		loggerMiddlewares.CaptureBodyUnaryServerInterceptor(),
+		loggerGRPCMiddlewares.InitLoggerUnaryServerInterceptor(),
+		loggerGRPCMiddlewares.LoggerWithConfigUnaryServerInterceptor(),
+		loggerGRPCMiddlewares.CaptureBodyUnaryServerInterceptor(),
 	}
 	unaryInterceptors = append(unaryInterceptors, su.unaryInterceptors...)
 
 	streamInterceptors := []grpc.StreamServerInterceptor{
 		traces.MiddlewareOtelGRPCStream(),
-		loggerMiddlewares.InitLoggerStreamServerInterceptor(),
-		loggerMiddlewares.LoggerWithConfigStreamServerInterceptor(),
-		loggerMiddlewares.CaptureBodyStreamServerInterceptor(),
+		loggerGRPCMiddlewares.InitLoggerStreamServerInterceptor(),
+		loggerGRPCMiddlewares.LoggerWithConfigStreamServerInterceptor(),
+		loggerGRPCMiddlewares.CaptureBodyStreamServerInterceptor(),
 	}
 	streamInterceptors = append(streamInterceptors, su.streamInterceptors...)
 

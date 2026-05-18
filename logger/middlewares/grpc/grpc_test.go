@@ -1,7 +1,7 @@
 // Copyright 2026 PointerByte Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-package middlewares
+package grpc
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 
 	"github.com/PointerByte/GoForge/logger/builder"
 	"github.com/PointerByte/GoForge/logger/formatter"
+	"github.com/PointerByte/GoForge/logger/middlewares/common"
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -91,9 +92,9 @@ func TestInitLoggerUnaryServerInterceptor(t *testing.T) {
 		t.Fatalf("interceptor returned error: %v", err)
 	}
 
-	detailsAny, ok := gotCtxLogger.Get(detailsKey)
+	detailsAny, ok := gotCtxLogger.Get(common.DetailsKey)
 	if !ok {
-		t.Fatalf("expected %q in logger context", detailsKey)
+		t.Fatalf("expected %q in logger context", common.DetailsKey)
 	}
 	details := detailsAny.(formatter.Details)
 	if details.Protocol != "gRPC" {
@@ -124,8 +125,8 @@ func TestUnaryInterceptorsCaptureBodiesAndPopulateDetails(t *testing.T) {
 				FullMethod: "/pkg.Greeter/SayHello",
 			}, func(ctx context.Context, req any) (any, error) {
 				gotCtxLogger = builder.New(ctx)
-				gotCtxLogger.Set(disableRequestBodyKey, false)
-				gotCtxLogger.Set(disableResponseBodyKey, false)
+				gotCtxLogger.Set(common.DisableRequestBodyKey, false)
+				gotCtxLogger.Set(common.DisableResponseBodyKey, false)
 				gotCtxLogger.Set(formatter.InfoLevel, "request processed")
 				return map[string]any{"message": "ok"}, nil
 			})
@@ -138,9 +139,9 @@ func TestUnaryInterceptorsCaptureBodiesAndPopulateDetails(t *testing.T) {
 		t.Fatal("expected response")
 	}
 
-	detailsAny, ok := gotCtxLogger.Get(detailsKey)
+	detailsAny, ok := gotCtxLogger.Get(common.DetailsKey)
 	if !ok {
-		t.Fatalf("expected %q in logger context", detailsKey)
+		t.Fatalf("expected %q in logger context", common.DetailsKey)
 	}
 	details := detailsAny.(formatter.Details)
 	requestBody, ok := details.Request.(map[string]any)
@@ -167,8 +168,8 @@ func TestLoggerWithConfigUnaryOmitsBodiesWhenDisabled(t *testing.T) {
 				FullMethod: "/pkg.Greeter/SayHello",
 			}, func(ctx context.Context, req any) (any, error) {
 				gotCtxLogger = builder.New(ctx)
-				gotCtxLogger.Set(disableRequestBodyKey, true)
-				gotCtxLogger.Set(disableResponseBodyKey, true)
+				gotCtxLogger.Set(common.DisableRequestBodyKey, true)
+				gotCtxLogger.Set(common.DisableResponseBodyKey, true)
 				return "response", errors.New("boom")
 			})
 		})
@@ -177,9 +178,9 @@ func TestLoggerWithConfigUnaryOmitsBodiesWhenDisabled(t *testing.T) {
 		t.Fatal("expected error")
 	}
 
-	detailsAny, ok := gotCtxLogger.Get(detailsKey)
+	detailsAny, ok := gotCtxLogger.Get(common.DetailsKey)
 	if !ok {
-		t.Fatalf("expected %q in logger context", detailsKey)
+		t.Fatalf("expected %q in logger context", common.DetailsKey)
 	}
 	details := detailsAny.(formatter.Details)
 	if details.Request != nil {
@@ -217,18 +218,18 @@ func TestDisableGRPCBody(t *testing.T) {
 		t.Fatalf("response = %#v, want %#v", resp, "response")
 	}
 
-	requestFlag, ok := gotCtxLogger.Get(string(disableRequestBodyKey))
+	requestFlag, ok := gotCtxLogger.Get(string(common.DisableRequestBodyKey))
 	if !ok || requestFlag != true {
-		t.Fatalf("%q = %#v, want true", disableRequestBodyKey, requestFlag)
+		t.Fatalf("%q = %#v, want true", common.DisableRequestBodyKey, requestFlag)
 	}
-	responseFlag, ok := gotCtxLogger.Get(string(disableResponseBodyKey))
+	responseFlag, ok := gotCtxLogger.Get(string(common.DisableResponseBodyKey))
 	if !ok || responseFlag != false {
-		t.Fatalf("%q = %#v, want false", disableResponseBodyKey, responseFlag)
+		t.Fatalf("%q = %#v, want false", common.DisableResponseBodyKey, responseFlag)
 	}
 
-	detailsAny, ok := gotCtxLogger.Get(detailsKey)
+	detailsAny, ok := gotCtxLogger.Get(common.DetailsKey)
 	if !ok {
-		t.Fatalf("expected %q in logger context", detailsKey)
+		t.Fatalf("expected %q in logger context", common.DetailsKey)
 	}
 	details := detailsAny.(formatter.Details)
 	if details.Request != nil {
@@ -278,13 +279,13 @@ func TestDisableGRPCTraceBody(t *testing.T) {
 			ctx := DisableGRPCTraceBody(ctxLogger, tt.disableRequestBody, tt.disableResponseBody)
 			ctxLogger = builder.New(ctx)
 
-			requestFlag, ok := ctxLogger.Get(string(disableTraceRequestBodyKey))
+			requestFlag, ok := ctxLogger.Get(string(common.DisableTraceRequestBodyKey))
 			if !ok || requestFlag != tt.disableRequestBody {
-				t.Fatalf("%q = %#v, want %#v", disableTraceRequestBodyKey, requestFlag, tt.disableRequestBody)
+				t.Fatalf("%q = %#v, want %#v", common.DisableTraceRequestBodyKey, requestFlag, tt.disableRequestBody)
 			}
-			responseFlag, ok := ctxLogger.Get(string(disableTraceResponseBodyKey))
+			responseFlag, ok := ctxLogger.Get(string(common.DisableTraceResponseBodyKey))
 			if !ok || responseFlag != tt.disableResponseBody {
-				t.Fatalf("%q = %#v, want %#v", disableTraceResponseBodyKey, responseFlag, tt.disableResponseBody)
+				t.Fatalf("%q = %#v, want %#v", common.DisableTraceResponseBodyKey, responseFlag, tt.disableResponseBody)
 			}
 
 			process := &formatter.Service{
@@ -339,8 +340,8 @@ func TestCaptureBodyStreamServerInterceptor(t *testing.T) {
 		t.Fatalf("interceptor returned error: %v", err)
 	}
 
-	requestBody, _ := gotCtxLogger.Get(requestBodyKey)
-	responseBody, _ := gotCtxLogger.Get(responseBodyKey)
+	requestBody, _ := gotCtxLogger.Get(common.RequestbodyKey)
+	responseBody, _ := gotCtxLogger.Get(common.ResponsebodyKey)
 
 	requests, ok := requestBody.([]any)
 	if !ok || len(requests) != 2 {
@@ -440,9 +441,9 @@ func TestInitLoggerStreamServerInterceptor(t *testing.T) {
 		t.Fatalf("interceptor returned error: %v", err)
 	}
 
-	detailsAny, ok := gotCtxLogger.Get(detailsKey)
+	detailsAny, ok := gotCtxLogger.Get(common.DetailsKey)
 	if !ok {
-		t.Fatalf("expected %q in logger context", detailsKey)
+		t.Fatalf("expected %q in logger context", common.DetailsKey)
 	}
 	details := detailsAny.(formatter.Details)
 	if details.Method != "" {
@@ -472,8 +473,8 @@ func TestLoggerWithConfigStreamServerInterceptor(t *testing.T) {
 				IsServerStream: true,
 			}, func(srv any, stream grpc.ServerStream) error {
 				gotCtxLogger = builder.New(stream.Context())
-				gotCtxLogger.Set(disableRequestBodyKey, false)
-				gotCtxLogger.Set(disableResponseBodyKey, false)
+				gotCtxLogger.Set(common.DisableRequestBodyKey, false)
+				gotCtxLogger.Set(common.DisableResponseBodyKey, false)
 				gotCtxLogger.Set(formatter.InfoLevel, "stream processed")
 				if err := stream.SendMsg("out"); err != nil {
 					return err
@@ -486,9 +487,9 @@ func TestLoggerWithConfigStreamServerInterceptor(t *testing.T) {
 		t.Fatalf("interceptor returned error: %v", err)
 	}
 
-	detailsAny, ok := gotCtxLogger.Get(detailsKey)
+	detailsAny, ok := gotCtxLogger.Get(common.DetailsKey)
 	if !ok {
-		t.Fatalf("expected %q in logger context", detailsKey)
+		t.Fatalf("expected %q in logger context", common.DetailsKey)
 	}
 	details := detailsAny.(formatter.Details)
 	if details.Response != "out" {
@@ -510,9 +511,9 @@ func TestNewGRPCLoggerContextWithoutPeerOrMetadata(t *testing.T) {
 	defer span.End()
 
 	ctxLogger := builder.New(ctx)
-	detailsAny, ok := ctxLogger.Get(detailsKey)
+	detailsAny, ok := ctxLogger.Get(common.DetailsKey)
 	if !ok {
-		t.Fatalf("expected %q in logger context", detailsKey)
+		t.Fatalf("expected %q in logger context", common.DetailsKey)
 	}
 	details := detailsAny.(formatter.Details)
 	if details.Client != "" {
@@ -560,9 +561,9 @@ func TestApplyGRPCBodyDetailsGuards(t *testing.T) {
 
 	t.Run("returns when disable flag has invalid type", func(t *testing.T) {
 		ctxLogger := builder.New(context.Background())
-		ctxLogger.Set(disableRequestBodyKey, "bad")
+		ctxLogger.Set(common.DisableRequestBodyKey, "bad")
 		ctxLogger.Details = formatter.Details{System: "svc"}
-		ctxLogger.Set(requestBodyKey, "req")
+		ctxLogger.Set(common.RequestbodyKey, "req")
 		applyGRPCBodyDetails(ctxLogger)
 		if ctxLogger.Details.Request != nil {
 			t.Fatalf("Details.Request = %#v, want nil", ctxLogger.Details.Request)
@@ -572,10 +573,10 @@ func TestApplyGRPCBodyDetailsGuards(t *testing.T) {
 	t.Run("handles request and response flags independently", func(t *testing.T) {
 		ctxLogger := builder.New(context.Background())
 		ctxLogger.Details = formatter.Details{System: "svc"}
-		ctxLogger.Set(disableRequestBodyKey, true)
-		ctxLogger.Set(disableResponseBodyKey, false)
-		ctxLogger.Set(requestBodyKey, "req")
-		ctxLogger.Set(responseBodyKey, "resp")
+		ctxLogger.Set(common.DisableRequestBodyKey, true)
+		ctxLogger.Set(common.DisableResponseBodyKey, false)
+		ctxLogger.Set(common.RequestbodyKey, "req")
+		ctxLogger.Set(common.ResponsebodyKey, "resp")
 		applyGRPCBodyDetails(ctxLogger)
 		if ctxLogger.Details.Request != nil {
 			t.Fatalf("Details.Request = %#v, want nil", ctxLogger.Details.Request)
@@ -588,10 +589,10 @@ func TestApplyGRPCBodyDetailsGuards(t *testing.T) {
 	t.Run("supports string body flags from external callers", func(t *testing.T) {
 		ctxLogger := builder.New(context.Background())
 		ctxLogger.Details = formatter.Details{System: "svc"}
-		ctxLogger.Set(string(disableRequestBodyKey), false)
-		ctxLogger.Set(string(disableResponseBodyKey), true)
-		ctxLogger.Set(requestBodyKey, "req")
-		ctxLogger.Set(responseBodyKey, "resp")
+		ctxLogger.Set(string(common.DisableRequestBodyKey), false)
+		ctxLogger.Set(string(common.DisableResponseBodyKey), true)
+		ctxLogger.Set(common.RequestbodyKey, "req")
+		ctxLogger.Set(common.ResponsebodyKey, "resp")
 		applyGRPCBodyDetails(ctxLogger)
 		if ctxLogger.Details.Request != "req" {
 			t.Fatalf("Details.Request = %#v, want %#v", ctxLogger.Details.Request, "req")
@@ -603,14 +604,14 @@ func TestApplyGRPCBodyDetailsGuards(t *testing.T) {
 
 	t.Run("returns when details key missing and details struct empty", func(t *testing.T) {
 		ctxLogger := builder.New(context.Background())
-		ctxLogger.Set(requestBodyKey, "req")
+		ctxLogger.Set(common.RequestbodyKey, "req")
 		applyGRPCBodyDetails(ctxLogger)
 	})
 
 	t.Run("returns when details key has wrong type", func(t *testing.T) {
 		ctxLogger := builder.New(context.Background())
-		ctxLogger.Set(detailsKey, "bad")
-		ctxLogger.Set(requestBodyKey, "req")
+		ctxLogger.Set(common.DetailsKey, "bad")
+		ctxLogger.Set(common.RequestbodyKey, "req")
 		applyGRPCBodyDetails(ctxLogger)
 	})
 }
@@ -650,7 +651,7 @@ func TestWriteGRPCLogBranches(t *testing.T) {
 
 	t.Run("debug branch", func(t *testing.T) {
 		ctxLogger := builder.New(context.Background())
-		ctxLogger.Set(formatter.DebugLevel, "debug")
+		PrintDebug(ctxLogger, "debug")
 		writeGRPCLog(ctxLogger, "/pkg.Greeter/SayHello", nil)
 		if ctxLogger.Method == "" || ctxLogger.Line == 0 {
 			t.Fatalf("method/line = %q/%d, want caller metadata", ctxLogger.Method, ctxLogger.Line)
@@ -659,7 +660,7 @@ func TestWriteGRPCLogBranches(t *testing.T) {
 
 	t.Run("warn branch", func(t *testing.T) {
 		ctxLogger := builder.New(context.Background())
-		ctxLogger.Set(formatter.WarnLevel, "warn")
+		PrintWarn(ctxLogger, "warn")
 		writeGRPCLog(ctxLogger, "/pkg.Greeter/SayHello", nil)
 	})
 
@@ -671,7 +672,7 @@ func TestWriteGRPCLogBranches(t *testing.T) {
 
 	t.Run("error branch", func(t *testing.T) {
 		ctxLogger := builder.New(context.Background())
-		ctxLogger.Set(formatter.ErrorLevel, errors.New("boom"))
+		PrintError(ctxLogger, errors.New("boom"))
 		writeGRPCLog(ctxLogger, "/pkg.Greeter/SayHello", nil)
 	})
 }

@@ -1,7 +1,7 @@
 // Copyright 2026 PointerByte Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-package middlewares
+package http
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/PointerByte/GoForge/logger/builder"
 	"github.com/PointerByte/GoForge/logger/formatter"
+	"github.com/PointerByte/GoForge/logger/middlewares/common"
 	"github.com/PointerByte/GoForge/logger/utilities"
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/gin-gonic/gin"
@@ -43,7 +44,7 @@ func InitLogger() gin.HandlerFunc {
 		// ---- Get TraceID ----
 		traceID := span.SpanContext().TraceID()
 		if traceID.IsValid() {
-			ctxLogger.Set(traceIDKey, traceID.String())
+			ctxLogger.Set(common.TraceIDKey, traceID.String())
 		}
 
 		details := formatter.Details{
@@ -54,7 +55,7 @@ func InitLogger() gin.HandlerFunc {
 			Path:     ctx.Request.URL.Path,
 		}
 		details.SetHeaders(ctx.Request.Header)
-		ctxLogger.Set(detailsKey, details)
+		ctxLogger.Set(common.DetailsKey, details)
 
 		// ---- reinyectar contexto con span ----
 		ctx.Request = ctx.Request.WithContext(ctxLogger)
@@ -104,8 +105,8 @@ func CaptureBody() gin.HandlerFunc {
 		c.Next()
 
 		// guardar en contexto
-		c.Set(requestBodyKey, string(requestBody))
-		c.Set(responseBodyKey, responseBody.String())
+		c.Set(common.RequestbodyKey, string(requestBody))
+		c.Set(common.ResponsebodyKey, responseBody.String())
 	}
 }
 
@@ -115,8 +116,8 @@ func CaptureBody() gin.HandlerFunc {
 // Internally this stores independent request and response body flags in the
 // gin.Context so LoggerWithConfig can decide what to include.
 func DisableBody(ctx *gin.Context, disableRequestBody bool, disableResponseBody bool) {
-	ctx.Set(disableRequestBodyKey, disableRequestBody)
-	ctx.Set(disableResponseBodyKey, disableResponseBody)
+	ctx.Set(common.DisableRequestBodyKey, disableRequestBody)
+	ctx.Set(common.DisableResponseBodyKey, disableResponseBody)
 }
 
 // DisableTraceBody marks whether downstream trace services should omit their
@@ -127,8 +128,8 @@ func DisableBody(ctx *gin.Context, disableRequestBody bool, disableResponseBody 
 // they control formatter.Service trace entries, not the final Gin access log.
 func DisableTraceBody(ctx *gin.Context, disableRequestBody bool, disableResponseBody bool) {
 	ctxLogger := builder.New(ctx.Request.Context())
-	ctxLogger.Set(string(disableTraceRequestBodyKey), disableRequestBody)
-	ctxLogger.Set(string(disableTraceResponseBodyKey), disableResponseBody)
+	ctxLogger.Set(string(common.DisableTraceRequestBodyKey), disableRequestBody)
+	ctxLogger.Set(string(common.DisableTraceResponseBodyKey), disableResponseBody)
 }
 
 // LoggerWithConfig emits the final HTTP log entry using Gin's
@@ -146,39 +147,39 @@ func LoggerWithConfig() gin.HandlerFunc {
 		Formatter: func(param gin.LogFormatterParams) string {
 			ctx := param.Request.Context()
 			ctxLogger := builder.New(ctx)
-			if v, ok := param.Keys[methodKey]; ok {
+			if v, ok := param.Keys[common.MethodKey]; ok {
 				ctxLogger.Method = v.(string)
 			}
-			if v, ok := param.Keys[lineKey]; ok {
+			if v, ok := param.Keys[common.LineKey]; ok {
 				ctxLogger.Line = v.(int)
 			}
 
-			if v, ok := ctxLogger.Get(detailsKey); ok {
+			if v, ok := ctxLogger.Get(common.DetailsKey); ok {
 				ctxLogger.Details = v.(formatter.Details)
 			}
-			if v, ok := param.Keys[disableRequestBodyKey]; ok {
+			if v, ok := param.Keys[common.DisableRequestBodyKey]; ok {
 				if !v.(bool) {
 					var requestBody any
 					if param.Keys != nil {
-						if v, ok := param.Keys[requestBodyKey]; ok {
+						if v, ok := param.Keys[common.RequestbodyKey]; ok {
 							requestBody = v
 						}
 					}
 					ctxLogger.Details.Request = requestBody
 				}
 			}
-			if v, ok := param.Keys[disableResponseBodyKey]; ok {
+			if v, ok := param.Keys[common.DisableResponseBodyKey]; ok {
 				if !v.(bool) {
 					var responseBody any
 					if param.Keys != nil {
-						if v, ok := param.Keys[responseBodyKey]; ok {
+						if v, ok := param.Keys[common.ResponsebodyKey]; ok {
 							responseBody = v
 						}
 					}
 					ctxLogger.Details.Response = responseBody
 				}
 			}
-			ctxLogger.Set(detailsKey, ctxLogger.Details)
+			ctxLogger.Set(common.DetailsKey, ctxLogger.Details)
 
 			if value, ok := param.Keys[formatter.InfoLevel]; ok {
 				if msg, ok := value.(string); ok {
@@ -219,8 +220,8 @@ func LoggerWithConfig() gin.HandlerFunc {
 func PrintInfo(ctx *gin.Context, message string) {
 	ctxLogger := builder.New(ginRequestContext(ctx))
 	method, line := utilities.TraceCaller(ctxLogger.GetTraceCallerSkip())
-	ctx.Set(methodKey, method)
-	ctx.Set(lineKey, line)
+	ctx.Set(common.MethodKey, method)
+	ctx.Set(common.LineKey, line)
 	ctx.Set(formatter.InfoLevel, message)
 }
 
@@ -229,8 +230,8 @@ func PrintInfo(ctx *gin.Context, message string) {
 func PrintDebug(ctx *gin.Context, message string) {
 	ctxLogger := builder.New(ginRequestContext(ctx))
 	method, line := utilities.TraceCaller(ctxLogger.GetTraceCallerSkip())
-	ctx.Set(methodKey, method)
-	ctx.Set(lineKey, line)
+	ctx.Set(common.MethodKey, method)
+	ctx.Set(common.LineKey, line)
 	ctx.Set(formatter.DebugLevel, message)
 }
 
@@ -239,8 +240,8 @@ func PrintDebug(ctx *gin.Context, message string) {
 func PrintWarn(ctx *gin.Context, message string) {
 	ctxLogger := builder.New(ginRequestContext(ctx))
 	method, line := utilities.TraceCaller(ctxLogger.GetTraceCallerSkip())
-	ctx.Set(methodKey, method)
-	ctx.Set(lineKey, line)
+	ctx.Set(common.MethodKey, method)
+	ctx.Set(common.LineKey, line)
 	ctx.Set(formatter.WarnLevel, message)
 }
 
@@ -249,8 +250,8 @@ func PrintWarn(ctx *gin.Context, message string) {
 func PrintError(ctx *gin.Context, err error) {
 	ctxLogger := builder.New(ginRequestContext(ctx))
 	method, line := utilities.TraceCaller(ctxLogger.GetTraceCallerSkip())
-	ctx.Set(methodKey, method)
-	ctx.Set(lineKey, line)
+	ctx.Set(common.MethodKey, method)
+	ctx.Set(common.LineKey, line)
 	ctx.Set(formatter.ErrorLevel, err)
 }
 

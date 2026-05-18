@@ -17,7 +17,7 @@ import (
 
 	"github.com/PointerByte/GoForge/logger/builder"
 	"github.com/PointerByte/GoForge/logger/formatter"
-	"github.com/PointerByte/GoForge/logger/middlewares"
+	httpmiddlewares "github.com/PointerByte/GoForge/logger/middlewares/http"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
@@ -73,7 +73,7 @@ func endpointExample() func(c *gin.Context) {
 		go subprocces(&wg, ctxLogger)
 		wg.Wait()
 
-		middlewares.PrintInfo(c, "example execute")
+		httpmiddlewares.PrintInfo(c, "example execute")
 		c.JSON(http.StatusOK, gin.H{"message": "Hello, World!"})
 	}
 }
@@ -89,9 +89,9 @@ func main() {
 	engine := gin.New()
 	engine.Use(
 		gin.Recovery(),
-		middlewares.InitLogger(),
-		middlewares.LoggerWithConfig(),
-		middlewares.CaptureBody(),
+		httpmiddlewares.InitLogger(),
+		httpmiddlewares.LoggerWithConfig(),
+		httpmiddlewares.CaptureBody(),
 	)
 
 	groups := viper.GetStringSlice("server.groups")

@@ -1,7 +1,7 @@
 // Copyright 2026 PointerByte Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-package middlewares
+package http
 
 import (
 	"bytes"
@@ -15,6 +15,7 @@ import (
 
 	"github.com/PointerByte/GoForge/logger/builder"
 	"github.com/PointerByte/GoForge/logger/formatter"
+	"github.com/PointerByte/GoForge/logger/middlewares/common"
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -43,7 +44,7 @@ func TestInitLogger(t *testing.T) {
 
 			r.GET("/test", func(ctx *gin.Context) {
 				ctxLogger := builder.New(ctx.Request.Context())
-				if v, ok := ctxLogger.Get(traceIDKey); ok {
+				if v, ok := ctxLogger.Get(common.TraceIDKey); ok {
 					if s, ok := v.(string); ok {
 						ctx.String(http.StatusOK, s)
 						return
@@ -104,14 +105,14 @@ func TestMiddlewareCaptureBody(t *testing.T) {
 				c.Next()
 
 				var ok bool
-				gotRequestBody, ok = c.Get(requestBodyKey)
+				gotRequestBody, ok = c.Get(common.RequestbodyKey)
 				if !ok {
-					t.Fatalf("request body key %q was not set", requestBodyKey)
+					t.Fatalf("request body key %q was not set", common.RequestbodyKey)
 				}
 
-				gotResponseBody, ok = c.Get(responseBodyKey)
+				gotResponseBody, ok = c.Get(common.ResponsebodyKey)
 				if !ok {
-					t.Fatalf("response body key %q was not set", responseBodyKey)
+					t.Fatalf("response body key %q was not set", common.ResponsebodyKey)
 				}
 			})
 
@@ -173,37 +174,37 @@ func TestDisableBody(t *testing.T) {
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest(http.MethodGet, "/test", nil)
 
-	if _, ok := c.Get(disableRequestBodyKey); ok {
-		t.Fatalf("did not expect %q before calling DisableBody", disableRequestBodyKey)
+	if _, ok := c.Get(common.DisableRequestBodyKey); ok {
+		t.Fatalf("did not expect %q before calling DisableBody", common.DisableRequestBodyKey)
 	}
-	if _, ok := c.Get(disableResponseBodyKey); ok {
-		t.Fatalf("did not expect %q before calling DisableBody", disableResponseBodyKey)
+	if _, ok := c.Get(common.DisableResponseBodyKey); ok {
+		t.Fatalf("did not expect %q before calling DisableBody", common.DisableResponseBodyKey)
 	}
 
 	DisableBody(c, true, false)
 
-	gotRequest, ok := c.Get(disableRequestBodyKey)
+	gotRequest, ok := c.Get(common.DisableRequestBodyKey)
 	if !ok {
-		t.Fatalf("expected %q to be set", disableRequestBodyKey)
+		t.Fatalf("expected %q to be set", common.DisableRequestBodyKey)
 	}
 	disabledRequest, ok := gotRequest.(bool)
 	if !ok {
-		t.Fatalf("%q type = %T, want bool", disableRequestBodyKey, gotRequest)
+		t.Fatalf("%q type = %T, want bool", common.DisableRequestBodyKey, gotRequest)
 	}
 	if !disabledRequest {
-		t.Fatalf("%q = %v, want true", disableRequestBodyKey, disabledRequest)
+		t.Fatalf("%q = %v, want true", common.DisableRequestBodyKey, disabledRequest)
 	}
 
-	gotResponse, ok := c.Get(disableResponseBodyKey)
+	gotResponse, ok := c.Get(common.DisableResponseBodyKey)
 	if !ok {
-		t.Fatalf("expected %q to be set", disableResponseBodyKey)
+		t.Fatalf("expected %q to be set", common.DisableResponseBodyKey)
 	}
 	disabledResponse, ok := gotResponse.(bool)
 	if !ok {
-		t.Fatalf("%q type = %T, want bool", disableResponseBodyKey, gotResponse)
+		t.Fatalf("%q type = %T, want bool", common.DisableResponseBodyKey, gotResponse)
 	}
 	if disabledResponse {
-		t.Fatalf("%q = %v, want false", disableResponseBodyKey, disabledResponse)
+		t.Fatalf("%q = %v, want false", common.DisableResponseBodyKey, disabledResponse)
 	}
 }
 
@@ -258,22 +259,22 @@ func TestDisableTraceBody(t *testing.T) {
 			ctxLogger := builder.New(c.Request.Context())
 			c.Request = c.Request.WithContext(ctxLogger)
 
-			if _, ok := ctxLogger.Get(string(disableTraceRequestBodyKey)); ok {
-				t.Fatalf("did not expect %q before calling DisableTraceBody", disableTraceRequestBodyKey)
+			if _, ok := ctxLogger.Get(string(common.DisableTraceRequestBodyKey)); ok {
+				t.Fatalf("did not expect %q before calling DisableTraceBody", common.DisableTraceRequestBodyKey)
 			}
-			if _, ok := ctxLogger.Get(string(disableTraceResponseBodyKey)); ok {
-				t.Fatalf("did not expect %q before calling DisableTraceBody", disableTraceResponseBodyKey)
+			if _, ok := ctxLogger.Get(string(common.DisableTraceResponseBodyKey)); ok {
+				t.Fatalf("did not expect %q before calling DisableTraceBody", common.DisableTraceResponseBodyKey)
 			}
 
 			DisableTraceBody(c, tt.disableRequestBody, tt.disableResponseBody)
 
-			gotRequestFlag, ok := ctxLogger.Get(string(disableTraceRequestBodyKey))
+			gotRequestFlag, ok := ctxLogger.Get(string(common.DisableTraceRequestBodyKey))
 			if !ok || gotRequestFlag != tt.disableRequestBody {
-				t.Fatalf("%q = %#v, want %#v", disableTraceRequestBodyKey, gotRequestFlag, tt.disableRequestBody)
+				t.Fatalf("%q = %#v, want %#v", common.DisableTraceRequestBodyKey, gotRequestFlag, tt.disableRequestBody)
 			}
-			gotResponseFlag, ok := ctxLogger.Get(string(disableTraceResponseBodyKey))
+			gotResponseFlag, ok := ctxLogger.Get(string(common.DisableTraceResponseBodyKey))
 			if !ok || gotResponseFlag != tt.disableResponseBody {
-				t.Fatalf("%q = %#v, want %#v", disableTraceResponseBodyKey, gotResponseFlag, tt.disableResponseBody)
+				t.Fatalf("%q = %#v, want %#v", common.DisableTraceResponseBodyKey, gotResponseFlag, tt.disableResponseBody)
 			}
 
 			process := &formatter.Service{
@@ -478,36 +479,36 @@ func TestLoggerWithConfig_BodyHandling(t *testing.T) {
 			r.Use(func(c *gin.Context) {
 				c.Next()
 
-				v, ok := c.Get(disableRequestBodyKey)
+				v, ok := c.Get(common.DisableRequestBodyKey)
 				gotDisableRequestKey = ok
 				if ok {
 					boolValue, typeOK := v.(bool)
 					if !typeOK {
-						t.Fatalf("%q type = %T, want bool", disableRequestBodyKey, v)
+						t.Fatalf("%q type = %T, want bool", common.DisableRequestBodyKey, v)
 					}
 					gotDisableRequestValue = boolValue
 				}
 
-				v, ok = c.Get(disableResponseBodyKey)
+				v, ok = c.Get(common.DisableResponseBodyKey)
 				gotDisableResponseKey = ok
 				if ok {
 					boolValue, typeOK := v.(bool)
 					if !typeOK {
-						t.Fatalf("%q type = %T, want bool", disableResponseBodyKey, v)
+						t.Fatalf("%q type = %T, want bool", common.DisableResponseBodyKey, v)
 					}
 					gotDisableResponseValue = boolValue
 				}
 
 				ctxLogger := builder.New(c.Request.Context())
-				detailsAny, ok := ctxLogger.Get(detailsKey)
+				detailsAny, ok := ctxLogger.Get(common.DetailsKey)
 				if !ok {
-					t.Fatalf("expected %q in logger context", detailsKey)
+					t.Fatalf("expected %q in logger context", common.DetailsKey)
 				}
 
 				var castOK bool
 				gotDetails, castOK = detailsAny.(formatter.Details)
 				if !castOK {
-					t.Fatalf("%q type = %T, want formatter.Details", detailsKey, detailsAny)
+					t.Fatalf("%q type = %T, want formatter.Details", common.DetailsKey, detailsAny)
 				}
 			})
 			r.Use(InitLogger())
@@ -532,22 +533,22 @@ func TestLoggerWithConfig_BodyHandling(t *testing.T) {
 			}
 
 			if !gotDisableRequestKey && tt.wantDisableRequestKey {
-				t.Fatalf("expected %q to be present", disableRequestBodyKey)
+				t.Fatalf("expected %q to be present", common.DisableRequestBodyKey)
 			}
 			if gotDisableRequestKey != tt.wantDisableRequestKey {
-				t.Fatalf("%q presence = %v, want %v", disableRequestBodyKey, gotDisableRequestKey, tt.wantDisableRequestKey)
+				t.Fatalf("%q presence = %v, want %v", common.DisableRequestBodyKey, gotDisableRequestKey, tt.wantDisableRequestKey)
 			}
 			if gotDisableRequestValue != tt.wantDisableRequestValue {
-				t.Fatalf("%q value = %v, want %v", disableRequestBodyKey, gotDisableRequestValue, tt.wantDisableRequestValue)
+				t.Fatalf("%q value = %v, want %v", common.DisableRequestBodyKey, gotDisableRequestValue, tt.wantDisableRequestValue)
 			}
 			if !gotDisableResponseKey && tt.wantDisableResponseKey {
-				t.Fatalf("expected %q to be present", disableResponseBodyKey)
+				t.Fatalf("expected %q to be present", common.DisableResponseBodyKey)
 			}
 			if gotDisableResponseKey != tt.wantDisableResponseKey {
-				t.Fatalf("%q presence = %v, want %v", disableResponseBodyKey, gotDisableResponseKey, tt.wantDisableResponseKey)
+				t.Fatalf("%q presence = %v, want %v", common.DisableResponseBodyKey, gotDisableResponseKey, tt.wantDisableResponseKey)
 			}
 			if gotDisableResponseValue != tt.wantDisableResponseValue {
-				t.Fatalf("%q value = %v, want %v", disableResponseBodyKey, gotDisableResponseValue, tt.wantDisableResponseValue)
+				t.Fatalf("%q value = %v, want %v", common.DisableResponseBodyKey, gotDisableResponseValue, tt.wantDisableResponseValue)
 			}
 			if gotDetails.Request != tt.wantRequest {
 				t.Fatalf("details.request = %#v, want %#v", gotDetails.Request, tt.wantRequest)
@@ -565,28 +566,28 @@ func TestPrintInfo(t *testing.T) {
 
 	PrintInfo(ctx, "info message")
 
-	method, ok := ctx.Get(methodKey)
+	method, ok := ctx.Get(common.MethodKey)
 	if !ok {
-		t.Fatalf("expected %q to be set", methodKey)
+		t.Fatalf("expected %q to be set", common.MethodKey)
 	}
 	methodValue, ok := method.(string)
 	if !ok {
-		t.Fatalf("%q type = %T, want string", methodKey, method)
+		t.Fatalf("%q type = %T, want string", common.MethodKey, method)
 	}
 	if !strings.HasSuffix(methodValue, "PrintInfo") {
-		t.Fatalf("%q = %q, want suffix %q", methodKey, methodValue, "PrintInfo")
+		t.Fatalf("%q = %q, want suffix %q", common.MethodKey, methodValue, "PrintInfo")
 	}
 
-	line, ok := ctx.Get(lineKey)
+	line, ok := ctx.Get(common.LineKey)
 	if !ok {
-		t.Fatalf("expected %q to be set", lineKey)
+		t.Fatalf("expected %q to be set", common.LineKey)
 	}
 	lineValue, ok := line.(int)
 	if !ok {
-		t.Fatalf("%q type = %T, want int", lineKey, line)
+		t.Fatalf("%q type = %T, want int", common.LineKey, line)
 	}
 	if lineValue <= 0 {
-		t.Fatalf("%q = %d, want > 0", lineKey, lineValue)
+		t.Fatalf("%q = %d, want > 0", common.LineKey, lineValue)
 	}
 
 	level, ok := ctx.Get(formatter.InfoLevel)
@@ -604,28 +605,28 @@ func TestPrintDebug(t *testing.T) {
 
 	PrintDebug(ctx, "debug message")
 
-	method, ok := ctx.Get(methodKey)
+	method, ok := ctx.Get(common.MethodKey)
 	if !ok {
-		t.Fatalf("expected %q to be set", methodKey)
+		t.Fatalf("expected %q to be set", common.MethodKey)
 	}
 	methodValue, ok := method.(string)
 	if !ok {
-		t.Fatalf("%q type = %T, want string", methodKey, method)
+		t.Fatalf("%q type = %T, want string", common.MethodKey, method)
 	}
 	if !strings.HasSuffix(methodValue, "PrintDebug") {
-		t.Fatalf("%q = %q, want suffix %q", methodKey, methodValue, "PrintDebug")
+		t.Fatalf("%q = %q, want suffix %q", common.MethodKey, methodValue, "PrintDebug")
 	}
 
-	line, ok := ctx.Get(lineKey)
+	line, ok := ctx.Get(common.LineKey)
 	if !ok {
-		t.Fatalf("expected %q to be set", lineKey)
+		t.Fatalf("expected %q to be set", common.LineKey)
 	}
 	lineValue, ok := line.(int)
 	if !ok {
-		t.Fatalf("%q type = %T, want int", lineKey, line)
+		t.Fatalf("%q type = %T, want int", common.LineKey, line)
 	}
 	if lineValue <= 0 {
-		t.Fatalf("%q = %d, want > 0", lineKey, lineValue)
+		t.Fatalf("%q = %d, want > 0", common.LineKey, lineValue)
 	}
 
 	level, ok := ctx.Get(formatter.DebugLevel)
@@ -643,28 +644,28 @@ func TestPrintWarn(t *testing.T) {
 
 	PrintWarn(ctx, "warn message")
 
-	method, ok := ctx.Get(methodKey)
+	method, ok := ctx.Get(common.MethodKey)
 	if !ok {
-		t.Fatalf("expected %q to be set", methodKey)
+		t.Fatalf("expected %q to be set", common.MethodKey)
 	}
 	methodValue, ok := method.(string)
 	if !ok {
-		t.Fatalf("%q type = %T, want string", methodKey, method)
+		t.Fatalf("%q type = %T, want string", common.MethodKey, method)
 	}
 	if !strings.HasSuffix(methodValue, "PrintWarn") {
-		t.Fatalf("%q = %q, want suffix %q", methodKey, methodValue, "PrintWarn")
+		t.Fatalf("%q = %q, want suffix %q", common.MethodKey, methodValue, "PrintWarn")
 	}
 
-	line, ok := ctx.Get(lineKey)
+	line, ok := ctx.Get(common.LineKey)
 	if !ok {
-		t.Fatalf("expected %q to be set", lineKey)
+		t.Fatalf("expected %q to be set", common.LineKey)
 	}
 	lineValue, ok := line.(int)
 	if !ok {
-		t.Fatalf("%q type = %T, want int", lineKey, line)
+		t.Fatalf("%q type = %T, want int", common.LineKey, line)
 	}
 	if lineValue <= 0 {
-		t.Fatalf("%q = %d, want > 0", lineKey, lineValue)
+		t.Fatalf("%q = %d, want > 0", common.LineKey, lineValue)
 	}
 
 	level, ok := ctx.Get(formatter.WarnLevel)
@@ -683,28 +684,28 @@ func TestPrintError(t *testing.T) {
 
 	PrintError(ctx, wantErr)
 
-	method, ok := ctx.Get(methodKey)
+	method, ok := ctx.Get(common.MethodKey)
 	if !ok {
-		t.Fatalf("expected %q to be set", methodKey)
+		t.Fatalf("expected %q to be set", common.MethodKey)
 	}
 	methodValue, ok := method.(string)
 	if !ok {
-		t.Fatalf("%q type = %T, want string", methodKey, method)
+		t.Fatalf("%q type = %T, want string", common.MethodKey, method)
 	}
 	if !strings.HasSuffix(methodValue, "PrintError") {
-		t.Fatalf("%q = %q, want suffix %q", methodKey, methodValue, "PrintError")
+		t.Fatalf("%q = %q, want suffix %q", common.MethodKey, methodValue, "PrintError")
 	}
 
-	line, ok := ctx.Get(lineKey)
+	line, ok := ctx.Get(common.LineKey)
 	if !ok {
-		t.Fatalf("expected %q to be set", lineKey)
+		t.Fatalf("expected %q to be set", common.LineKey)
 	}
 	lineValue, ok := line.(int)
 	if !ok {
-		t.Fatalf("%q type = %T, want int", lineKey, line)
+		t.Fatalf("%q type = %T, want int", common.LineKey, line)
 	}
 	if lineValue <= 0 {
-		t.Fatalf("%q = %d, want > 0", lineKey, lineValue)
+		t.Fatalf("%q = %d, want > 0", common.LineKey, lineValue)
 	}
 
 	level, ok := ctx.Get(formatter.ErrorLevel)

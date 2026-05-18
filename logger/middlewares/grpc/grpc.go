@@ -1,7 +1,7 @@
 // Copyright 2026 PointerByte Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-package middlewares
+package grpc
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/PointerByte/GoForge/logger/builder"
 	"github.com/PointerByte/GoForge/logger/formatter"
+	"github.com/PointerByte/GoForge/logger/middlewares/common"
 	"github.com/PointerByte/GoForge/logger/utilities"
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"go.opentelemetry.io/otel"
@@ -115,9 +116,9 @@ func InitLoggerStreamServerInterceptor() grpc.StreamServerInterceptor {
 func CaptureBodyUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		ctxLogger := builder.New(ctx)
-		ctxLogger.Set(requestBodyKey, req)
+		ctxLogger.Set(common.RequestbodyKey, req)
 		resp, err := handler(ctxLogger, req)
-		ctxLogger.Set(responseBodyKey, resp)
+		ctxLogger.Set(common.ResponsebodyKey, resp)
 		return resp, err
 	}
 }
@@ -137,8 +138,8 @@ func CaptureBodyStreamServerInterceptor() grpc.StreamServerInterceptor {
 		}
 
 		err := handler(srv, captureStream)
-		ctxLogger.Set(requestBodyKey, collapseCapturedBodies(captureStream.requests))
-		ctxLogger.Set(responseBodyKey, collapseCapturedBodies(captureStream.responses))
+		ctxLogger.Set(common.RequestbodyKey, collapseCapturedBodies(captureStream.requests))
+		ctxLogger.Set(common.ResponsebodyKey, collapseCapturedBodies(captureStream.responses))
 		return err
 	}
 }
@@ -152,8 +153,8 @@ func CaptureBodyStreamServerInterceptor() grpc.StreamServerInterceptor {
 // logger and the return value is mostly useful for chaining.
 func DisableGRPCBody(ctx context.Context, disableRequestBody bool, disableResponseBody bool) context.Context {
 	ctxLogger := builder.New(ctx)
-	ctxLogger.Set(string(disableRequestBodyKey), disableRequestBody)
-	ctxLogger.Set(string(disableResponseBodyKey), disableResponseBody)
+	ctxLogger.Set(string(common.DisableRequestBodyKey), disableRequestBody)
+	ctxLogger.Set(string(common.DisableResponseBodyKey), disableResponseBody)
 	return ctxLogger
 }
 
@@ -162,8 +163,8 @@ func DisableGRPCBody(ctx context.Context, disableRequestBody bool, disableRespon
 // trace inside a gRPC request.
 func DisableGRPCTraceBody(ctx context.Context, disableRequestBody bool, disableResponseBody bool) context.Context {
 	ctxLogger := builder.New(ctx)
-	ctxLogger.Set(string(disableTraceRequestBodyKey), disableRequestBody)
-	ctxLogger.Set(string(disableTraceResponseBodyKey), disableResponseBody)
+	ctxLogger.Set(string(common.DisableTraceRequestBodyKey), disableRequestBody)
+	ctxLogger.Set(string(common.DisableTraceResponseBodyKey), disableResponseBody)
 	return ctxLogger
 }
 
@@ -233,7 +234,7 @@ func newGRPCLoggerContext(parent context.Context, incoming context.Context) (con
 
 	traceID := span.SpanContext().TraceID()
 	if traceID.IsValid() {
-		ctxLogger.Set(traceIDKey, traceID.String())
+		ctxLogger.Set(common.TraceIDKey, traceID.String())
 	}
 
 	details := formatter.Details{
@@ -248,7 +249,7 @@ func newGRPCLoggerContext(parent context.Context, incoming context.Context) (con
 	}
 
 	ctxLogger.Details = details
-	ctxLogger.Set(detailsKey, details)
+	ctxLogger.Set(common.DetailsKey, details)
 	return ctxLogger, span
 }
 
@@ -277,15 +278,15 @@ func collapseCapturedBodies(items []any) any {
 }
 
 func applyGRPCBodyDetails(ctxLogger *builder.Context) {
-	includeRequest := shouldIncludeGRPCBody(ctxLogger, disableRequestBodyKey)
-	includeResponse := shouldIncludeGRPCBody(ctxLogger, disableResponseBodyKey)
+	includeRequest := shouldIncludeGRPCBody(ctxLogger, common.DisableRequestBodyKey)
+	includeResponse := shouldIncludeGRPCBody(ctxLogger, common.DisableResponseBodyKey)
 	if !includeRequest && !includeResponse {
 		return
 	}
 
 	details := ctxLogger.Details
 	if details.System == "" {
-		detailsAny, ok := ctxLogger.Get(detailsKey)
+		detailsAny, ok := ctxLogger.Get(common.DetailsKey)
 		if !ok {
 			return
 		}
@@ -295,17 +296,17 @@ func applyGRPCBodyDetails(ctxLogger *builder.Context) {
 		}
 		details = castDetails
 	}
-	if requestBody, ok := ctxLogger.Get(requestBodyKey); includeRequest && ok {
+	if requestBody, ok := ctxLogger.Get(common.RequestbodyKey); includeRequest && ok {
 		details.Request = requestBody
 	}
-	if responseBody, ok := ctxLogger.Get(responseBodyKey); includeResponse && ok {
+	if responseBody, ok := ctxLogger.Get(common.ResponsebodyKey); includeResponse && ok {
 		details.Response = responseBody
 	}
 	ctxLogger.Details = details
-	ctxLogger.Set(detailsKey, details)
+	ctxLogger.Set(common.DetailsKey, details)
 }
 
-func shouldIncludeGRPCBody(ctxLogger *builder.Context, key keyContex) bool {
+func shouldIncludeGRPCBody(ctxLogger *builder.Context, key common.KeyContex) bool {
 	v, ok := ctxLogger.Get(key)
 	if !ok {
 		v, ok = ctxLogger.Get(string(key))
@@ -317,6 +318,34 @@ func shouldIncludeGRPCBody(ctxLogger *builder.Context, key keyContex) bool {
 	return typeOK && !disabled
 }
 
+// PrintInfo schedules an info-level log message for the current gRPC request
+// and stores caller metadata so the final logger interceptor can emit it.
+func PrintInfo(ctxLogger *builder.Context, message string) {
+	ctxLogger.Method, ctxLogger.Line = utilities.TraceCaller(ctxLogger.GetTraceCallerSkip())
+	ctxLogger.Set(formatter.InfoLevel, message)
+}
+
+// PrintDebug schedules a debug-level log message for the current gRPC request
+// and stores caller metadata so the final logger interceptor can emit it.
+func PrintDebug(ctxLogger *builder.Context, message string) {
+	ctxLogger.Method, ctxLogger.Line = utilities.TraceCaller(ctxLogger.GetTraceCallerSkip())
+	ctxLogger.Set(formatter.DebugLevel, message)
+}
+
+// PrintWarn schedules a warn-level log message for the current gRPC request
+// and stores caller metadata so the final logger interceptor can emit it.
+func PrintWarn(ctxLogger *builder.Context, message string) {
+	ctxLogger.Method, ctxLogger.Line = utilities.TraceCaller(ctxLogger.GetTraceCallerSkip())
+	ctxLogger.Set(formatter.WarnLevel, message)
+}
+
+// PrintError schedules an error-level log message for the current gRPC request
+// and stores caller metadata so the final logger interceptor can emit it.
+func PrintError(ctxLogger *builder.Context, err error) {
+	ctxLogger.Method, ctxLogger.Line = utilities.TraceCaller(ctxLogger.GetTraceCallerSkip())
+	ctxLogger.Set(formatter.ErrorLevel, err)
+}
+
 func writeGRPCLog(ctxLogger *builder.Context, fullMethod string, err error) {
 	if !viperdata.GetViperData(string(viperdata.GRPCLoggerWithConfigEnabledAtribute)).(bool) {
 		return
@@ -325,7 +354,6 @@ func writeGRPCLog(ctxLogger *builder.Context, fullMethod string, err error) {
 		return
 	}
 
-	ctxLogger.Method, ctxLogger.Line = utilities.TraceCaller(ctxLogger.GetTraceCallerSkip())
 	if value, ok := ctxLogger.Get(formatter.InfoLevel); ok {
 		if msg, castOK := value.(string); castOK {
 			ctxLogger.Info(msg)

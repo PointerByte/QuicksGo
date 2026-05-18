@@ -13,7 +13,7 @@ import (
 
 	clientHttp "github.com/PointerByte/GoForge/config/client/http"
 	"github.com/PointerByte/GoForge/logger/builder"
-	"github.com/PointerByte/GoForge/logger/middlewares"
+	httpMiddlewaresLogger "github.com/PointerByte/GoForge/logger/middlewares/http"
 	"github.com/PointerByte/GoForge/tools/jobs"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -93,7 +93,7 @@ func refresh() gin.HandlerFunc {
 		restartJobs()
 		for _, fn := range functionsRefresh {
 			if err := fn(); err != nil {
-				middlewares.PrintError(c, err)
+				httpMiddlewaresLogger.PrintError(c, err)
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"action":  "Internal server error; please check",
 					"mensaje": "Error to refresh start functions",
@@ -103,14 +103,14 @@ func refresh() gin.HandlerFunc {
 		}
 		basePath := strings.TrimSuffix(c.FullPath(), "/refresh")
 		if err := sendRefreshToTask(c, ctxLogger, basePath); err != nil {
-			middlewares.PrintError(c, err)
+			httpMiddlewaresLogger.PrintError(c, err)
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"action":  "Internal server error; please check",
 				"mensaje": "Error retrieving the hosts from tasks",
 			})
 			return
 		}
-		middlewares.PrintInfo(c, "Operation Success")
+		httpMiddlewaresLogger.PrintInfo(c, "Operation Success")
 		c.JSON(http.StatusOK, gin.H{
 			"action":  "The hosts have been updated",
 			"mensaje": "All tasks have been updated",

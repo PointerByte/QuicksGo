@@ -38,6 +38,10 @@ server:
       SkipPaths:
         - /health
       SkipQueryString: false
+  grpc:
+    LoggerWithConfig:
+      enabled: true
+      SkipFunction: []
 
 logger:
   dir: logs
@@ -63,6 +67,8 @@ Main keys:
 - `server.gin.LoggerWithConfig.enabled`: enables final Gin request logs
 - `server.gin.LoggerWithConfig.SkipPaths`: request paths skipped by Gin logging
 - `server.gin.LoggerWithConfig.SkipQueryString`: omits query strings from logged paths
+- `server.grpc.LoggerWithConfig.enabled`: enables final gRPC request logs
+- `server.grpc.LoggerWithConfig.SkipFunction`: gRPC methods skipped by name (`SayHello`) or full method (`/pkg.Service/SayHello`)
 - `logger.dir`: directory where the log file is created by callers that use this key
 - `logger.modeTest`: suppresses logger output and trace collection in test mode
 - `logger.level`: `debug`, `info`, `warn`, or `error`
@@ -120,7 +126,7 @@ package main
 import (
 	"net/http"
 
-	logmiddlewares "github.com/PointerByte/GoForge/logger/middlewares"
+	httpmiddlewares "github.com/PointerByte/GoForge/logger/middlewares/http"
 	"github.com/gin-gonic/gin"
 )
 
@@ -128,13 +134,13 @@ func main() {
 	engine := gin.New()
 	engine.Use(
 		gin.Recovery(),
-		logmiddlewares.InitLogger(),
-		logmiddlewares.LoggerWithConfig(),
-		logmiddlewares.CaptureBody(),
+		httpmiddlewares.InitLogger(),
+		httpmiddlewares.LoggerWithConfig(),
+		httpmiddlewares.CaptureBody(),
 	)
 
 	engine.GET("/health", func(c *gin.Context) {
-		logmiddlewares.PrintInfo(c, "health check")
+		httpmiddlewares.PrintInfo(c, "health check")
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 }
@@ -153,16 +159,18 @@ schedule a request-scoped log message from inside Gin handlers.
 ## gRPC Interceptors
 
 ```go
+import loggrpc "github.com/PointerByte/GoForge/logger/middlewares/grpc"
+
 grpcServer := grpc.NewServer(
 	grpc.ChainUnaryInterceptor(
-		logmiddlewares.InitLoggerUnaryServerInterceptor(),
-		logmiddlewares.LoggerWithConfigUnaryServerInterceptor(),
-		logmiddlewares.CaptureBodyUnaryServerInterceptor(),
+		loggrpc.InitLoggerUnaryServerInterceptor(),
+		loggrpc.LoggerWithConfigUnaryServerInterceptor(),
+		loggrpc.CaptureBodyUnaryServerInterceptor(),
 	),
 	grpc.ChainStreamInterceptor(
-		logmiddlewares.InitLoggerStreamServerInterceptor(),
-		logmiddlewares.LoggerWithConfigStreamServerInterceptor(),
-		logmiddlewares.CaptureBodyStreamServerInterceptor(),
+		loggrpc.InitLoggerStreamServerInterceptor(),
+		loggrpc.LoggerWithConfigStreamServerInterceptor(),
+		loggrpc.CaptureBodyStreamServerInterceptor(),
 	),
 )
 ```
@@ -171,6 +179,10 @@ The interceptors mirror the Gin middleware behavior for unary and streaming
 RPCs: they build the request-scoped logger context, capture request/response
 payloads, copy metadata into structured details, and write the final log when
 the handler completes.
+
+Use `loggrpc.PrintInfo`, `PrintDebug`, `PrintWarn`, or `PrintError` with the
+request logger context when a handler needs to choose the final log level and
+message explicitly.
 
 When you use the root `config/server/grpc` package, these interceptors are
 installed for you.

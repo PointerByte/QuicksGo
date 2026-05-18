@@ -1,16 +1,14 @@
 // Copyright 2026 PointerByte Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-// Package middlewares provides HTTP and gRPC middleware used by the logger
-// module.
+// Package middlewares groups logger middleware subpackages.
 //
-// It creates request-scoped logger contexts, captures request and response
-// payloads when enabled, and emits structured logs enriched with distributed
-// tracing metadata.
+// Use the http subpackage for Gin middleware and the grpc subpackage for gRPC
+// server interceptors. Shared context keys live in the common subpackage.
 //
 // Main entry points:
-//   - InitLogger to initialize the request-scoped logger context for Gin
-//   - CaptureBody to capture HTTP request and response payloads
-//   - LoggerWithConfig to emit the final structured HTTP log entry
-//   - UnaryServerInterceptor and StreamServerInterceptor for gRPC logging
+//   - middlewares/http.InitLogger to initialize the request-scoped logger context for Gin
+//   - middlewares/http.LoggerWithConfig to emit the final structured HTTP log entry
+//   - middlewares/grpc.InitLoggerUnaryServerInterceptor for unary gRPC requests
+//   - middlewares/grpc.InitLoggerStreamServerInterceptor for streaming gRPC requests
 package middlewares

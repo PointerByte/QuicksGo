@@ -20,7 +20,7 @@ import (
 	"github.com/PointerByte/GoForge/config/utilities"
 	"github.com/PointerByte/GoForge/config/utilities/traces"
 	"github.com/PointerByte/GoForge/logger/builder"
-	middlewaresLogger "github.com/PointerByte/GoForge/logger/middlewares"
+	httpMiddlewaresLogger "github.com/PointerByte/GoForge/logger/middlewares/http"
 	"github.com/PointerByte/GoForge/security/middlewares"
 	"github.com/PointerByte/GoForge/tools/jobs"
 	"github.com/gin-contrib/cors"
@@ -294,9 +294,9 @@ func CreateApp() (*http.Server, error) {
 		limiter(),
 		middlewares.SecurityHeaders(),
 		traces.MiddlewareOtel(),
-		middlewaresLogger.InitLogger(),
-		middlewaresLogger.LoggerWithConfig(),
-		middlewaresLogger.CaptureBody(),
+		httpMiddlewaresLogger.InitLogger(),
+		httpMiddlewaresLogger.LoggerWithConfig(),
+		httpMiddlewaresLogger.CaptureBody(),
 	)
 	engine.UseH2C = viper.GetBool("server.gin.UseH2C")
 
