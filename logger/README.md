@@ -14,7 +14,9 @@ go get github.com/PointerByte/GoForge/logger
 ## Packages
 
 - `builder`: logger initialization, context-aware logging, and trace sections
-- `middlewares`: Gin middleware and gRPC interceptors
+- `common`: shared context keys used by HTTP and gRPC middleware
+- `middlewares/http`: Gin middleware
+- `middlewares/grpc`: gRPC interceptors
 - `formatter`: structured log models and formatter implementations
 - `viperData`: viper-backed configuration cache used by the logger
 - `utilities`: small caller-tracing helpers
@@ -140,6 +142,7 @@ func main() {
 	)
 
 	engine.GET("/health", func(c *gin.Context) {
+		httpmiddlewares.EnableBody(c, true, true)
 		httpmiddlewares.PrintInfo(c, "health check")
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
@@ -150,8 +153,9 @@ Middleware roles:
 
 - `InitLogger()` extracts distributed-tracing headers, creates a request-scoped logger context, and stores request metadata.
 - `LoggerWithConfig()` emits the final structured HTTP log entry through Gin's logger hook.
-- `CaptureBody()` captures request and response bodies so they can be included in `details.request` and `details.response`.
-- `DisableBody(c)` marks a request so captured bodies are omitted from the final log.
+- `CaptureBody()` captures request and response bodies only when body logging is enabled, so they can be included in `details.request` and `details.response` without storing disabled payloads.
+- `EnableBody(c, request, response)` opts the final HTTP request log into request and response body emission. Bodies are disabled by default.
+- `EnableTraceBody(c, request, response)` opts trace service entries into request and response body emission when `TraceEnd` is called. Trace bodies are disabled by default.
 
 The helper functions `PrintInfo`, `PrintDebug`, `PrintWarn`, and `PrintError`
 schedule a request-scoped log message from inside Gin handlers.
@@ -179,6 +183,15 @@ The interceptors mirror the Gin middleware behavior for unary and streaming
 RPCs: they build the request-scoped logger context, capture request/response
 payloads, copy metadata into structured details, and write the final log when
 the handler completes.
+
+Request and response bodies are disabled by default. Use
+`loggrpc.EnableBody(ctxLogger, true, true)` to include them in the final gRPC
+request log, and `loggrpc.EnableTraceBody(ctxLogger, true, true)` to include
+trace service bodies.
+
+Final gRPC request logging intentionally ignores `codes.Unauthenticated` and
+`codes.PermissionDenied` errors, so JWT authorization failures do not emit
+logger middleware logs.
 
 Use `loggrpc.PrintInfo`, `PrintDebug`, `PrintWarn`, or `PrintError` with the
 request logger context when a handler needs to choose the final log level and
@@ -223,6 +236,10 @@ process.Code = 200
 
 Common use cases are outbound HTTP/gRPC calls, provider SDK calls, and internal
 business steps that should appear under the same trace.
+
+Trace service request and response bodies are disabled by default. In Gin
+handlers use `httpmiddlewares.EnableTraceBody(c, true, true)`; in gRPC handlers
+use `loggrpc.EnableTraceBody(ctxLogger, true, true)`.
 
 ## Formatters
 

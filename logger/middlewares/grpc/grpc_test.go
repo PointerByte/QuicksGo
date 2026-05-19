@@ -191,6 +191,12 @@ func TestLoggerWithConfigUnaryOmitsBodiesWhenDisabled(t *testing.T) {
 	if details.Response != nil {
 		t.Fatalf("details.Response = %#v, want nil", details.Response)
 	}
+	if requestBody, ok := gotCtxLogger.Get(common.RequestbodyKey); ok {
+		t.Fatalf("request body was stored = %#v, want no stored body", requestBody)
+	}
+	if responseBody, ok := gotCtxLogger.Get(common.ResponsebodyKey); ok {
+		t.Fatalf("response body was stored = %#v, want no stored body", responseBody)
+	}
 }
 
 func TestDisableGRPCBody(t *testing.T) {
@@ -239,6 +245,12 @@ func TestDisableGRPCBody(t *testing.T) {
 	}
 	if details.Response != "response" {
 		t.Fatalf("details.Response = %#v, want %#v", details.Response, "response")
+	}
+	if requestBody, ok := gotCtxLogger.Get(common.RequestbodyKey); ok {
+		t.Fatalf("request body was stored = %#v, want no stored body", requestBody)
+	}
+	if responseBody, ok := gotCtxLogger.Get(common.ResponsebodyKey); !ok || responseBody != "response" {
+		t.Fatalf("response body stored = %#v, presence %v, want response", responseBody, ok)
 	}
 }
 
@@ -325,6 +337,7 @@ func TestCaptureBodyStreamServerInterceptor(t *testing.T) {
 		IsClientStream: true,
 	}, func(srv any, stream grpc.ServerStream) error {
 		gotCtxLogger = builder.New(stream.Context())
+		EnableBody(gotCtxLogger, true, true)
 		var first string
 		if err := stream.RecvMsg(&first); err != nil {
 			return err
@@ -374,7 +387,8 @@ func TestGRPCMetadataCarrier(t *testing.T) {
 }
 
 func TestGRPCCaptureStreamHelpers(t *testing.T) {
-	baseCtx := context.WithValue(context.Background(), "k", "v")
+	baseCtx := builder.New(context.WithValue(context.Background(), "k", "v"))
+	EnableBody(baseCtx, true, true)
 	stream := &grpcCaptureStream{
 		ServerStream: &fakeServerStream{
 			ctx:       baseCtx,

@@ -4,7 +4,8 @@
 // Package middlewares groups logger middleware subpackages.
 //
 // Use the http subpackage for Gin middleware and the grpc subpackage for gRPC
-// server interceptors. Shared context keys live in the common subpackage.
+// server interceptors. Shared context keys live in the root logger/common
+// package.
 //
 // Main entry points:
 //   - middlewares/http.InitLogger to initialize the request-scoped logger context for Gin

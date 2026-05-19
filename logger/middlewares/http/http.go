@@ -75,44 +75,89 @@ func InitLogger() gin.HandlerFunc {
 
 type responseBodyWriter struct {
 	gin.ResponseWriter
-	body *bytes.Buffer
+	body          *bytes.Buffer
+	shouldCapture func() bool
 }
 
 func (r responseBodyWriter) Write(b []byte) (int, error) {
-	r.body.Write(b)
+	if r.shouldCapture() {
+		r.body.Write(b)
+	}
 	return r.ResponseWriter.Write(b)
 }
 
-// CaptureBody captures the raw request and response bodies and stores
-// them in the gin.Context under requestBodyKey and responseBodyKey.
+func (r responseBodyWriter) WriteString(s string) (int, error) {
+	if r.shouldCapture() {
+		r.body.WriteString(s)
+	}
+	return r.ResponseWriter.WriteString(s)
+}
+
+type requestBodyCaptureReadCloser struct {
+	io.ReadCloser
+	body          *bytes.Buffer
+	shouldCapture func() bool
+}
+
+func (r *requestBodyCaptureReadCloser) Read(p []byte) (int, error) {
+	n, err := r.ReadCloser.Read(p)
+	if n > 0 && r.shouldCapture() {
+		r.body.Write(p[:n])
+	}
+	return n, err
+}
+
+// CaptureBody captures raw request and response bodies only when body logging
+// is enabled for the current request.
 //
-// This middleware only captures the payloads. Whether they are finally included
-// in details.request and details.response depends on MiddlewareLoggerWithConfig
-// and the values stored under disableRequestBodyKey and disableResponseBodyKey.
+// Request body capture is lazy: the middleware wraps the request body and only
+// stores bytes while the request body flag is enabled. If the handler enables
+// request body logging but does not read the body, the middleware drains the
+// remaining body after the handler completes so the final log can still include
+// it. When request or response body logging is disabled, no payload is stored in
+// gin.Context for that side.
 func CaptureBody() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// ---- Capturar request ----
-		var requestBody []byte
+		requestBody := &bytes.Buffer{}
+		var requestCapture *requestBodyCaptureReadCloser
 		if c.Request.Body != nil {
-			requestBody, _ = io.ReadAll(c.Request.Body)
-			c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
+			requestCapture = &requestBodyCaptureReadCloser{
+				ReadCloser:    c.Request.Body,
+				body:          requestBody,
+				shouldCapture: func() bool { return shouldCaptureGinBody(c, common.DisableRequestBodyKey) },
+			}
+			c.Request.Body = requestCapture
 		}
 
-		// ---- Capturar response ----
 		responseBody := &bytes.Buffer{}
 		writer := &responseBodyWriter{
 			ResponseWriter: c.Writer,
 			body:           responseBody,
+			shouldCapture:  func() bool { return shouldCaptureGinBody(c, common.DisableResponseBodyKey) },
 		}
 		c.Writer = writer
 
-		// continuar pipeline
 		c.Next()
 
-		// guardar en contexto
-		c.Set(common.RequestbodyKey, string(requestBody))
-		c.Set(common.ResponsebodyKey, responseBody.String())
+		if shouldCaptureGinBody(c, common.DisableRequestBodyKey) {
+			if requestCapture != nil {
+				_, _ = io.Copy(io.Discard, requestCapture)
+			}
+			c.Set(common.RequestbodyKey, requestBody.String())
+		}
+		if shouldCaptureGinBody(c, common.DisableResponseBodyKey) {
+			c.Set(common.ResponsebodyKey, responseBody.String())
+		}
 	}
+}
+
+func shouldCaptureGinBody(c *gin.Context, key common.KeyContex) bool {
+	value, ok := c.Get(key)
+	if !ok {
+		return false
+	}
+	disabled, ok := value.(bool)
+	return ok && !disabled
 }
 
 // LoggerWithConfig emits the final HTTP log entry using Gin's

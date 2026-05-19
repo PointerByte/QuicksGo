@@ -62,7 +62,7 @@ func (s *grpcCaptureStream) Context() context.Context {
 
 func (s *grpcCaptureStream) RecvMsg(m any) error {
 	err := s.ServerStream.RecvMsg(m)
-	if err == nil {
+	if err == nil && shouldIncludeGRPCBody(builder.New(s.ctx), common.DisableRequestBodyKey) {
 		s.requests = append(s.requests, m)
 	}
 	return err
@@ -72,7 +72,9 @@ func (s *grpcCaptureStream) SendMsg(m any) error {
 	if err := s.ServerStream.SendMsg(m); err != nil {
 		return err
 	}
-	s.responses = append(s.responses, m)
+	if shouldIncludeGRPCBody(builder.New(s.ctx), common.DisableResponseBodyKey) {
+		s.responses = append(s.responses, m)
+	}
 	return nil
 }
 
@@ -110,23 +112,28 @@ func InitLoggerStreamServerInterceptor() grpc.StreamServerInterceptor {
 	}
 }
 
-// CaptureBodyUnaryServerInterceptor stores the unary request and response
-// payloads in the logger context.
+// CaptureBodyUnaryServerInterceptor stores unary request and response payloads
+// in the logger context only when body logging is enabled.
 //
 // The captured values are later consumed by LoggerWithConfigUnaryServerInterceptor
 // to populate details.request and details.response when each body is enabled.
 func CaptureBodyUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		ctxLogger := builder.New(ctx)
-		ctxLogger.Set(common.RequestbodyKey, req)
 		resp, err := handler(ctxLogger, req)
-		ctxLogger.Set(common.ResponsebodyKey, resp)
+		if shouldIncludeGRPCBody(ctxLogger, common.DisableRequestBodyKey) {
+			ctxLogger.Set(common.RequestbodyKey, req)
+		}
+		if shouldIncludeGRPCBody(ctxLogger, common.DisableResponseBodyKey) {
+			ctxLogger.Set(common.ResponsebodyKey, resp)
+		}
 		return resp, err
 	}
 }
 
 // CaptureBodyStreamServerInterceptor captures inbound and outbound stream
-// messages and stores them in the logger context.
+// messages only while body logging is enabled, then stores the captured values
+// in the logger context.
 //
 // When only one request or response message is observed, the stored value is
 // that message directly. When multiple messages are exchanged, the stored value
@@ -140,8 +147,12 @@ func CaptureBodyStreamServerInterceptor() grpc.StreamServerInterceptor {
 		}
 
 		err := handler(srv, captureStream)
-		ctxLogger.Set(common.RequestbodyKey, collapseCapturedBodies(captureStream.requests))
-		ctxLogger.Set(common.ResponsebodyKey, collapseCapturedBodies(captureStream.responses))
+		if shouldIncludeGRPCBody(ctxLogger, common.DisableRequestBodyKey) {
+			ctxLogger.Set(common.RequestbodyKey, collapseCapturedBodies(captureStream.requests))
+		}
+		if shouldIncludeGRPCBody(ctxLogger, common.DisableResponseBodyKey) {
+			ctxLogger.Set(common.ResponsebodyKey, collapseCapturedBodies(captureStream.responses))
+		}
 		return err
 	}
 }

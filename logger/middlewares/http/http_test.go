@@ -75,22 +75,43 @@ func TestMiddlewareCaptureBody(t *testing.T) {
 		method              string
 		body                string
 		forceNilRequestBody bool
+		enableRequestBody   bool
+		enableResponseBody  bool
+		wantRequestKey      bool
+		wantResponseKey     bool
 		wantRequestBody     string
 		wantResponseBody    string
 	}{
 		{
-			name:             "capture request and response body",
-			method:           http.MethodPost,
-			body:             `{"name":"chaos"}`,
-			wantRequestBody:  `{"name":"chaos"}`,
-			wantResponseBody: `{"message":"ok"}`,
+			name:               "capture request and response body when enabled",
+			method:             http.MethodPost,
+			body:               `{"name":"chaos"}`,
+			enableRequestBody:  true,
+			enableResponseBody: true,
+			wantRequestKey:     true,
+			wantResponseKey:    true,
+			wantRequestBody:    `{"name":"chaos"}`,
+			wantResponseBody:   `{"message":"ok"}`,
 		},
 		{
 			name:                "capture when request body is nil",
 			method:              http.MethodGet,
 			forceNilRequestBody: true,
+			enableRequestBody:   true,
+			enableResponseBody:  true,
+			wantRequestKey:      true,
+			wantResponseKey:     true,
 			wantRequestBody:     "",
 			wantResponseBody:    `plain-response`,
+		},
+		{
+			name:               "does not store bodies when disabled",
+			method:             http.MethodPost,
+			body:               `{"name":"chaos"}`,
+			enableRequestBody:  false,
+			enableResponseBody: false,
+			wantRequestBody:    `{"name":"chaos"}`,
+			wantResponseBody:   `{"message":"ok"}`,
 		},
 	}
 
@@ -106,12 +127,12 @@ func TestMiddlewareCaptureBody(t *testing.T) {
 
 				var ok bool
 				gotRequestBody, ok = c.Get(common.RequestbodyKey)
-				if !ok {
+				if !ok && tt.wantRequestKey {
 					t.Fatalf("request body key %q was not set", common.RequestbodyKey)
 				}
 
 				gotResponseBody, ok = c.Get(common.ResponsebodyKey)
-				if !ok {
+				if !ok && tt.wantResponseKey {
 					t.Fatalf("response body key %q was not set", common.ResponsebodyKey)
 				}
 			})
@@ -119,6 +140,8 @@ func TestMiddlewareCaptureBody(t *testing.T) {
 			r.Use(CaptureBody())
 
 			r.Handle(tt.method, "/test", func(c *gin.Context) {
+				EnableBody(c, tt.enableRequestBody, tt.enableResponseBody)
+
 				if c.Request.Body != nil {
 					raw, err := io.ReadAll(c.Request.Body)
 					if err != nil {
@@ -157,12 +180,18 @@ func TestMiddlewareCaptureBody(t *testing.T) {
 				t.Fatalf("handlerSawBody = %q, want %q", handlerSawBody, tt.wantRequestBody)
 			}
 
-			if gotRequestBody != tt.wantRequestBody {
+			if tt.wantRequestKey && gotRequestBody != tt.wantRequestBody {
 				t.Fatalf("request body captured = %#v, want %#v", gotRequestBody, tt.wantRequestBody)
 			}
+			if !tt.wantRequestKey && gotRequestBody != nil {
+				t.Fatalf("request body captured = %#v, want nil", gotRequestBody)
+			}
 
-			if gotResponseBody != tt.wantResponseBody {
+			if tt.wantResponseKey && gotResponseBody != tt.wantResponseBody {
 				t.Fatalf("response body captured = %#v, want %#v", gotResponseBody, tt.wantResponseBody)
+			}
+			if !tt.wantResponseKey && gotResponseBody != nil {
+				t.Fatalf("response body captured = %#v, want nil", gotResponseBody)
 			}
 		})
 	}

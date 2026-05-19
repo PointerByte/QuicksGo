@@ -15,7 +15,7 @@
 // gin.Context, while MiddlewareLoggerWithConfig decides whether those payloads
 // are copied into the final structured log.
 //
-// To explicitly omit request and response bodies from the final log entry for a
-// given request, call DisableBody inside the Gin handler or in a middleware
-// that runs before the log formatter is executed.
+// Request and response bodies are omitted from final log entries by default.
+// To include them for a given request, use the HTTP or gRPC middleware helper
+// EnableBody before the log formatter is executed.
 package builder
