@@ -15,7 +15,6 @@ import (
 
 	"github.com/PointerByte/GoForge/logger/builder"
 	"github.com/PointerByte/GoForge/logger/formatter"
-	"github.com/PointerByte/GoForge/logger/middlewares"
 	"github.com/PointerByte/GoForge/logger/middlewares/common"
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/gin-gonic/gin"
@@ -388,7 +387,7 @@ func TestLoggerWithConfig_BodyHandling(t *testing.T) {
 			r.Use(CaptureBody())
 
 			r.POST("/test", func(c *gin.Context) {
-				middlewares.DisableBody(c, tt.disableRequestBody, tt.disableResponseBody)
+				DisableBody(c, tt.disableRequestBody, tt.disableResponseBody)
 
 				PrintInfo(c, "info message")
 				c.JSON(http.StatusOK, gin.H{"message": "Hello, World!"})
