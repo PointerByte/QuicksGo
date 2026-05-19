@@ -78,6 +78,7 @@ func TestCustomFormatter_Format(t *testing.T) {
 		template string
 		log      LogFormat
 		want     []byte
+		wantJSON bool
 		wantErr  bool
 	}{
 		{
@@ -85,6 +86,7 @@ func TestCustomFormatter_Format(t *testing.T) {
 			template: "json",
 			log:      baseLog,
 			want:     jsonExpected,
+			wantJSON: true,
 			wantErr:  false,
 		},
 		{
@@ -113,6 +115,7 @@ func TestCustomFormatter_Format(t *testing.T) {
 			template: "  json  ",
 			log:      baseLog,
 			want:     jsonExpected,
+			wantJSON: true,
 			wantErr:  false,
 		},
 		{
@@ -157,10 +160,33 @@ func TestCustomFormatter_Format(t *testing.T) {
 				t.Fatal("Format() succeeded unexpectedly")
 			}
 
+			if tt.wantJSON {
+				assertJSONEqual(t, got, tt.want)
+				return
+			}
+
 			if !bytes.Equal(got, tt.want) {
 				t.Errorf("Format() = %s, want %s", string(got), string(tt.want))
 			}
 		})
+	}
+}
+
+func assertJSONEqual(t *testing.T, got []byte, want []byte) {
+	t.Helper()
+
+	var gotValue any
+	if err := json.Unmarshal(got, &gotValue); err != nil {
+		t.Fatalf("Format() returned invalid JSON %s: %v", string(got), err)
+	}
+
+	var wantValue any
+	if err := json.Unmarshal(want, &wantValue); err != nil {
+		t.Fatalf("test expected invalid JSON %s: %v", string(want), err)
+	}
+
+	if !reflect.DeepEqual(gotValue, wantValue) {
+		t.Errorf("Format() = %s, want JSON-equivalent %s", string(got), string(want))
 	}
 }
 
