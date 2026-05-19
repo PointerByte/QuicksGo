@@ -9,34 +9,39 @@ import (
 	"testing"
 
 	"github.com/PointerByte/GoForge/logger/builder"
+	"github.com/PointerByte/GoForge/logger/common"
 	"github.com/PointerByte/GoForge/logger/formatter"
-	"github.com/PointerByte/GoForge/logger/middlewares/common"
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/spf13/viper"
 )
 
-func TestDisableBody(t *testing.T) {
+func TestEnableBody(t *testing.T) {
 	resetGRPCUtilitiesTestState(t)
 
 	tests := []struct {
-		name                string
-		disableRequestBody  bool
-		disableResponseBody bool
+		name               string
+		enableRequestBody  bool
+		enableResponseBody bool
 	}{
 		{
-			name:                "disables only request body",
-			disableRequestBody:  true,
-			disableResponseBody: false,
+			name:               "enables only request body",
+			enableRequestBody:  true,
+			enableResponseBody: false,
 		},
 		{
-			name:                "disables only response body",
-			disableRequestBody:  false,
-			disableResponseBody: true,
+			name:               "enables only response body",
+			enableRequestBody:  false,
+			enableResponseBody: true,
 		},
 		{
-			name:                "keeps both bodies",
-			disableRequestBody:  false,
-			disableResponseBody: false,
+			name:               "enables both bodies",
+			enableRequestBody:  true,
+			enableResponseBody: true,
+		},
+		{
+			name:               "disables both bodies",
+			enableRequestBody:  false,
+			enableResponseBody: false,
 		},
 	}
 
@@ -44,57 +49,66 @@ func TestDisableBody(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctxLogger := builder.New(context.Background())
 
-			if _, ok := ctxLogger.Get(common.DisableRequestBodyKey); ok {
-				t.Fatalf("did not expect %q before calling DisableBody", common.DisableRequestBodyKey)
+			if flag, ok := ctxLogger.Get(common.DisableRequestBodyKey); !ok || flag != true {
+				t.Fatalf("%q before EnableBody = %#v, want true", common.DisableRequestBodyKey, flag)
 			}
-			if _, ok := ctxLogger.Get(common.DisableResponseBodyKey); ok {
-				t.Fatalf("did not expect %q before calling DisableBody", common.DisableResponseBodyKey)
+			if flag, ok := ctxLogger.Get(common.DisableResponseBodyKey); !ok || flag != true {
+				t.Fatalf("%q before EnableBody = %#v, want true", common.DisableResponseBodyKey, flag)
 			}
 
-			DisableBody(ctxLogger, tt.disableRequestBody, tt.disableResponseBody)
+			EnableBody(ctxLogger, tt.enableRequestBody, tt.enableResponseBody)
 
 			requestFlag, ok := ctxLogger.Get(common.DisableRequestBodyKey)
-			if !ok || requestFlag != tt.disableRequestBody {
-				t.Fatalf("%q = %#v, want %#v", common.DisableRequestBodyKey, requestFlag, tt.disableRequestBody)
+			wantRequestFlag := !tt.enableRequestBody
+			if !ok || requestFlag != wantRequestFlag {
+				t.Fatalf("%q = %#v, want %#v", common.DisableRequestBodyKey, requestFlag, wantRequestFlag)
 			}
 			responseFlag, ok := ctxLogger.Get(common.DisableResponseBodyKey)
-			if !ok || responseFlag != tt.disableResponseBody {
-				t.Fatalf("%q = %#v, want %#v", common.DisableResponseBodyKey, responseFlag, tt.disableResponseBody)
+			wantResponseFlag := !tt.enableResponseBody
+			if !ok || responseFlag != wantResponseFlag {
+				t.Fatalf("%q = %#v, want %#v", common.DisableResponseBodyKey, responseFlag, wantResponseFlag)
 			}
 		})
 	}
 }
 
-func TestDisableTraceBody(t *testing.T) {
+func TestEnableTraceBody(t *testing.T) {
 	resetGRPCUtilitiesTestState(t)
 
 	tests := []struct {
-		name                string
-		disableRequestBody  bool
-		disableResponseBody bool
-		wantRequest         any
-		wantResponse        any
+		name               string
+		enableRequestBody  bool
+		enableResponseBody bool
+		wantRequest        any
+		wantResponse       any
 	}{
 		{
-			name:                "disables only trace request body",
-			disableRequestBody:  true,
-			disableResponseBody: false,
-			wantRequest:         nil,
-			wantResponse:        "trace-response",
+			name:               "enables only trace request body",
+			enableRequestBody:  true,
+			enableResponseBody: false,
+			wantRequest:        "trace-request",
+			wantResponse:       nil,
 		},
 		{
-			name:                "disables only trace response body",
-			disableRequestBody:  false,
-			disableResponseBody: true,
-			wantRequest:         "trace-request",
-			wantResponse:        nil,
+			name:               "enables only trace response body",
+			enableRequestBody:  false,
+			enableResponseBody: true,
+			wantRequest:        nil,
+			wantResponse:       "trace-response",
 		},
 		{
-			name:                "keeps both trace bodies",
-			disableRequestBody:  false,
-			disableResponseBody: false,
-			wantRequest:         "trace-request",
-			wantResponse:        "trace-response",
+			name:               "enables both trace bodies",
+			enableRequestBody:  true,
+			enableResponseBody: true,
+			wantRequest:        "trace-request",
+			wantResponse:       "trace-response",
+		},
+		{
+			name:               "disables both trace bodies",
+			enableRequestBody:  false,
+			enableResponseBody: false,
+			wantRequest:        nil,
+			wantResponse:       nil,
 		},
 	}
 
@@ -102,22 +116,24 @@ func TestDisableTraceBody(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctxLogger := builder.New(context.Background())
 
-			if _, ok := ctxLogger.Get(string(common.DisableTraceRequestBodyKey)); ok {
-				t.Fatalf("did not expect %q before calling DisableTraceBody", common.DisableTraceRequestBodyKey)
+			if flag, ok := ctxLogger.Get(common.DisableTraceRequestBodyKey); !ok || flag != true {
+				t.Fatalf("%q before EnableTraceBody = %#v, want true", common.DisableTraceRequestBodyKey, flag)
 			}
-			if _, ok := ctxLogger.Get(string(common.DisableTraceResponseBodyKey)); ok {
-				t.Fatalf("did not expect %q before calling DisableTraceBody", common.DisableTraceResponseBodyKey)
+			if flag, ok := ctxLogger.Get(common.DisableTraceResponseBodyKey); !ok || flag != true {
+				t.Fatalf("%q before EnableTraceBody = %#v, want true", common.DisableTraceResponseBodyKey, flag)
 			}
 
-			DisableTraceBody(ctxLogger, tt.disableRequestBody, tt.disableResponseBody)
+			EnableTraceBody(ctxLogger, tt.enableRequestBody, tt.enableResponseBody)
 
-			requestFlag, ok := ctxLogger.Get(string(common.DisableTraceRequestBodyKey))
-			if !ok || requestFlag != tt.disableRequestBody {
-				t.Fatalf("%q = %#v, want %#v", common.DisableTraceRequestBodyKey, requestFlag, tt.disableRequestBody)
+			requestFlag, ok := ctxLogger.Get(common.DisableTraceRequestBodyKey)
+			wantRequestFlag := !tt.enableRequestBody
+			if !ok || requestFlag != wantRequestFlag {
+				t.Fatalf("%q = %#v, want %#v", common.DisableTraceRequestBodyKey, requestFlag, wantRequestFlag)
 			}
-			responseFlag, ok := ctxLogger.Get(string(common.DisableTraceResponseBodyKey))
-			if !ok || responseFlag != tt.disableResponseBody {
-				t.Fatalf("%q = %#v, want %#v", common.DisableTraceResponseBodyKey, responseFlag, tt.disableResponseBody)
+			responseFlag, ok := ctxLogger.Get(common.DisableTraceResponseBodyKey)
+			wantResponseFlag := !tt.enableResponseBody
+			if !ok || responseFlag != wantResponseFlag {
+				t.Fatalf("%q = %#v, want %#v", common.DisableTraceResponseBodyKey, responseFlag, wantResponseFlag)
 			}
 
 			process := &formatter.Service{

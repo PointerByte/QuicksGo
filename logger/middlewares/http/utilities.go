@@ -5,28 +5,29 @@ package http
 
 import (
 	"github.com/PointerByte/GoForge/logger/builder"
-	"github.com/PointerByte/GoForge/logger/middlewares/common"
+	"github.com/PointerByte/GoForge/logger/common"
 	"github.com/gin-gonic/gin"
 )
 
-// DisableBody marks the current Gin request so MiddlewareLoggerWithConfig
-// omits request and response bodies from the final log entry.
+// EnableBody marks whether the final Gin request log should include request
+// and response bodies independently.
 //
-// Internally this stores independent request and response body flags in the
-// gin.Context so LoggerWithConfig can decide what to include.
-func DisableBody(ctx *gin.Context, disableRequestBody bool, disableResponseBody bool) {
-	ctx.Set(common.DisableRequestBodyKey, disableRequestBody)
-	ctx.Set(common.DisableResponseBodyKey, disableResponseBody)
+// Internally it stores the inverse disable flags in the gin.Context so
+// LoggerWithConfig can decide what to copy into details.request and
+// details.response.
+func EnableBody(ctx *gin.Context, enableRequestBody bool, enableResponseBody bool) {
+	ctx.Set(common.DisableRequestBodyKey, !enableRequestBody)
+	ctx.Set(common.DisableResponseBodyKey, !enableResponseBody)
 }
 
-// DisableTraceBody marks whether downstream trace services should omit their
+// EnableTraceBody marks whether downstream trace services should include their
 // request and response bodies when the current request-scoped logger finishes a
 // trace with builder.Context.TraceEnd.
 //
-// Unlike DisableBody, these flags are stored only in the logger context because
+// Unlike EnableBody, these flags are stored only in the logger context because
 // they control formatter.Service trace entries, not the final Gin access log.
-func DisableTraceBody(ctx *gin.Context, disableRequestBody bool, disableResponseBody bool) {
+func EnableTraceBody(ctx *gin.Context, enableRequestBody bool, enableResponseBody bool) {
 	ctxLogger := builder.New(ctx.Request.Context())
-	ctxLogger.Set(string(common.DisableTraceRequestBodyKey), disableRequestBody)
-	ctxLogger.Set(string(common.DisableTraceResponseBodyKey), disableResponseBody)
+	ctxLogger.Set(common.DisableTraceRequestBodyKey, !enableRequestBody)
+	ctxLogger.Set(common.DisableTraceResponseBodyKey, !enableResponseBody)
 }

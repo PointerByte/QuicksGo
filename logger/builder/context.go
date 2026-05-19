@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PointerByte/GoForge/logger/common"
 	"github.com/PointerByte/GoForge/logger/formatter"
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/google/uuid"
@@ -93,6 +94,12 @@ func New(parent context.Context) *Context {
 
 	// Save the *logger.Context* within the context for future retrieval
 	newContext.Context = context.WithValue(parent, loggerCtxKey, newContext)
+
+	// Default disable request and response bodies in traces and process for security and performance reasons.
+	newContext.Set(common.DisableTraceRequestBodyKey, true)
+	newContext.Set(common.DisableTraceResponseBodyKey, true)
+	newContext.Set(common.DisableRequestBodyKey, true)
+	newContext.Set(common.DisableResponseBodyKey, true)
 	return newContext
 }
 

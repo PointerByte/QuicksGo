@@ -14,8 +14,8 @@ import (
 	"testing"
 
 	"github.com/PointerByte/GoForge/logger/builder"
+	"github.com/PointerByte/GoForge/logger/common"
 	"github.com/PointerByte/GoForge/logger/formatter"
-	"github.com/PointerByte/GoForge/logger/middlewares/common"
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -283,8 +283,8 @@ func TestLoggerWithConfig_BodyHandling(t *testing.T) {
 
 	tests := []struct {
 		name                     string
-		disableRequestBody       bool
-		disableResponseBody      bool
+		enableRequestBody        bool
+		enableResponseBody       bool
 		wantDisableRequestKey    bool
 		wantDisableRequestValue  bool
 		wantDisableResponseKey   bool
@@ -293,18 +293,18 @@ func TestLoggerWithConfig_BodyHandling(t *testing.T) {
 		wantResponse             any
 	}{
 		{
-			name:                   "bodies are added to details when disable flags are false",
-			disableRequestBody:     false,
-			disableResponseBody:    false,
+			name:                   "bodies are added to details when enable flags are true",
+			enableRequestBody:      true,
+			enableResponseBody:     true,
 			wantDisableRequestKey:  true,
 			wantDisableResponseKey: true,
 			wantRequest:            `{"kind":"info"}`,
 			wantResponse:           `{"message":"Hello, World!"}`,
 		},
 		{
-			name:                     "bodies are omitted when DisableBody is used",
-			disableRequestBody:       true,
-			disableResponseBody:      true,
+			name:                     "bodies are omitted when EnableBody disables them",
+			enableRequestBody:        false,
+			enableResponseBody:       false,
 			wantDisableRequestKey:    true,
 			wantDisableRequestValue:  true,
 			wantDisableResponseKey:   true,
@@ -314,8 +314,8 @@ func TestLoggerWithConfig_BodyHandling(t *testing.T) {
 		},
 		{
 			name:                    "request and response bodies are controlled independently",
-			disableRequestBody:      true,
-			disableResponseBody:     false,
+			enableRequestBody:       false,
+			enableResponseBody:      true,
 			wantDisableRequestKey:   true,
 			wantDisableRequestValue: true,
 			wantDisableResponseKey:  true,
@@ -387,7 +387,7 @@ func TestLoggerWithConfig_BodyHandling(t *testing.T) {
 			r.Use(CaptureBody())
 
 			r.POST("/test", func(c *gin.Context) {
-				DisableBody(c, tt.disableRequestBody, tt.disableResponseBody)
+				EnableBody(c, tt.enableRequestBody, tt.enableResponseBody)
 
 				PrintInfo(c, "info message")
 				c.JSON(http.StatusOK, gin.H{"message": "Hello, World!"})

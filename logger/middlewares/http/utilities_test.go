@@ -9,27 +9,27 @@ import (
 	"testing"
 
 	"github.com/PointerByte/GoForge/logger/builder"
+	"github.com/PointerByte/GoForge/logger/common"
 	"github.com/PointerByte/GoForge/logger/formatter"
-	"github.com/PointerByte/GoForge/logger/middlewares/common"
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 )
 
-func TestDisableBody(t *testing.T) {
+func TestEnableBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest(http.MethodGet, "/test", nil)
 
 	if _, ok := c.Get(common.DisableRequestBodyKey); ok {
-		t.Fatalf("did not expect %q before calling DisableBody", common.DisableRequestBodyKey)
+		t.Fatalf("did not expect %q before calling EnableBody", common.DisableRequestBodyKey)
 	}
 	if _, ok := c.Get(common.DisableResponseBodyKey); ok {
-		t.Fatalf("did not expect %q before calling DisableBody", common.DisableResponseBodyKey)
+		t.Fatalf("did not expect %q before calling EnableBody", common.DisableResponseBodyKey)
 	}
 
-	DisableBody(c, true, false)
+	EnableBody(c, true, false)
 
 	gotRequest, ok := c.Get(common.DisableRequestBodyKey)
 	if !ok {
@@ -39,8 +39,8 @@ func TestDisableBody(t *testing.T) {
 	if !ok {
 		t.Fatalf("%q type = %T, want bool", common.DisableRequestBodyKey, gotRequest)
 	}
-	if !disabledRequest {
-		t.Fatalf("%q = %v, want true", common.DisableRequestBodyKey, disabledRequest)
+	if disabledRequest {
+		t.Fatalf("%q = %v, want false", common.DisableRequestBodyKey, disabledRequest)
 	}
 
 	gotResponse, ok := c.Get(common.DisableResponseBodyKey)
@@ -51,12 +51,12 @@ func TestDisableBody(t *testing.T) {
 	if !ok {
 		t.Fatalf("%q type = %T, want bool", common.DisableResponseBodyKey, gotResponse)
 	}
-	if disabledResponse {
-		t.Fatalf("%q = %v, want false", common.DisableResponseBodyKey, disabledResponse)
+	if !disabledResponse {
+		t.Fatalf("%q = %v, want true", common.DisableResponseBodyKey, disabledResponse)
 	}
 }
 
-func TestDisableTraceBody(t *testing.T) {
+func TestEnableTraceBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	viper.Reset()
 	viperdata.ResetViperDataSingleton()
@@ -70,32 +70,39 @@ func TestDisableTraceBody(t *testing.T) {
 	viper.Set(string(viperdata.LoggerIgnoredHeadersAtribute), []string{})
 
 	tests := []struct {
-		name                string
-		disableRequestBody  bool
-		disableResponseBody bool
-		wantRequest         any
-		wantResponse        any
+		name               string
+		enableRequestBody  bool
+		enableResponseBody bool
+		wantRequest        any
+		wantResponse       any
 	}{
 		{
-			name:                "disables only trace request body",
-			disableRequestBody:  true,
-			disableResponseBody: false,
-			wantRequest:         nil,
-			wantResponse:        "trace-response",
+			name:               "enables only trace request body",
+			enableRequestBody:  true,
+			enableResponseBody: false,
+			wantRequest:        "trace-request",
+			wantResponse:       nil,
 		},
 		{
-			name:                "disables only trace response body",
-			disableRequestBody:  false,
-			disableResponseBody: true,
-			wantRequest:         "trace-request",
-			wantResponse:        nil,
+			name:               "enables only trace response body",
+			enableRequestBody:  false,
+			enableResponseBody: true,
+			wantRequest:        nil,
+			wantResponse:       "trace-response",
 		},
 		{
-			name:                "keeps both trace bodies",
-			disableRequestBody:  false,
-			disableResponseBody: false,
-			wantRequest:         "trace-request",
-			wantResponse:        "trace-response",
+			name:               "enables both trace bodies",
+			enableRequestBody:  true,
+			enableResponseBody: true,
+			wantRequest:        "trace-request",
+			wantResponse:       "trace-response",
+		},
+		{
+			name:               "disables both trace bodies",
+			enableRequestBody:  false,
+			enableResponseBody: false,
+			wantRequest:        nil,
+			wantResponse:       nil,
 		},
 	}
 
@@ -107,22 +114,24 @@ func TestDisableTraceBody(t *testing.T) {
 			ctxLogger := builder.New(c.Request.Context())
 			c.Request = c.Request.WithContext(ctxLogger)
 
-			if _, ok := ctxLogger.Get(string(common.DisableTraceRequestBodyKey)); ok {
-				t.Fatalf("did not expect %q before calling DisableTraceBody", common.DisableTraceRequestBodyKey)
+			if flag, ok := ctxLogger.Get(common.DisableTraceRequestBodyKey); !ok || flag != true {
+				t.Fatalf("%q before EnableTraceBody = %#v, want true", common.DisableTraceRequestBodyKey, flag)
 			}
-			if _, ok := ctxLogger.Get(string(common.DisableTraceResponseBodyKey)); ok {
-				t.Fatalf("did not expect %q before calling DisableTraceBody", common.DisableTraceResponseBodyKey)
+			if flag, ok := ctxLogger.Get(common.DisableTraceResponseBodyKey); !ok || flag != true {
+				t.Fatalf("%q before EnableTraceBody = %#v, want true", common.DisableTraceResponseBodyKey, flag)
 			}
 
-			DisableTraceBody(c, tt.disableRequestBody, tt.disableResponseBody)
+			EnableTraceBody(c, tt.enableRequestBody, tt.enableResponseBody)
 
-			gotRequestFlag, ok := ctxLogger.Get(string(common.DisableTraceRequestBodyKey))
-			if !ok || gotRequestFlag != tt.disableRequestBody {
-				t.Fatalf("%q = %#v, want %#v", common.DisableTraceRequestBodyKey, gotRequestFlag, tt.disableRequestBody)
+			gotRequestFlag, ok := ctxLogger.Get(common.DisableTraceRequestBodyKey)
+			wantRequestFlag := !tt.enableRequestBody
+			if !ok || gotRequestFlag != wantRequestFlag {
+				t.Fatalf("%q = %#v, want %#v", common.DisableTraceRequestBodyKey, gotRequestFlag, wantRequestFlag)
 			}
-			gotResponseFlag, ok := ctxLogger.Get(string(common.DisableTraceResponseBodyKey))
-			if !ok || gotResponseFlag != tt.disableResponseBody {
-				t.Fatalf("%q = %#v, want %#v", common.DisableTraceResponseBodyKey, gotResponseFlag, tt.disableResponseBody)
+			gotResponseFlag, ok := ctxLogger.Get(common.DisableTraceResponseBodyKey)
+			wantResponseFlag := !tt.enableResponseBody
+			if !ok || gotResponseFlag != wantResponseFlag {
+				t.Fatalf("%q = %#v, want %#v", common.DisableTraceResponseBodyKey, gotResponseFlag, wantResponseFlag)
 			}
 
 			process := &formatter.Service{

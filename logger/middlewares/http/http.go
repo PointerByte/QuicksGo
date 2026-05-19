@@ -9,8 +9,8 @@ import (
 	"io"
 
 	"github.com/PointerByte/GoForge/logger/builder"
+	"github.com/PointerByte/GoForge/logger/common"
 	"github.com/PointerByte/GoForge/logger/formatter"
-	"github.com/PointerByte/GoForge/logger/middlewares/common"
 	"github.com/PointerByte/GoForge/logger/utilities"
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/gin-gonic/gin"
@@ -30,6 +30,11 @@ func InitLogger() gin.HandlerFunc {
 			propagation.HeaderCarrier(ctx.Request.Header),
 		)
 
+		// ---- Default disable request and response bodies ----
+		ctx.Set(common.DisableRequestBodyKey, true)
+		ctx.Set(common.DisableResponseBodyKey, true)
+
+		// ---- Create logger context with span ----
 		ctxLogger := builder.New(parent)
 		appName := viperdata.GetViperData(string(viperdata.AppAtribute)).(string)
 		tracer := otel.Tracer(appName)

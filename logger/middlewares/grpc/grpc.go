@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/PointerByte/GoForge/logger/builder"
+	"github.com/PointerByte/GoForge/logger/common"
 	"github.com/PointerByte/GoForge/logger/formatter"
-	"github.com/PointerByte/GoForge/logger/middlewares/common"
 	"github.com/PointerByte/GoForge/logger/utilities"
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"go.opentelemetry.io/otel"
@@ -155,8 +155,8 @@ func CaptureBodyStreamServerInterceptor() grpc.StreamServerInterceptor {
 // logger and the return value is mostly useful for chaining.
 func DisableGRPCBody(ctx context.Context, disableRequestBody bool, disableResponseBody bool) context.Context {
 	ctxLogger := builder.New(ctx)
-	ctxLogger.Set(string(common.DisableRequestBodyKey), disableRequestBody)
-	ctxLogger.Set(string(common.DisableResponseBodyKey), disableResponseBody)
+	ctxLogger.Set(common.DisableRequestBodyKey, disableRequestBody)
+	ctxLogger.Set(common.DisableResponseBodyKey, disableResponseBody)
 	return ctxLogger
 }
 
@@ -165,8 +165,8 @@ func DisableGRPCBody(ctx context.Context, disableRequestBody bool, disableRespon
 // trace inside a gRPC request.
 func DisableGRPCTraceBody(ctx context.Context, disableRequestBody bool, disableResponseBody bool) context.Context {
 	ctxLogger := builder.New(ctx)
-	ctxLogger.Set(string(common.DisableTraceRequestBodyKey), disableRequestBody)
-	ctxLogger.Set(string(common.DisableTraceResponseBodyKey), disableResponseBody)
+	ctxLogger.Set(common.DisableTraceRequestBodyKey, disableRequestBody)
+	ctxLogger.Set(common.DisableTraceResponseBodyKey, disableResponseBody)
 	return ctxLogger
 }
 
@@ -309,12 +309,12 @@ func applyGRPCBodyDetails(ctxLogger *builder.Context) {
 }
 
 func shouldIncludeGRPCBody(ctxLogger *builder.Context, key common.KeyContex) bool {
-	v, ok := ctxLogger.Get(key)
+	v, ok := ctxLogger.Get(string(key))
 	if !ok {
-		v, ok = ctxLogger.Get(string(key))
-		if !ok {
-			return false
-		}
+		v, ok = ctxLogger.Get(key)
+	}
+	if !ok {
+		return false
 	}
 	disabled, typeOK := v.(bool)
 	return typeOK && !disabled

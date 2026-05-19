@@ -12,8 +12,8 @@ import (
 	"testing"
 
 	"github.com/PointerByte/GoForge/logger/builder"
+	"github.com/PointerByte/GoForge/logger/common"
 	"github.com/PointerByte/GoForge/logger/formatter"
-	"github.com/PointerByte/GoForge/logger/middlewares/common"
 	viperdata "github.com/PointerByte/GoForge/logger/viperData"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -220,11 +220,11 @@ func TestDisableGRPCBody(t *testing.T) {
 		t.Fatalf("response = %#v, want %#v", resp, "response")
 	}
 
-	requestFlag, ok := gotCtxLogger.Get(string(common.DisableRequestBodyKey))
+	requestFlag, ok := gotCtxLogger.Get(common.DisableRequestBodyKey)
 	if !ok || requestFlag != true {
 		t.Fatalf("%q = %#v, want true", common.DisableRequestBodyKey, requestFlag)
 	}
-	responseFlag, ok := gotCtxLogger.Get(string(common.DisableResponseBodyKey))
+	responseFlag, ok := gotCtxLogger.Get(common.DisableResponseBodyKey)
 	if !ok || responseFlag != false {
 		t.Fatalf("%q = %#v, want false", common.DisableResponseBodyKey, responseFlag)
 	}
@@ -281,11 +281,11 @@ func TestDisableGRPCTraceBody(t *testing.T) {
 			ctx := DisableGRPCTraceBody(ctxLogger, tt.disableRequestBody, tt.disableResponseBody)
 			ctxLogger = builder.New(ctx)
 
-			requestFlag, ok := ctxLogger.Get(string(common.DisableTraceRequestBodyKey))
+			requestFlag, ok := ctxLogger.Get(common.DisableTraceRequestBodyKey)
 			if !ok || requestFlag != tt.disableRequestBody {
 				t.Fatalf("%q = %#v, want %#v", common.DisableTraceRequestBodyKey, requestFlag, tt.disableRequestBody)
 			}
-			responseFlag, ok := ctxLogger.Get(string(common.DisableTraceResponseBodyKey))
+			responseFlag, ok := ctxLogger.Get(common.DisableTraceResponseBodyKey)
 			if !ok || responseFlag != tt.disableResponseBody {
 				t.Fatalf("%q = %#v, want %#v", common.DisableTraceResponseBodyKey, responseFlag, tt.disableResponseBody)
 			}
