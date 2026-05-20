@@ -3,6 +3,7 @@
 **/coverage.html
 **/.gocache
 **/.idea
+/scripts
 .codex
 push.txt
 coverage_report.txt
