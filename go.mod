@@ -1,6 +1,6 @@
 module github.com/PointerByte/GoForge
 
-go 1.26.0
+go 1.25.0
 
 replace (
 	github.com/PointerByte/GoForge/encrypt => ./encrypt
