@@ -10,6 +10,12 @@ configuration, initializes `go.mod`, and runs `go mod tidy`.
 go install github.com/PointerByte/GoForge/cmd/qgo@latest
 ```
 
+Update the dependencies used by the current module:
+
+```bash
+go get -u ./...
+```
+
 ## Commands
 
 Create a Gin service:

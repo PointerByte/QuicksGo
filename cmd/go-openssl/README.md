@@ -11,6 +11,12 @@ envelopes that can later be read back by the CLI or the Go API.
 go install github.com/PointerByte/GoForge/cmd/go-openssl@latest
 ```
 
+Update the dependencies used by the current module:
+
+```bash
+go get -u ./...
+```
+
 ## Commands
 
 Generate PEM files:

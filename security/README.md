@@ -16,6 +16,12 @@ If your application also needs direct cryptographic operations, add:
 go get github.com/PointerByte/GoForge/encrypt
 ```
 
+Update the dependencies used by the current module:
+
+```bash
+go get -u ./...
+```
+
 ## Packages
 
 - `auth/jwt`: JWT creation, signature validation, claim decoding, and signing strategies
