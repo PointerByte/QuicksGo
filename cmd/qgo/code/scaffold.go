@@ -116,8 +116,8 @@ func promptRequired(reader *bufio.Reader, output io.Writer, label string, fallba
 }
 
 const (
-	defaultGoForgeVersion       = "v0.0.55"
-	defaultGoForgeLoggerVersion = "v0.0.12"
+	defaultGoForgeVersion       = "v0.0.75"
+	defaultGoForgeLoggerVersion = "v0.0.29"
 )
 
 // promptConfigFormat resolves the config format, defaulting to YAML when the user leaves it blank.

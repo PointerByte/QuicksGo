@@ -11,6 +11,12 @@ luego pueden leerse desde la CLI o desde la API Go.
 go install github.com/PointerByte/GoForge/cmd/go-openssl@latest
 ```
 
+Actualizar las dependencias usadas por el modulo actual:
+
+```bash
+go get -u ./...
+```
+
 ## Comandos
 
 Generar archivos PEM:

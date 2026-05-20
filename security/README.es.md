@@ -16,6 +16,12 @@ Si tu aplicacion tambien necesita operaciones criptograficas directas, agrega:
 go get github.com/PointerByte/GoForge/encrypt
 ```
 
+Actualizar las dependencias usadas por el modulo actual:
+
+```bash
+go get -u ./...
+```
+
 ## Paquetes
 
 - `auth/jwt`: creacion JWT, validacion de firma, lectura de claims y estrategias de firma

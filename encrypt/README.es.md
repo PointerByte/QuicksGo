@@ -11,6 +11,12 @@ por proveedores cloud.
 go get github.com/PointerByte/GoForge/encrypt
 ```
 
+Actualizar las dependencias usadas por el modulo actual:
+
+```bash
+go get -u ./...
+```
+
 ## Paquetes
 
 - `github.com/PointerByte/GoForge/encrypt`: interfaces compartidas y wrapper de repositorio compuesto

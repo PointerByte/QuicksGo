@@ -50,6 +50,12 @@ go get github.com/PointerByte/GoForge/security
 go get github.com/PointerByte/GoForge/encrypt
 ```
 
+Update the dependencies used by the current module:
+
+```bash
+go get -u ./...
+```
+
 Install the CLIs:
 
 ```bash

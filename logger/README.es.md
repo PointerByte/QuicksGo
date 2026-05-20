@@ -11,6 +11,12 @@ interceptores gRPC para logs asociados al request.
 go get github.com/PointerByte/GoForge/logger
 ```
 
+Actualizar las dependencias usadas por el modulo actual:
+
+```bash
+go get -u ./...
+```
+
 ## Paquetes
 
 - `builder`: inicializacion del logger, logging con contexto y secciones de traza

@@ -11,6 +11,12 @@ logs.
 go get github.com/PointerByte/GoForge/logger
 ```
 
+Update the dependencies used by the current module:
+
+```bash
+go get -u ./...
+```
+
 ## Packages
 
 - `builder`: logger initialization, context-aware logging, and trace sections
