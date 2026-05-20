@@ -68,10 +68,11 @@ examples: they include `hmac`, `rsa`, and `eddsa` to document the available
 options. Because multiple strategies are configured, they also include
 `jwt.algorithm`.
 
-Configured service inputs receive viper key names, not raw secret values. For
-example, `HMACSecretKey` points to the viper key that stores the HS256 secret.
-Use `jwtservice.New(jwtservice.WithHMACSHA256("secret"))` when you want to pass
-a secret directly.
+Configured service inputs can receive direct values through `HMACSecret`,
+`RSAPrivateKey`, `RSAPublicKey`, `EdDSAPrivateKey`, and `EdDSAPublicKey`. The
+`*Key` fields keep their legacy behavior: they point to viper keys, but RSA and
+EdDSA key fields also accept direct PEM paths or Base64-encoded DER values when
+no matching viper key exists.
 
 Example files:
 

@@ -760,6 +760,84 @@ func TestNewConfiguredServiceUsesViperAlgorithm(t *testing.T) {
 		}
 	})
 
+	t.Run("rs256 direct encoded keys override pem config", func(t *testing.T) {
+		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			t.Fatalf("expected rsa key without error, got %v", err)
+		}
+
+		privateDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
+		if err != nil {
+			t.Fatalf("expected private key marshal without error, got %v", err)
+		}
+
+		publicDER, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+		if err != nil {
+			t.Fatalf("expected public key marshal without error, got %v", err)
+		}
+
+		viper.Set(DefaultRSAPrivateKeyKey, "./certs/jwt/key.pem")
+		viper.Set(DefaultRSAPublicKeyKey, "./certs/jwt/public.pem")
+		defer viper.Reset()
+
+		service, err := NewConfiguredService(ConfigServiceInput{
+			Algorithm:     "RS256",
+			RSAPrivateKey: base64.StdEncoding.EncodeToString(privateDER),
+			RSAPublicKey:  base64.StdEncoding.EncodeToString(publicDER),
+		})
+		if err != nil {
+			t.Fatalf("expected service without error, got %v", err)
+		}
+
+		token, err := service.Create(testClaims{UserID: "2b", Role: "admin", Active: true})
+		if err != nil {
+			t.Fatalf("expected token without error, got %v", err)
+		}
+
+		if err := service.ValidateSignature(token); err != nil {
+			t.Fatalf("expected valid signature, got %v", err)
+		}
+	})
+
+	t.Run("rs256 legacy key fields accept direct encoded values", func(t *testing.T) {
+		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			t.Fatalf("expected rsa key without error, got %v", err)
+		}
+
+		privateDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
+		if err != nil {
+			t.Fatalf("expected private key marshal without error, got %v", err)
+		}
+
+		publicDER, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+		if err != nil {
+			t.Fatalf("expected public key marshal without error, got %v", err)
+		}
+
+		privateValue := base64.StdEncoding.EncodeToString(privateDER)
+		publicValue := base64.StdEncoding.EncodeToString(publicDER)
+		defer viper.Reset()
+
+		service, err := NewConfiguredService(ConfigServiceInput{
+			Algorithm:        "RS256",
+			RSAPrivateKeyKey: &privateValue,
+			RSAPublicKeyKey:  &publicValue,
+		})
+		if err != nil {
+			t.Fatalf("expected service without error, got %v", err)
+		}
+
+		token, err := service.Create(testClaims{UserID: "2c", Role: "admin", Active: true})
+		if err != nil {
+			t.Fatalf("expected token without error, got %v", err)
+		}
+
+		if err := service.ValidateSignature(token); err != nil {
+			t.Fatalf("expected valid signature, got %v", err)
+		}
+	})
+
 	t.Run("ps256", func(t *testing.T) {
 		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
@@ -823,6 +901,45 @@ func TestNewConfiguredServiceUsesViperAlgorithm(t *testing.T) {
 		}
 
 		token, err := service.Create(testClaims{UserID: "4", Role: "admin", Active: true})
+		if err != nil {
+			t.Fatalf("expected token without error, got %v", err)
+		}
+
+		if err := service.ValidateSignature(token); err != nil {
+			t.Fatalf("expected valid signature, got %v", err)
+		}
+	})
+
+	t.Run("eddsa direct encoded keys override pem config", func(t *testing.T) {
+		publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			t.Fatalf("expected ed25519 key without error, got %v", err)
+		}
+
+		privateDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
+		if err != nil {
+			t.Fatalf("expected private key marshal without error, got %v", err)
+		}
+
+		publicDER, err := x509.MarshalPKIXPublicKey(publicKey)
+		if err != nil {
+			t.Fatalf("expected public key marshal without error, got %v", err)
+		}
+
+		viper.Set(DefaultEdDSAPrivateKeyKey, "./certs/jwt/ed25519-key.pem")
+		viper.Set(DefaultEdDSAPublicKeyKey, "./certs/jwt/ed25519-public.pem")
+		defer viper.Reset()
+
+		service, err := NewConfiguredService(ConfigServiceInput{
+			Algorithm:       "EdDSA",
+			EdDSAPrivateKey: base64.StdEncoding.EncodeToString(privateDER),
+			EdDSAPublicKey:  base64.StdEncoding.EncodeToString(publicDER),
+		})
+		if err != nil {
+			t.Fatalf("expected service without error, got %v", err)
+		}
+
+		token, err := service.Create(testClaims{UserID: "4b", Role: "admin", Active: true})
 		if err != nil {
 			t.Fatalf("expected token without error, got %v", err)
 		}

@@ -15,6 +15,7 @@ import (
 	jwtservice "github.com/PointerByte/GoForge/security/auth/jwt"
 	"github.com/PointerByte/GoForge/security/middlewares"
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 )
 
 func TestNewRouterHealthEndpoints(t *testing.T) {
@@ -210,6 +211,40 @@ func TestNewServices(t *testing.T) {
 
 	if hmacService == nil || rsaService == nil {
 		t.Fatal("expected non-nil services")
+	}
+}
+
+func TestEnsureDefaultRSAKeysReplacesMissingPEMPlaceholders(t *testing.T) {
+	viper.Reset()
+	defer viper.Reset()
+
+	viper.Set(rsaPrivateKeyKey, "./certs/jwt/key.pem")
+	viper.Set(rsaPublicKeyKey, "./certs/jwt/public.pem")
+
+	if err := ensureDefaultRSAKeys(); err != nil {
+		t.Fatalf("expected rsa config without error, got %v", err)
+	}
+
+	if strings.HasSuffix(viper.GetString(rsaPrivateKeyKey), ".pem") {
+		t.Fatalf("expected generated private key, got %q", viper.GetString(rsaPrivateKeyKey))
+	}
+	if strings.HasSuffix(viper.GetString(rsaPublicKeyKey), ".pem") {
+		t.Fatalf("expected generated public key, got %q", viper.GetString(rsaPublicKeyKey))
+	}
+
+	service, err := jwtservice.NewConfiguredService(jwtservice.ConfigServiceInput{
+		Algorithm: "RS256",
+	})
+	if err != nil {
+		t.Fatalf("expected rsa service without error, got %v", err)
+	}
+
+	token, err := service.Create(sessionClaims{UserID: "42", Role: "admin"})
+	if err != nil {
+		t.Fatalf("expected token without error, got %v", err)
+	}
+	if err := service.ValidateSignature(token); err != nil {
+		t.Fatalf("expected valid signature, got %v", err)
 	}
 }
 

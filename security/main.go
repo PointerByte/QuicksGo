@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	jwtservice "github.com/PointerByte/GoForge/security/auth/jwt"
@@ -125,7 +126,7 @@ func ensureDefaultHMACSecret() error {
 }
 
 func ensureDefaultRSAKeys() error {
-	if viper.GetString(rsaPrivateKeyKey) != "" && viper.GetString(rsaPublicKeyKey) != "" {
+	if hasUsableRSAConfig(viper.GetString(rsaPrivateKeyKey), viper.GetString(rsaPublicKeyKey)) {
 		return nil
 	}
 
@@ -147,6 +148,22 @@ func ensureDefaultRSAKeys() error {
 	viper.Set(rsaPrivateKeyKey, base64.StdEncoding.EncodeToString(privateDER))
 	viper.Set(rsaPublicKeyKey, base64.StdEncoding.EncodeToString(publicDER))
 	return nil
+}
+
+func hasUsableRSAConfig(privateKey string, publicKey string) bool {
+	return hasUsableRSAConfigValue(privateKey) && hasUsableRSAConfigValue(publicKey)
+}
+
+func hasUsableRSAConfigValue(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	if strings.HasSuffix(strings.ToLower(value), ".pem") {
+		_, err := os.Stat(value)
+		return err == nil
+	}
+	return true
 }
 
 func configureViper() {

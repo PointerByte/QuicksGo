@@ -67,10 +67,11 @@ Los archivos `application.yaml` y `application.json` de este modulo son ejemplos
 completos: incluyen `hmac`, `rsa` y `eddsa` para documentar las opciones. Como
 hay varias estrategias configuradas, tambien incluyen `jwt.algorithm`.
 
-Los inputs configurados reciben nombres de claves de viper, no valores crudos
-de secretos. Por ejemplo, `HMACSecretKey` apunta a la clave de viper donde vive
-el secreto HS256. Usa `jwtservice.New(jwtservice.WithHMACSHA256("secret"))`
-cuando quieras pasar un secreto directamente.
+Los inputs configurados pueden recibir valores directos con `HMACSecret`,
+`RSAPrivateKey`, `RSAPublicKey`, `EdDSAPrivateKey` y `EdDSAPublicKey`. Los
+campos `*Key` conservan su comportamiento legacy: apuntan a claves de viper,
+pero las llaves RSA y EdDSA tambien aceptan rutas PEM o valores DER codificados
+en Base64 cuando no existe una clave de viper con ese nombre.
 
 Archivos de ejemplo:
 

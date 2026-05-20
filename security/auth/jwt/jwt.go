@@ -194,6 +194,12 @@ type RSAServiceInput struct {
 	PrivateKey *rsa.PrivateKey
 	// PublicKey verifies RS256 token signatures when provided.
 	PublicKey *rsa.PublicKey
+	// PrivateKeyValue is a configured RSA private key value used directly when
+	// PrivateKey is nil. It may be a PEM file path or a Base64-encoded DER key.
+	PrivateKeyValue string
+	// PublicKeyValue is a configured RSA public key value used directly when
+	// PublicKey is nil. It may be a PEM file path or a Base64-encoded DER key.
+	PublicKeyValue string
 	// PrivateKeyEnv is the viper key used to read the private key when PrivateKey is nil.
 	PrivateKeyEnv string
 	// PublicKeyEnv is the viper key used to read the public key when PublicKey is nil.
@@ -208,6 +214,14 @@ type Ed25519ServiceInput struct {
 	PrivateKey ed25519.PrivateKey
 	// PublicKey verifies EdDSA token signatures when provided.
 	PublicKey ed25519.PublicKey
+	// PrivateKeyValue is a configured Ed25519 private key value used directly
+	// when PrivateKey is empty. It may be a PEM file path or a Base64-encoded
+	// DER key.
+	PrivateKeyValue string
+	// PublicKeyValue is a configured Ed25519 public key value used directly
+	// when PublicKey is empty. It may be a PEM file path or a Base64-encoded
+	// DER key.
+	PublicKeyValue string
 	// PrivateKeyEnv is the viper key used to read the private key when PrivateKey is nil.
 	PrivateKeyEnv string
 	// PublicKeyEnv is the viper key used to read the public key when PublicKey is nil.
@@ -224,6 +238,20 @@ type ConfigServiceInput struct {
 	Algorithm string
 	// algorithmKey is the viper key used to read Algorithm when Algorithm is empty.
 	algorithmKey string
+	// HMACSecret is the HS256 shared key used directly when provided.
+	HMACSecret string
+	// RSAPrivateKey is the RSA private key value used directly when provided.
+	// It may be a PEM file path or a Base64-encoded DER key.
+	RSAPrivateKey string
+	// RSAPublicKey is the RSA public key value used directly when provided.
+	// It may be a PEM file path or a Base64-encoded DER key.
+	RSAPublicKey string
+	// EdDSAPrivateKey is the Ed25519 private key value used directly when provided.
+	// It may be a PEM file path or a Base64-encoded DER key.
+	EdDSAPrivateKey string
+	// EdDSAPublicKey is the Ed25519 public key value used directly when provided.
+	// It may be a PEM file path or a Base64-encoded DER key.
+	EdDSAPublicKey string
 	// HMACSecretKey is the viper key used to read the HS256 shared key.
 	HMACSecretKey *string
 	// RSAPrivateKeyKey is the viper key used to read the RSA private key.
@@ -274,26 +302,33 @@ func NewConfiguredService(input ConfigServiceInput) (*Service, error) {
 	switch algorithm {
 	case "HS256":
 		return NewHMACService(HMACServiceInput{
+			Secret:    input.HMACSecret,
 			SecretEnv: stringPtrOrDefault(input.HMACSecretKey, DefaultHMACSecretKey),
 			Validator: input.Validator,
 		})
 	case "RS256":
 		return NewRSAService(RSAServiceInput{
-			PrivateKeyEnv: stringPtrOrDefault(input.RSAPrivateKeyKey, DefaultRSAPrivateKeyKey),
-			PublicKeyEnv:  stringPtrOrDefault(input.RSAPublicKeyKey, DefaultRSAPublicKeyKey),
-			Validator:     input.Validator,
+			PrivateKeyValue: input.RSAPrivateKey,
+			PublicKeyValue:  input.RSAPublicKey,
+			PrivateKeyEnv:   stringPtrOrDefault(input.RSAPrivateKeyKey, DefaultRSAPrivateKeyKey),
+			PublicKeyEnv:    stringPtrOrDefault(input.RSAPublicKeyKey, DefaultRSAPublicKeyKey),
+			Validator:       input.Validator,
 		})
 	case "PS256":
 		return NewRSAPSSService(RSAServiceInput{
-			PrivateKeyEnv: stringPtrOrDefault(input.RSAPrivateKeyKey, DefaultRSAPrivateKeyKey),
-			PublicKeyEnv:  stringPtrOrDefault(input.RSAPublicKeyKey, DefaultRSAPublicKeyKey),
-			Validator:     input.Validator,
+			PrivateKeyValue: input.RSAPrivateKey,
+			PublicKeyValue:  input.RSAPublicKey,
+			PrivateKeyEnv:   stringPtrOrDefault(input.RSAPrivateKeyKey, DefaultRSAPrivateKeyKey),
+			PublicKeyEnv:    stringPtrOrDefault(input.RSAPublicKeyKey, DefaultRSAPublicKeyKey),
+			Validator:       input.Validator,
 		})
 	case "EDDSA":
 		return NewEd25519Service(Ed25519ServiceInput{
-			PrivateKeyEnv: stringPtrOrDefault(input.EdDSAPrivateKeyKey, DefaultEdDSAPrivateKeyKey),
-			PublicKeyEnv:  stringPtrOrDefault(input.EdDSAPublicKeyKey, DefaultEdDSAPublicKeyKey),
-			Validator:     input.Validator,
+			PrivateKeyValue: input.EdDSAPrivateKey,
+			PublicKeyValue:  input.EdDSAPublicKey,
+			PrivateKeyEnv:   stringPtrOrDefault(input.EdDSAPrivateKeyKey, DefaultEdDSAPrivateKeyKey),
+			PublicKeyEnv:    stringPtrOrDefault(input.EdDSAPublicKeyKey, DefaultEdDSAPublicKeyKey),
+			Validator:       input.Validator,
 		})
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedAlg, algorithm)
@@ -304,19 +339,23 @@ func inferConfiguredAlgorithm(input ConfigServiceInput) string {
 	candidates := make([]string, 0, 3)
 
 	hmacSecretKey := stringPtrOrDefault(input.HMACSecretKey, DefaultHMACSecretKey)
-	if viper.GetString(hmacSecretKey) != "" {
+	if input.HMACSecret != "" || configValueFromViperOrDirect(hmacSecretKey) != "" {
 		candidates = append(candidates, "HS256")
 	}
 
 	rsaPrivateKeyKey := stringPtrOrDefault(input.RSAPrivateKeyKey, DefaultRSAPrivateKeyKey)
 	rsaPublicKeyKey := stringPtrOrDefault(input.RSAPublicKeyKey, DefaultRSAPublicKeyKey)
-	if viper.GetString(rsaPrivateKeyKey) != "" || viper.GetString(rsaPublicKeyKey) != "" {
+	if input.RSAPrivateKey != "" || input.RSAPublicKey != "" ||
+		configValueFromViperOrDirect(rsaPrivateKeyKey) != "" ||
+		configValueFromViperOrDirect(rsaPublicKeyKey) != "" {
 		candidates = append(candidates, "RS256")
 	}
 
 	eddsaPrivateKeyKey := stringPtrOrDefault(input.EdDSAPrivateKeyKey, DefaultEdDSAPrivateKeyKey)
 	eddsaPublicKeyKey := stringPtrOrDefault(input.EdDSAPublicKeyKey, DefaultEdDSAPublicKeyKey)
-	if viper.GetString(eddsaPrivateKeyKey) != "" || viper.GetString(eddsaPublicKeyKey) != "" {
+	if input.EdDSAPrivateKey != "" || input.EdDSAPublicKey != "" ||
+		configValueFromViperOrDirect(eddsaPrivateKeyKey) != "" ||
+		configValueFromViperOrDirect(eddsaPublicKeyKey) != "" {
 		candidates = append(candidates, "EDDSA")
 	}
 
@@ -331,7 +370,7 @@ func NewRSAPSSService(input RSAServiceInput) (*Service, error) {
 	privateKey := input.PrivateKey
 	privateKeyConfig := stringOrDefault(input.PrivateKeyEnv, DefaultRSAPrivateKeyKey)
 	if privateKey == nil {
-		value := viper.GetString(privateKeyConfig)
+		value := firstNonEmptyString(input.PrivateKeyValue, configValueFromViperOrDirect(privateKeyConfig))
 		if value != "" {
 			parsedKey, err := parseRSAPrivateKeyFromConfig(value)
 			if err != nil {
@@ -344,7 +383,7 @@ func NewRSAPSSService(input RSAServiceInput) (*Service, error) {
 	publicKey := input.PublicKey
 	publicKeyConfig := stringOrDefault(input.PublicKeyEnv, DefaultRSAPublicKeyKey)
 	if publicKey == nil {
-		value := viper.GetString(publicKeyConfig)
+		value := firstNonEmptyString(input.PublicKeyValue, configValueFromViperOrDirect(publicKeyConfig))
 		if value != "" {
 			parsedKey, err := parseRSAPublicKeyFromConfig(value)
 			if err != nil {
@@ -366,7 +405,7 @@ func NewEd25519Service(input Ed25519ServiceInput) (*Service, error) {
 	privateKey := input.PrivateKey
 	privateKeyConfig := stringOrDefault(input.PrivateKeyEnv, DefaultEdDSAPrivateKeyKey)
 	if privateKey == nil {
-		value := viper.GetString(privateKeyConfig)
+		value := firstNonEmptyString(input.PrivateKeyValue, configValueFromViperOrDirect(privateKeyConfig))
 		if value != "" {
 			parsedKey, err := parseEd25519PrivateKeyFromConfig(value)
 			if err != nil {
@@ -379,7 +418,7 @@ func NewEd25519Service(input Ed25519ServiceInput) (*Service, error) {
 	publicKey := input.PublicKey
 	publicKeyConfig := stringOrDefault(input.PublicKeyEnv, DefaultEdDSAPublicKeyKey)
 	if publicKey == nil {
-		value := viper.GetString(publicKeyConfig)
+		value := firstNonEmptyString(input.PublicKeyValue, configValueFromViperOrDirect(publicKeyConfig))
 		if value != "" {
 			parsedKey, err := parseEd25519PublicKeyFromConfig(value)
 			if err != nil {
@@ -420,7 +459,7 @@ func NewRSAService(input RSAServiceInput) (*Service, error) {
 	privateKey := input.PrivateKey
 	privateKeyConfig := stringOrDefault(input.PrivateKeyEnv, DefaultRSAPrivateKeyKey)
 	if privateKey == nil {
-		value := viper.GetString(privateKeyConfig)
+		value := firstNonEmptyString(input.PrivateKeyValue, configValueFromViperOrDirect(privateKeyConfig))
 		if value != "" {
 			parsedKey, err := parseRSAPrivateKeyFromConfig(value)
 			if err != nil {
@@ -433,7 +472,7 @@ func NewRSAService(input RSAServiceInput) (*Service, error) {
 	publicKey := input.PublicKey
 	publicKeyConfig := stringOrDefault(input.PublicKeyEnv, DefaultRSAPublicKeyKey)
 	if publicKey == nil {
-		value := viper.GetString(publicKeyConfig)
+		value := firstNonEmptyString(input.PublicKeyValue, configValueFromViperOrDirect(publicKeyConfig))
 		if value != "" {
 			parsedKey, err := parseRSAPublicKeyFromConfig(value)
 			if err != nil {
@@ -999,6 +1038,7 @@ func decodeSegment(value string) ([]byte, error) {
 }
 
 func parseRSAPrivateKeyFromConfig(value string) (*rsa.PrivateKey, error) {
+	value = strings.TrimSpace(value)
 	if shouldReadPEMFile(value) {
 		return utilities.ParseRSAPrivateKeyFromPEMFile(value)
 	}
@@ -1006,6 +1046,7 @@ func parseRSAPrivateKeyFromConfig(value string) (*rsa.PrivateKey, error) {
 }
 
 func parseRSAPublicKeyFromConfig(value string) (*rsa.PublicKey, error) {
+	value = strings.TrimSpace(value)
 	if shouldReadPEMFile(value) {
 		return utilities.ParseRSAPublicKeyFromPEMFile(value)
 	}
@@ -1013,6 +1054,7 @@ func parseRSAPublicKeyFromConfig(value string) (*rsa.PublicKey, error) {
 }
 
 func parseEd25519PrivateKeyFromConfig(value string) (ed25519.PrivateKey, error) {
+	value = strings.TrimSpace(value)
 	if shouldReadPEMFile(value) {
 		return utilities.ParseEd25519PrivateKeyFromPEMFile(value)
 	}
@@ -1020,6 +1062,7 @@ func parseEd25519PrivateKeyFromConfig(value string) (ed25519.PrivateKey, error) 
 }
 
 func parseEd25519PublicKeyFromConfig(value string) (ed25519.PublicKey, error) {
+	value = strings.TrimSpace(value)
 	if shouldReadPEMFile(value) {
 		return utilities.ParseEd25519PublicKeyFromPEMFile(value)
 	}
@@ -1039,6 +1082,40 @@ func shouldReadPEMFile(value string) bool {
 		return true
 	}
 	return false
+}
+
+func configValueFromViperOrDirect(config string) string {
+	value := viper.GetString(config)
+	if value != "" {
+		return value
+	}
+	if looksLikeDirectConfigValue(config) {
+		return strings.TrimSpace(config)
+	}
+	return ""
+}
+
+func looksLikeDirectConfigValue(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	if shouldReadPEMFile(value) {
+		return true
+	}
+	if _, err := base64.StdEncoding.DecodeString(value); err == nil {
+		return true
+	}
+	return false
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func stringOrDefault(value string, fallback string) string {
