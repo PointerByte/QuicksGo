@@ -161,12 +161,12 @@ if err != nil {
 	panic(err)
 }
 
-cipherText, err := repository.ECC_Encode(ctx, keys.PublicKey, "hello")
+cipherText, err := repository.ECDH_Encode(ctx, keys.PublicKey, "hello")
 if err != nil {
 	panic(err)
 }
 
-plainText, err := repository.ECC_Decode(ctx, keys.KeyID, cipherText)
+plainText, err := repository.ECDH_Decode(ctx, keys.KeyID, cipherText)
 if err != nil {
 	panic(err)
 }

@@ -309,9 +309,9 @@ func (asymmetricRepository) RSA_OAEP_Decode(ctx context.Context, privateKey, cip
 	})
 }
 
-// ECC_Encode encrypts plaintext with ECDH-derived AES-GCM using a Base64-
+// ECDH_Encode encrypts plaintext with ECDH-derived AES-GCM using a Base64-
 // encoded ECC public key.
-func (repository asymmetricRepository) ECC_Encode(ctx context.Context, publicKey, text string) (string, error) {
+func (repository asymmetricRepository) ECDH_Encode(ctx context.Context, publicKey, text string) (string, error) {
 	return runWithContext(ctx, func() (string, error) {
 		recipientPublicKey, err := utilities.ParseECDHPublicKeyFromBase64(publicKey)
 		if err != nil {
@@ -361,9 +361,9 @@ func (repository asymmetricRepository) ECC_Encode(ctx context.Context, publicKey
 	})
 }
 
-// ECC_Decode decrypts ciphertext produced by ECC_Encode with a Base64-encoded
+// ECDH_Decode decrypts ciphertext produced by ECDH_Encode with a Base64-encoded
 // ECC private key.
-func (repository asymmetricRepository) ECC_Decode(ctx context.Context, privateKey, cipherText string) (string, error) {
+func (repository asymmetricRepository) ECDH_Decode(ctx context.Context, privateKey, cipherText string) (string, error) {
 	return runWithContext(ctx, func() (string, error) {
 		recipientPrivateKey, err := utilities.ParseECDHPrivateKeyFromBase64(privateKey)
 		if err != nil {

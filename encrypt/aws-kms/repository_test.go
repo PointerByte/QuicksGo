@@ -363,16 +363,16 @@ func TestAsymmetricAndSignatureProviderFlows(t *testing.T) {
 	if eccKeyData == nil || eccKeyData.PublicKey == "" || eccKeyData.KeyRef == "" || eccKeyData.Provider != "aws-kms" {
 		t.Fatalf("GenerateECCKeys() = %#v, want public key metadata", eccKeyData)
 	}
-	eccCiphertext, err := asymmetricRepository.ECC_Encode(testContext, eccKeyData.KeyRef, "payload")
+	eccCiphertext, err := asymmetricRepository.ECDH_Encode(testContext, eccKeyData.KeyRef, "payload")
 	if err != nil {
-		t.Fatalf("ECC_Encode() error = %v", err)
+		t.Fatalf("ECDH_Encode() error = %v", err)
 	}
-	eccPlaintext, err := asymmetricRepository.ECC_Decode(testContext, eccKeyData.KeyRef, eccCiphertext)
+	eccPlaintext, err := asymmetricRepository.ECDH_Decode(testContext, eccKeyData.KeyRef, eccCiphertext)
 	if err != nil {
-		t.Fatalf("ECC_Decode() error = %v", err)
+		t.Fatalf("ECDH_Decode() error = %v", err)
 	}
 	if eccPlaintext != "payload" {
-		t.Fatalf("ECC_Decode() = %q, want %q", eccPlaintext, "payload")
+		t.Fatalf("ECDH_Decode() = %q, want %q", eccPlaintext, "payload")
 	}
 
 	signature, err := signatureRepository.SignRSAPSS(testContext, keyData.KeyRef, "payload")
@@ -595,14 +595,14 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 	if _, err := asymmetricRepository.RSA_OAEP_Decode(testContext, "", base64.StdEncoding.EncodeToString([]byte("cipher"))); err == nil {
 		t.Fatal("expected RSA_OAEP_Decode() provider error")
 	}
-	if _, err := asymmetricRepository.ECC_Encode(testContext, "", "payload"); err == nil {
-		t.Fatal("expected ECC_Encode() provider error")
+	if _, err := asymmetricRepository.ECDH_Encode(testContext, "", "payload"); err == nil {
+		t.Fatal("expected ECDH_Encode() provider error")
 	}
-	if _, err := asymmetricRepository.ECC_Decode(testContext, "", "%%%"); err == nil {
-		t.Fatal("expected ECC_Decode() payload error")
+	if _, err := asymmetricRepository.ECDH_Decode(testContext, "", "%%%"); err == nil {
+		t.Fatal("expected ECDH_Decode() payload error")
 	}
-	if _, err := asymmetricRepository.ECC_Decode(testContext, "", base64.StdEncoding.EncodeToString([]byte("{}"))); err == nil {
-		t.Fatal("expected ECC_Decode() provider error")
+	if _, err := asymmetricRepository.ECDH_Decode(testContext, "", base64.StdEncoding.EncodeToString([]byte("{}"))); err == nil {
+		t.Fatal("expected ECDH_Decode() provider error")
 	}
 
 	if _, err := signatureRepository.GenerateEd255Keys(testContext); err == nil {
@@ -659,12 +659,12 @@ func TestAWSKMSProviderErrorsAndFallbacks(t *testing.T) {
 	if _, err := asymmetricRepository.RSA_OAEP_Decode(testContext, privateB64, ciphertext); err != nil {
 		t.Fatalf("RSA_OAEP_Decode() local fallback error = %v", err)
 	}
-	eccCiphertext, err := asymmetricRepository.ECC_Encode(testContext, eccPublicB64, "payload")
+	eccCiphertext, err := asymmetricRepository.ECDH_Encode(testContext, eccPublicB64, "payload")
 	if err != nil {
-		t.Fatalf("ECC_Encode() local fallback error = %v", err)
+		t.Fatalf("ECDH_Encode() local fallback error = %v", err)
 	}
-	if plaintext, err := asymmetricRepository.ECC_Decode(testContext, eccPrivateB64, eccCiphertext); err != nil || plaintext != "payload" {
-		t.Fatalf("ECC_Decode() local fallback = %q, %v", plaintext, err)
+	if plaintext, err := asymmetricRepository.ECDH_Decode(testContext, eccPrivateB64, eccCiphertext); err != nil || plaintext != "payload" {
+		t.Fatalf("ECDH_Decode() local fallback = %q, %v", plaintext, err)
 	}
 	signature, err := signatureRepository.SignRSAPSS(testContext, privateB64, "payload")
 	if err != nil {
@@ -710,11 +710,11 @@ func TestAWSKMSOperationsReturnLoadConfigErrors(t *testing.T) {
 	if _, err := asymmetricRepository.RSA_OAEP_Decode(testContext, "arn", base64.StdEncoding.EncodeToString([]byte("cipher"))); err == nil {
 		t.Fatal("expected RSA_OAEP_Decode() config error")
 	}
-	if _, err := asymmetricRepository.ECC_Encode(testContext, "arn", "payload"); err == nil {
-		t.Fatal("expected ECC_Encode() config error")
+	if _, err := asymmetricRepository.ECDH_Encode(testContext, "arn", "payload"); err == nil {
+		t.Fatal("expected ECDH_Encode() config error")
 	}
-	if _, err := asymmetricRepository.ECC_Decode(testContext, "arn", base64.StdEncoding.EncodeToString([]byte("{}"))); err == nil {
-		t.Fatal("expected ECC_Decode() config error")
+	if _, err := asymmetricRepository.ECDH_Decode(testContext, "arn", base64.StdEncoding.EncodeToString([]byte("{}"))); err == nil {
+		t.Fatal("expected ECDH_Decode() config error")
 	}
 	if _, err := signatureRepository.SignRSAPSS(testContext, "arn", "payload"); err == nil {
 		t.Fatal("expected SignRSAPSS() config error")
