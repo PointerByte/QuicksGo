@@ -362,16 +362,16 @@ func (repository *asymmetricRepository) RSA_OAEP_Decode(ctx context.Context, pri
 	return string(response.Result), nil
 }
 
-func (repository *asymmetricRepository) ECC_Encode(ctx context.Context, publicKey, text string) (string, error) {
+func (repository *asymmetricRepository) ECDH_Encode(ctx context.Context, publicKey, text string) (string, error) {
 	if _, err := utilities.ParseECDHPublicKeyFromBase64(publicKey); err == nil {
-		return repository.local.ECC_Encode(ctx, publicKey, text)
+		return repository.local.ECDH_Encode(ctx, publicKey, text)
 	}
 	return "", errAzureECCUnsupported
 }
 
-func (repository *asymmetricRepository) ECC_Decode(ctx context.Context, privateKey, cipherText string) (string, error) {
+func (repository *asymmetricRepository) ECDH_Decode(ctx context.Context, privateKey, cipherText string) (string, error) {
 	if _, err := utilities.ParseECDHPrivateKeyFromBase64(privateKey); err == nil {
-		return repository.local.ECC_Decode(ctx, privateKey, cipherText)
+		return repository.local.ECDH_Decode(ctx, privateKey, cipherText)
 	}
 	return "", errAzureECCUnsupported
 }

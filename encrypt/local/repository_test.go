@@ -198,16 +198,16 @@ func TestAsymmetricAndSignatureRepositories(t *testing.T) {
 		t.Fatalf("ECC public key curve = %v, want P-256", eccPublicKey.Curve())
 	}
 
-	eccCiphertext, err := asymmetricRepository.ECC_Encode(testContext, eccKeyData.PublicKey, "hello")
+	eccCiphertext, err := asymmetricRepository.ECDH_Encode(testContext, eccKeyData.PublicKey, "hello")
 	if err != nil {
-		t.Fatalf("ECC_Encode() error = %v", err)
+		t.Fatalf("ECDH_Encode() error = %v", err)
 	}
-	eccPlaintext, err := asymmetricRepository.ECC_Decode(testContext, eccKeyData.KeyID, eccCiphertext)
+	eccPlaintext, err := asymmetricRepository.ECDH_Decode(testContext, eccKeyData.KeyID, eccCiphertext)
 	if err != nil {
-		t.Fatalf("ECC_Decode() error = %v", err)
+		t.Fatalf("ECDH_Decode() error = %v", err)
 	}
 	if eccPlaintext != "hello" {
-		t.Fatalf("ECC_Decode() = %q, want %q", eccPlaintext, "hello")
+		t.Fatalf("ECDH_Decode() = %q, want %q", eccPlaintext, "hello")
 	}
 
 	signature, err := signatureRepository.SignRSAPSS(testContext, mustMarshalPKCS8RSAPrivateKey(t, privateKey), "payload")
@@ -273,24 +273,24 @@ func TestAsymmetricAndSignatureRepositoryErrors(t *testing.T) {
 	if _, err := asymmetricRepository.GenerateECCKeys(testContext, "P-111"); err == nil {
 		t.Fatal("expected GenerateECCKeys() error")
 	}
-	if _, err := asymmetricRepository.ECC_Encode(testContext, "%%%", "payload"); err == nil {
-		t.Fatal("expected ECC_Encode() key error")
+	if _, err := asymmetricRepository.ECDH_Encode(testContext, "%%%", "payload"); err == nil {
+		t.Fatal("expected ECDH_Encode() key error")
 	}
-	if _, err := asymmetricRepository.ECC_Decode(testContext, "%%%", "payload"); err == nil {
-		t.Fatal("expected ECC_Decode() key error")
+	if _, err := asymmetricRepository.ECDH_Decode(testContext, "%%%", "payload"); err == nil {
+		t.Fatal("expected ECDH_Decode() key error")
 	}
-	if _, err := asymmetricRepository.ECC_Decode(testContext, mustECCPrivateKeyBase64(t, ecdh.P256()), "%%%"); err == nil {
-		t.Fatal("expected ECC_Decode() payload error")
+	if _, err := asymmetricRepository.ECDH_Decode(testContext, mustECCPrivateKeyBase64(t, ecdh.P256()), "%%%"); err == nil {
+		t.Fatal("expected ECDH_Decode() payload error")
 	}
 	p256Private := mustECCPrivateKeyBase64(t, ecdh.P256())
 	p521Private := mustECCPrivateKeyBase64(t, ecdh.P521())
 	p256Public := mustECCPublicKeyBase64(t, p256Private)
-	eccCiphertext, err := asymmetricRepository.ECC_Encode(testContext, p256Public, "payload")
+	eccCiphertext, err := asymmetricRepository.ECDH_Encode(testContext, p256Public, "payload")
 	if err != nil {
-		t.Fatalf("ECC_Encode() error = %v", err)
+		t.Fatalf("ECDH_Encode() error = %v", err)
 	}
-	if _, err := asymmetricRepository.ECC_Decode(testContext, p521Private, eccCiphertext); err == nil {
-		t.Fatal("expected ECC_Decode() curve mismatch error")
+	if _, err := asymmetricRepository.ECDH_Decode(testContext, p521Private, eccCiphertext); err == nil {
+		t.Fatal("expected ECDH_Decode() curve mismatch error")
 	}
 
 	if _, err := signatureRepository.SignEd25519(testContext, "%%%", "payload"); err == nil {

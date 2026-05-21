@@ -201,12 +201,12 @@ func TestAzureRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	}
 	localECCPrivate := mustAzureECCPrivateBase64(t, ecdh.P256())
 	localECCPublic := mustAzureECCPublicBase64(t, localECCPrivate)
-	localEccCiphertext, err := repository.ECC_Encode(context.Background(), localECCPublic, "payload")
+	localEccCiphertext, err := repository.ECDH_Encode(context.Background(), localECCPublic, "payload")
 	if err != nil {
-		t.Fatalf("ECC_Encode() local fallback error = %v", err)
+		t.Fatalf("ECDH_Encode() local fallback error = %v", err)
 	}
-	if plaintext, err := repository.ECC_Decode(context.Background(), localECCPrivate, localEccCiphertext); err != nil || plaintext != "payload" {
-		t.Fatalf("ECC_Decode() local fallback = %q, %v", plaintext, err)
+	if plaintext, err := repository.ECDH_Decode(context.Background(), localECCPrivate, localEccCiphertext); err != nil || plaintext != "payload" {
+		t.Fatalf("ECDH_Decode() local fallback = %q, %v", plaintext, err)
 	}
 	localPSSSignature, err := repository.SignRSAPSS(context.Background(), localRSAPrivate, "payload")
 	if err != nil {
@@ -360,11 +360,11 @@ func TestAzureRepositoryErrorBranches(t *testing.T) {
 	if _, err := asymmetricRepository.GenerateECCKeys(context.Background(), common.CurveP256); !errors.Is(err, errAzureECCUnsupported) {
 		t.Fatalf("GenerateECCKeys() error = %v", err)
 	}
-	if _, err := asymmetricRepository.ECC_Encode(context.Background(), "https://vault.test/keys/default-key/v1", "payload"); !errors.Is(err, errAzureECCUnsupported) {
-		t.Fatalf("ECC_Encode() error = %v", err)
+	if _, err := asymmetricRepository.ECDH_Encode(context.Background(), "https://vault.test/keys/default-key/v1", "payload"); !errors.Is(err, errAzureECCUnsupported) {
+		t.Fatalf("ECDH_Encode() error = %v", err)
 	}
-	if _, err := asymmetricRepository.ECC_Decode(context.Background(), "https://vault.test/keys/default-key/v1", "payload"); !errors.Is(err, errAzureECCUnsupported) {
-		t.Fatalf("ECC_Decode() error = %v", err)
+	if _, err := asymmetricRepository.ECDH_Decode(context.Background(), "https://vault.test/keys/default-key/v1", "payload"); !errors.Is(err, errAzureECCUnsupported) {
+		t.Fatalf("ECDH_Decode() error = %v", err)
 	}
 	if _, err := signatureRepository.SignEd25519(context.Background(), "https://vault.test/keys/default-key/v1", "payload"); !errors.Is(err, errAzureEd25519Unsupported) {
 		t.Fatalf("SignEd25519() error = %v", err)

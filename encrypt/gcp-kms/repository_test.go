@@ -232,12 +232,12 @@ func TestGCPRepositoryProviderFlowsAndHelpers(t *testing.T) {
 	}
 	localECCPrivate := mustGCPECCPrivateBase64(t, ecdh.P256())
 	localECCPublic := mustGCPECCPublicBase64(t, localECCPrivate)
-	localEccCiphertext, err := repository.ECC_Encode(context.Background(), localECCPublic, "payload")
+	localEccCiphertext, err := repository.ECDH_Encode(context.Background(), localECCPublic, "payload")
 	if err != nil {
-		t.Fatalf("ECC_Encode() local fallback error = %v", err)
+		t.Fatalf("ECDH_Encode() local fallback error = %v", err)
 	}
-	if plaintext, err := repository.ECC_Decode(context.Background(), localECCPrivate, localEccCiphertext); err != nil || plaintext != "payload" {
-		t.Fatalf("ECC_Decode() local fallback = %q, %v", plaintext, err)
+	if plaintext, err := repository.ECDH_Decode(context.Background(), localECCPrivate, localEccCiphertext); err != nil || plaintext != "payload" {
+		t.Fatalf("ECDH_Decode() local fallback = %q, %v", plaintext, err)
 	}
 	localPSSSignature, err := repository.SignRSAPSS(context.Background(), localRSAPrivate, "payload")
 	if err != nil {
@@ -396,11 +396,11 @@ func TestGCPRepositoryErrorBranches(t *testing.T) {
 	if _, err := asymmetricRepository.GenerateECCKeys(context.Background(), common.CurveP256); !errors.Is(err, errGCPECCUnsupported) {
 		t.Fatalf("GenerateECCKeys() error = %v", err)
 	}
-	if _, err := asymmetricRepository.ECC_Encode(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1", "payload"); !errors.Is(err, errGCPECCUnsupported) {
-		t.Fatalf("ECC_Encode() error = %v", err)
+	if _, err := asymmetricRepository.ECDH_Encode(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1", "payload"); !errors.Is(err, errGCPECCUnsupported) {
+		t.Fatalf("ECDH_Encode() error = %v", err)
 	}
-	if _, err := asymmetricRepository.ECC_Decode(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1", "payload"); !errors.Is(err, errGCPECCUnsupported) {
-		t.Fatalf("ECC_Decode() error = %v", err)
+	if _, err := asymmetricRepository.ECDH_Decode(context.Background(), "projects/test/locations/global/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1", "payload"); !errors.Is(err, errGCPECCUnsupported) {
+		t.Fatalf("ECDH_Decode() error = %v", err)
 	}
 	if got := hashRepository.HMAC(context.Background(), viper.GetString(defaultGCPKeyIDKey), "message"); got != "" {
 		t.Fatalf("HMAC() = %q, want empty string on provider error", got)

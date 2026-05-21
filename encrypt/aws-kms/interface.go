@@ -37,12 +37,12 @@ type AsymmetricRepository interface {
 	// RSA_OAEP_Decode decrypts Base64 ciphertext with a KMS key id/ARN or a
 	// Base64 RSA private key.
 	RSA_OAEP_Decode(ctx context.Context, privateKey, cipherText string) (string, error)
-	// ECC_Encode encrypts plaintext using a local ECC public key or an AWS KMS
+	// ECDH_Encode encrypts plaintext using a local ECC public key or an AWS KMS
 	// key-agreement key, deriving an AES-GCM key through ECDH.
-	ECC_Encode(ctx context.Context, publicKey, text string) (string, error)
-	// ECC_Decode decrypts ciphertext produced by ECC_Encode using a local ECC
+	ECDH_Encode(ctx context.Context, publicKey, text string) (string, error)
+	// ECDH_Decode decrypts ciphertext produced by ECDH_Encode using a local ECC
 	// private key or an AWS KMS key-agreement key reference.
-	ECC_Decode(ctx context.Context, privateKey, cipherText string) (string, error)
+	ECDH_Decode(ctx context.Context, privateKey, cipherText string) (string, error)
 }
 
 type HashRepository interface {

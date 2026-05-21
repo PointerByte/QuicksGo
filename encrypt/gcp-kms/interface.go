@@ -35,12 +35,12 @@ type AsymmetricRepository interface {
 	// RSA_OAEP_Decode decrypts ciphertext produced by RSA_OAEP_Encode using a
 	// GCP KMS key reference or a Base64 RSA private key.
 	RSA_OAEP_Decode(ctx context.Context, privateKey, cipherText string) (string, error)
-	// ECC_Encode encrypts plaintext with a supported provider-backed ECC key or
+	// ECDH_Encode encrypts plaintext with a supported provider-backed ECC key or
 	// falls back to a local Base64 ECC public key.
-	ECC_Encode(ctx context.Context, publicKey, text string) (string, error)
-	// ECC_Decode decrypts ciphertext produced by ECC_Encode using a supported
+	ECDH_Encode(ctx context.Context, publicKey, text string) (string, error)
+	// ECDH_Decode decrypts ciphertext produced by ECDH_Encode using a supported
 	// provider-backed ECC key or a local Base64 ECC private key.
-	ECC_Decode(ctx context.Context, privateKey, cipherText string) (string, error)
+	ECDH_Decode(ctx context.Context, privateKey, cipherText string) (string, error)
 }
 
 type HashRepository interface {

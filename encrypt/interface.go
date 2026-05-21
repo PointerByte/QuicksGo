@@ -39,12 +39,12 @@ type AsymmetricRepository interface {
 	// RSA_OAEP_Decode decrypts Base64 ciphertext with a Base64-encoded RSA
 	// private key.
 	RSA_OAEP_Decode(ctx context.Context, privateKey, cipherText string) (string, error)
-	// ECC_Encode encrypts plaintext using an ECC public key with an ECDH-derived
+	// ECDH_Encode encrypts plaintext using an ECC public key with an ECDH-derived
 	// AES-GCM key and returns an encoded payload.
-	ECC_Encode(ctx context.Context, publicKey, text string) (string, error)
-	// ECC_Decode decrypts ciphertext produced by ECC_Encode using the matching
+	ECDH_Encode(ctx context.Context, publicKey, text string) (string, error)
+	// ECDH_Decode decrypts ciphertext produced by ECDH_Encode using the matching
 	// ECC private key.
-	ECC_Decode(ctx context.Context, privateKey, cipherText string) (string, error)
+	ECDH_Decode(ctx context.Context, privateKey, cipherText string) (string, error)
 }
 
 // HashRepository exposes hashing and message-authentication helpers.
